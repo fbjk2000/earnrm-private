@@ -155,6 +155,100 @@ const SettingsPage = () => {
     }
   };
 
+  const handleSaveDealStages = async () => {
+    try {
+      await axios.put(`${API}/organizations/settings`, { deal_stages: dealStages }, {
+        headers,
+        withCredentials: true
+      });
+      toast.success('Deal stages saved');
+      setEditingStages(false);
+      fetchOrgSettings();
+    } catch (error) {
+      toast.error('Failed to save deal stages');
+    }
+  };
+
+  const handleToggleAffiliate = async (enabled) => {
+    try {
+      await axios.put(`${API}/organizations/settings`, { affiliate_enabled: enabled }, {
+        headers,
+        withCredentials: true
+      });
+      toast.success(enabled ? 'Affiliate program enabled' : 'Affiliate program disabled');
+      fetchOrgSettings();
+    } catch (error) {
+      toast.error('Failed to update affiliate settings');
+    }
+  };
+
+  const handleEnrollAffiliate = async () => {
+    try {
+      await axios.post(`${API}/affiliate/enroll`, {}, {
+        headers,
+        withCredentials: true
+      });
+      toast.success('Successfully enrolled as affiliate!');
+      fetchAffiliateStatus();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to enroll');
+    }
+  };
+
+  const handleUnenrollAffiliate = async () => {
+    if (!confirm('Are you sure you want to leave the affiliate program?')) return;
+    try {
+      await axios.post(`${API}/affiliate/unenroll`, {}, {
+        headers,
+        withCredentials: true
+      });
+      toast.success('Successfully unenrolled from affiliate program');
+      fetchAffiliateStatus();
+    } catch (error) {
+      toast.error('Failed to unenroll');
+    }
+  };
+
+  const handleUpdateMemberRole = async (userId, newRole) => {
+    try {
+      await axios.put(`${API}/organizations/members/${userId}/role?role=${newRole}`, {}, {
+        headers,
+        withCredentials: true
+      });
+      toast.success('Member role updated');
+      fetchMembers();
+      if (newRole === 'owner') {
+        await checkAuth(); // Refresh current user's role
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to update role');
+    }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
+  };
+
+  const addDealStage = () => {
+    const newStage = {
+      id: `stage_${Date.now()}`,
+      name: 'New Stage',
+      order: dealStages.length + 1
+    };
+    setDealStages([...dealStages, newStage]);
+  };
+
+  const removeDealStage = (index) => {
+    setDealStages(dealStages.filter((_, i) => i !== index));
+  };
+
+  const updateDealStage = (index, field, value) => {
+    const updated = [...dealStages];
+    updated[index] = { ...updated[index], [field]: value };
+    setDealStages(updated);
+  };
+
   const handleLogout = async () => {
     await logout();
     window.location.href = '/';
