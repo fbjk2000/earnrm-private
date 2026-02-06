@@ -349,6 +349,90 @@ const SettingsPage = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Affiliate Section */}
+            {orgSettings?.affiliate_enabled && (
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Gift className="w-5 h-5" />
+                    Affiliate Program
+                  </CardTitle>
+                  <CardDescription>Earn commissions by referring new customers</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {affiliateStatus?.enrolled ? (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <p className="text-sm font-medium text-emerald-800 mb-2">Your Referral Link</p>
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            value={affiliateStatus.referral_link} 
+                            readOnly 
+                            className="font-mono text-sm"
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => copyToClipboard(affiliateStatus.referral_link)}
+                          >
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="p-3 bg-slate-50 rounded-lg text-center">
+                          <p className="text-2xl font-bold text-slate-900">{affiliateStatus.affiliate?.total_referrals || 0}</p>
+                          <p className="text-xs text-slate-500">Total Referrals</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded-lg text-center">
+                          <p className="text-2xl font-bold text-emerald-600">€{(affiliateStatus.affiliate?.total_earnings || 0).toFixed(2)}</p>
+                          <p className="text-xs text-slate-500">Total Earnings</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded-lg text-center">
+                          <p className="text-2xl font-bold text-amber-600">€{(affiliateStatus.affiliate?.pending_earnings || 0).toFixed(2)}</p>
+                          <p className="text-xs text-slate-500">Pending</p>
+                        </div>
+                      </div>
+
+                      {affiliateStatus.referrals?.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-slate-700 mb-2">Recent Referrals</p>
+                          <div className="space-y-2">
+                            {affiliateStatus.referrals.slice(0, 5).map((ref, idx) => (
+                              <div key={idx} className="flex items-center justify-between p-2 bg-slate-50 rounded text-sm">
+                                <span className="text-slate-600">{ref.referred_user_id}</span>
+                                <Badge variant={ref.commission_status === 'paid' ? 'default' : 'secondary'}>
+                                  €{ref.commission_amount?.toFixed(2)} - {ref.commission_status}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <Button 
+                        variant="outline" 
+                        className="text-rose-600 border-rose-200"
+                        onClick={handleUnenrollAffiliate}
+                      >
+                        Leave Affiliate Program
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <Gift className="w-12 h-12 mx-auto text-indigo-400 mb-3" />
+                      <p className="text-slate-600 mb-4">Join our affiliate program and earn 20% commission on referrals!</p>
+                      <Button onClick={handleEnrollAffiliate} className="bg-indigo-600 hover:bg-indigo-700">
+                        <Link className="w-4 h-4 mr-2" />
+                        Become an Affiliate
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Organization Tab */}
