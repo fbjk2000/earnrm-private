@@ -1,0 +1,112 @@
+{
+  "identity": {
+    "name": "upmuch",
+    "aesthetic": "Cupertino Zen",
+    "core_values": ["Simplicity", "Upward Momentum", "Clarity", "Teamwork"],
+    "emotional_tone": "Fresh Air, Efficient, Trustworthy, Premium Tech"
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Satoshi, 'General Sans', sans-serif",
+      "weights": ["500", "600", "700"],
+      "tracking": "tracking-tight",
+      "usage": "Use for all H1-H6. H1 should be text-5xl or text-6xl on landing page."
+    },
+    "body": {
+      "font_family": "'Geist Sans', Inter, sans-serif",
+      "weights": ["400", "500"],
+      "tracking": "tracking-normal",
+      "usage": "Use for all paragraphs, labels, and UI text."
+    }
+  },
+  "colors": {
+    "primary": {
+      "name": "Electric Indigo",
+      "hex": "#4F46E5",
+      "tailwind": "indigo-600",
+      "hover": "indigo-700",
+      "usage": "Primary CTAs, active states, key brand elements."
+    },
+    "secondary": {
+      "name": "Slate",
+      "hex": "#64748B",
+      "tailwind": "slate-500",
+      "usage": "Secondary text, icons, borders."
+    },
+    "background": {
+      "light": "#FFFFFF",
+      "dark": "#09090B",
+      "subtle_light": "#F8FAFC",
+      "subtle_dark": "#18181B"
+    },
+    "accents": {
+      "success": "emerald-500",
+      "error": "rose-500",
+      "warning": "amber-500",
+      "info": "sky-500"
+    },
+    "glass": {
+      "light": "bg-white/70 backdrop-blur-xl border-white/20",
+      "dark": "bg-black/60 backdrop-blur-xl border-white/10"
+    }
+  },
+  "layout": {
+    "landing_page": {
+      "grid_system": "Tetris Grid (Bento)",
+      "spacing": "Generous (py-24, gap-8)",
+      "container": "max-w-7xl mx-auto px-6"
+    },
+    "dashboard": {
+      "structure": "Sidebar Navigation (Glass) + Main Content Area",
+      "card_style": "bg-white border border-slate-100 shadow-sm rounded-xl p-6",
+      "grid_gap": "gap-6"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg h-10 px-6 font-medium transition-all shadow-sm hover:shadow-md",
+      "secondary": "bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 rounded-lg h-10 px-6 font-medium transition-all",
+      "ghost": "text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg h-10 px-4 font-medium transition-all"
+    },
+    "inputs": {
+      "default": "h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    },
+    "cards": {
+      "default": "rounded-xl border border-slate-200 bg-white text-slate-950 shadow-sm"
+    }
+  },
+  "images": {
+    "hero": {
+      "url": "https://images.unsplash.com/photo-1665355347530-9d81d4bb1ba3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMHVwd2FyZCUyMGdyb3d0aCUyMDNkJTIwbWluaW1hbGlzdCUyMHdoaXRlJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NzAzMDMzMzh8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Abstract white cubes representing structure and growth",
+      "usage": "Hero section background or floating element"
+    },
+    "team_collaboration": {
+      "url": "https://images.unsplash.com/photo-1537655949728-d4e1c7c7bf90?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBtaW5pbWFsaXN0JTIwb2ZmaWNlJTIwdGVhbSUyMGNvbGxhYm9yYXRpb258ZW58MHx8fHwxNzcwMzAzMzQzfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Minimalist workspace with MacBook",
+      "usage": "Features section, 'Work smarter' block"
+    },
+    "testimonials": [
+      {
+        "url": "https://images.unsplash.com/photo-1675526607070-f5cbd71dde92?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHNtaWxpbmclMjBkaXZlcnNlfGVufDB8fHx8MTc3MDIxMDk4OHww&ixlib=rb-4.1.0&q=85",
+        "alt": "Smiling professional woman"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1755190897791-7040dfdb988f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHNtaWxpbmclMjBkaXZlcnNlfGVufDB8fHx8MTc3MDIxMDk4OHww&ixlib=rb-4.1.0&q=85",
+        "alt": "Smiling professional man"
+      }
+    ]
+  },
+  "universal_guidelines": [
+    "Avoid 'AI slop' - no generic gradients, no centered text everywhere.",
+    "Use 2-3x more spacing than typical designs.",
+    "Glassmorphism must be crisp (backdrop-blur-xl), not muddy.",
+    "Animations: Use micro-interactions for every hover/click.",
+    "Dark colors look good when used independently without gradients.",
+    "Do not center align the app container.",
+    "Use 'sonner' for toasts.",
+    "Use 'lucide-react' for icons.",
+    "All interactive elements MUST have data-testid attributes."
+  ],
+  "instructions_to_main_agent": "Follow the 'Cupertino Zen' aesthetic. Build the Landing Page with the 'Tetris' grid. Build the Dashboard with a clean, glassmorphism sidebar and card-based layout. Use the provided image URLs. Do not ask for clarification."
+}

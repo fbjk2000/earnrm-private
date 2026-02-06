@@ -1,0 +1,770 @@
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '../components/ui/button';
+import { Card, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { toast } from 'sonner';
+import axios from 'axios';
+import {
+  Users,
+  Target,
+  Mail,
+  BarChart3,
+  Zap,
+  Shield,
+  ArrowRight,
+  Check,
+  Star,
+  Linkedin,
+  Menu,
+  X,
+  Download,
+  Gift,
+  BookOpen
+} from 'lucide-react';
+
+const API = process.env.REACT_APP_BACKEND_URL + '/api';
+
+const LandingPage = () => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLeadMagnet, setShowLeadMagnet] = useState(false);
+  const [leadMagnetEmail, setLeadMagnetEmail] = useState('');
+  const [leadMagnetName, setLeadMagnetName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [downloadReady, setDownloadReady] = useState(false);
+
+  const handleLeadMagnetSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      const response = await axios.post(`${API}/lead-magnet/subscribe`, {
+        email: leadMagnetEmail,
+        first_name: leadMagnetName,
+        source: 'linkedin_guide'
+      });
+
+      if (response.data.success) {
+        setDownloadReady(true);
+        toast.success('Success! Your guide is ready to download.');
+      }
+    } catch (error) {
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDownload = () => {
+    // Create a sample PDF guide content
+    const guideContent = `
+LINKEDIN LEAD GENERATION PLAYBOOK
+By upmuch.com
+
+=================================
+THE ULTIMATE GUIDE TO B2B LEADS
+=================================
+
+CHAPTER 1: OPTIMIZING YOUR PROFILE
+----------------------------------
+• Use a professional headshot
+• Write a compelling headline (not just your job title)
+• Add keywords to your summary for searchability
+• Showcase results and achievements
+
+CHAPTER 2: FINDING YOUR IDEAL PROSPECTS
+---------------------------------------
+• Use LinkedIn Sales Navigator filters
+• Search by job title, company size, industry
+• Look at "People Also Viewed" sections
+• Join relevant LinkedIn groups
+
+CHAPTER 3: CONNECTION REQUEST STRATEGIES
+----------------------------------------
+• Always personalize your request
+• Reference mutual connections or interests
+• Keep it short (under 300 characters)
+• Don't pitch in the first message
+
+CHAPTER 4: ENGAGEMENT TACTICS
+-----------------------------
+• Comment thoughtfully on prospects' posts
+• Share valuable content regularly
+• Use polls to spark conversations
+• Celebrate prospects' achievements
+
+CHAPTER 5: CONVERSION TECHNIQUES
+--------------------------------
+• Build rapport before pitching
+• Offer value first (insights, introductions)
+• Use soft CTAs ("Would you be open to...")
+• Move conversations to email or calls
+
+CHAPTER 6: AUTOMATION & TOOLS
+-----------------------------
+• Use upmuch CRM for lead tracking
+• Import LinkedIn connections via CSV
+• Set up automated follow-up sequences
+• Track engagement with AI scoring
+
+BONUS: 10 CONNECTION REQUEST TEMPLATES
+--------------------------------------
+1. "Hi [Name], I noticed we're both in [industry]..."
+2. "Hi [Name], loved your post about [topic]..."
+3. "Hi [Name], we have [X] mutual connections..."
+4. "Hi [Name], I'm building my network of [role]..."
+5. "Hi [Name], your work at [company] caught my eye..."
+
+=================================
+Start your free trial at upmuch.com
+=================================
+    `;
+
+    // Create blob and download
+    const blob = new Blob([guideContent], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'LinkedIn_Lead_Generation_Playbook_upmuch.txt';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    toast.success('Guide downloaded! Check your downloads folder.');
+    setShowLeadMagnet(false);
+    setDownloadReady(false);
+    setLeadMagnetEmail('');
+    setLeadMagnetName('');
+  };
+
+  const features = [
+    {
+      icon: <Users className="w-6 h-6" />,
+      title: 'Lead Management',
+      description: 'Capture, organize, and nurture leads from LinkedIn and other sources with AI-powered scoring.'
+    },
+    {
+      icon: <Target className="w-6 h-6" />,
+      title: 'Deal Pipeline',
+      description: 'Visual Kanban boards to track deals from prospect to close. Never lose sight of opportunities.'
+    },
+    {
+      icon: <Mail className="w-6 h-6" />,
+      title: 'Email Campaigns',
+      description: 'AI-assisted email drafting and campaign management. Connect with Kit.com for automation.'
+    },
+    {
+      icon: <BarChart3 className="w-6 h-6" />,
+      title: 'Smart Analytics',
+      description: 'Real-time insights into your sales pipeline, team performance, and revenue forecasts.'
+    },
+    {
+      icon: <Zap className="w-6 h-6" />,
+      title: 'AI Assistant',
+      description: 'Let AI score leads, draft emails, and surface insights so you can focus on closing.'
+    },
+    {
+      icon: <Linkedin className="w-6 h-6" />,
+      title: 'LinkedIn Integration',
+      description: 'Import contacts via CSV or scrape profiles. Build your pipeline from the world\'s largest B2B network.'
+    }
+  ];
+
+  const testimonials = [
+    {
+      quote: "upmuch transformed how we handle leads. The AI scoring saves us hours every week.",
+      author: "Sarah Chen",
+      role: "Head of Sales, TechFlow",
+      image: "https://images.unsplash.com/photo-1675526607070-f5cbd71dde92?w=100&h=100&fit=crop&crop=faces"
+    },
+    {
+      quote: "Finally, a CRM that doesn't require a PhD to use. Simple, powerful, effective.",
+      author: "Marcus Williams",
+      role: "Founder, GrowthLab",
+      image: "https://images.unsplash.com/photo-1755190897791-7040dfdb988f?w=100&h=100&fit=crop&crop=faces"
+    }
+  ];
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-slate-200/50">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-between h-16">
+            <Link to="/" className="flex items-center space-x-2" data-testid="logo-link">
+              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">U</span>
+              </div>
+              <span className="text-xl font-semibold text-slate-900">upmuch</span>
+            </Link>
+
+            {/* Desktop Nav */}
+            <div className="hidden md:flex items-center space-x-8">
+              <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors" data-testid="nav-features">Features</a>
+              <a href="#pricing" className="text-slate-600 hover:text-slate-900 transition-colors" data-testid="nav-pricing">Pricing</a>
+              <a href="#testimonials" className="text-slate-600 hover:text-slate-900 transition-colors" data-testid="nav-testimonials">Testimonials</a>
+              <Link to="/support" className="text-slate-600 hover:text-slate-900 transition-colors" data-testid="nav-support">Support</Link>
+              <button
+                onClick={() => setShowLeadMagnet(true)}
+                className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors flex items-center gap-1"
+                data-testid="nav-free-guide"
+              >
+                <Gift className="w-4 h-4" />
+                Free Guide
+              </button>
+            </div>
+
+            <div className="hidden md:flex items-center space-x-4">
+              <Link to="/login">
+                <Button variant="ghost" data-testid="login-btn">Log in</Button>
+              </Link>
+              <Link to="/signup">
+                <Button className="bg-indigo-600 hover:bg-indigo-700" data-testid="get-started-btn">
+                  Get Started Free
+                </Button>
+              </Link>
+            </div>
+
+            {/* Mobile menu button */}
+            <button
+              className="md:hidden p-2"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              data-testid="mobile-menu-btn"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-t border-slate-200 py-4 px-6">
+            <div className="flex flex-col space-y-4">
+              <a href="#features" className="text-slate-600 hover:text-slate-900">Features</a>
+              <a href="#pricing" className="text-slate-600 hover:text-slate-900">Pricing</a>
+              <a href="#testimonials" className="text-slate-600 hover:text-slate-900">Testimonials</a>
+              <Link to="/support" className="text-slate-600 hover:text-slate-900">Support</Link>
+              <button
+                onClick={() => { setShowLeadMagnet(true); setMobileMenuOpen(false); }}
+                className="text-indigo-600 font-medium text-left flex items-center gap-2"
+              >
+                <Gift className="w-4 h-4" />
+                Free LinkedIn Guide
+              </button>
+              <Link to="/login">
+                <Button variant="ghost" className="w-full justify-start">Log in</Button>
+              </Link>
+              <Link to="/signup">
+                <Button className="w-full bg-indigo-600 hover:bg-indigo-700">Get Started Free</Button>
+              </Link>
+            </div>
+          </div>
+        )}
+      </nav>
+
+      {/* Hero Section */}
+      <section className="pt-32 pb-20 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="space-y-8">
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-sm font-medium">
+                <Zap className="w-4 h-4 mr-2" />
+                AI-Powered CRM for Modern Teams
+              </div>
+              
+              <h1 className="text-5xl lg:text-6xl font-bold text-slate-900 tracking-tight leading-tight" data-testid="hero-title">
+                Sales & Marketing,
+                <span className="text-indigo-600"> Simplified</span>
+              </h1>
+              
+              <p className="text-lg text-slate-600 max-w-lg leading-relaxed" data-testid="hero-description">
+                The CRM that runs your marketing and sales department. LinkedIn lead generation, 
+                AI-powered insights, and team collaboration — without the complexity.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link to="/signup">
+                  <Button size="lg" className="bg-indigo-600 hover:bg-indigo-700 h-12 px-8" data-testid="hero-cta-primary">
+                    Start Free Trial
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </Link>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-12 px-8"
+                  onClick={() => setShowLeadMagnet(true)}
+                  data-testid="hero-cta-guide"
+                >
+                  <Download className="w-5 h-5 mr-2" />
+                  Get Free LinkedIn Guide
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-6 pt-4">
+                <div className="flex -space-x-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white" />
+                  ))}
+                </div>
+                <div>
+                  <div className="flex items-center">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
+                    ))}
+                  </div>
+                  <p className="text-sm text-slate-600">Trusted by 500+ teams</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-slate-200">
+                <img
+                  src="https://customer-assets.emergentagent.com/job_ec98bdb3-0edd-4c4d-a872-3506f378be5d/artifacts/dxg4md11_Goddess%20of%20Europe.png"
+                  alt="upmuch - European Business Excellence"
+                  className="w-full"
+                  data-testid="hero-image"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+              </div>
+              
+              {/* Floating card */}
+              <div className="absolute -bottom-6 -left-6 bg-white rounded-xl shadow-lg p-4 border border-slate-100 animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <Check className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">New Lead Scored</p>
+                    <p className="text-sm text-slate-500">AI Score: 87/100</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Lead Magnet Banner */}
+      <section className="py-12 px-6 bg-gradient-to-r from-indigo-600 to-purple-600">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <BookOpen className="w-8 h-8 text-white" />
+            <h2 className="text-2xl lg:text-3xl font-bold text-white" data-testid="lead-magnet-banner-title">
+              Free LinkedIn Lead Generation Playbook
+            </h2>
+          </div>
+          <p className="text-indigo-100 mb-6 max-w-2xl mx-auto">
+            Learn the exact strategies our top users use to generate 10x more qualified leads from LinkedIn. 
+            Includes templates, scripts, and automation tips.
+          </p>
+          <Button
+            size="lg"
+            className="bg-white text-indigo-600 hover:bg-indigo-50 h-12 px-8"
+            onClick={() => setShowLeadMagnet(true)}
+            data-testid="lead-magnet-banner-btn"
+          >
+            <Download className="w-5 h-5 mr-2" />
+            Download Free Guide
+          </Button>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-24 px-6 bg-slate-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4" data-testid="features-title">
+              Everything you need to grow
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              Inspired by the best of HubSpot and Salesforce, without the bloat. 
+              Simple tools that just work.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <Card
+                key={index}
+                className="bg-white border-slate-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                data-testid={`feature-card-${index}`}
+              >
+                <CardContent className="p-6">
+                  <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 mb-4">
+                    {feature.icon}
+                  </div>
+                  <h3 className="text-xl font-semibold text-slate-900 mb-2">{feature.title}</h3>
+                  <p className="text-slate-600">{feature.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-24 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4" data-testid="pricing-title">
+              Simple, transparent pricing
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              Start free with your team. Scale when you're ready.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {/* Free Plan */}
+            <Card className="border-slate-200" data-testid="pricing-free">
+              <CardContent className="p-8">
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">Starter</h3>
+                <p className="text-slate-600 mb-6">Perfect for small teams getting started</p>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-slate-900">€0</span>
+                  <span className="text-slate-600">/month</span>
+                </div>
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    Up to 3 users
+                  </li>
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    500 leads
+                  </li>
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    Basic AI scoring
+                  </li>
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    Email support
+                  </li>
+                </ul>
+                <Link to="/signup">
+                  <Button variant="outline" className="w-full" data-testid="pricing-free-btn">
+                    Get Started
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Pro Plan - Monthly */}
+            <Card className="border-2 border-indigo-600 relative" data-testid="pricing-pro">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                  Most Popular
+                </span>
+              </div>
+              <CardContent className="p-8">
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">Pro</h3>
+                <p className="text-slate-600 mb-6">For growing teams that need more power</p>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-slate-900">€15</span>
+                  <span className="text-slate-600">/user/month</span>
+                </div>
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    Unlimited users
+                  </li>
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    Unlimited leads
+                  </li>
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    Advanced AI features
+                  </li>
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    LinkedIn integration
+                  </li>
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    Priority support
+                  </li>
+                </ul>
+                <Link to="/signup">
+                  <Button className="w-full bg-indigo-600 hover:bg-indigo-700" data-testid="pricing-pro-btn">
+                    Start Free Trial
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Pro Plan - Annual */}
+            <Card className="border-slate-200 bg-slate-50" data-testid="pricing-annual">
+              <CardContent className="p-8">
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">Pro Annual</h3>
+                <p className="text-slate-600 mb-6">Save 20% with annual billing</p>
+                <div className="mb-2">
+                  <span className="text-4xl font-bold text-slate-900">€12</span>
+                  <span className="text-slate-600">/user/month</span>
+                </div>
+                <p className="text-emerald-600 font-medium mb-6">Save 20% annually</p>
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    Everything in Pro
+                  </li>
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    20% discount
+                  </li>
+                  <li className="flex items-center text-slate-600">
+                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    5% extra for crypto
+                  </li>
+                  <li className="flex items-center text-slate-600">
+                    <Shield className="w-5 h-5 text-indigo-500 mr-2" />
+                    Stripe, PayPal, ETH
+                  </li>
+                </ul>
+                <Link to="/pricing">
+                  <Button variant="outline" className="w-full" data-testid="pricing-annual-btn">
+                    View Details
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section id="testimonials" className="py-24 px-6 bg-slate-900">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4" data-testid="testimonials-title">
+              Loved by sales teams
+            </h2>
+            <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+              See what our customers have to say about upmuch.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {testimonials.map((testimonial, index) => (
+              <Card key={index} className="bg-slate-800 border-slate-700" data-testid={`testimonial-${index}`}>
+                <CardContent className="p-8">
+                  <div className="flex mb-4">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Star key={i} className="w-5 h-5 text-amber-400 fill-amber-400" />
+                    ))}
+                  </div>
+                  <p className="text-lg text-slate-300 mb-6">"{testimonial.quote}"</p>
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={testimonial.image}
+                      alt={testimonial.author}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                    <div>
+                      <p className="font-semibold text-white">{testimonial.author}</p>
+                      <p className="text-sm text-slate-400">{testimonial.role}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
+            Ready to transform your sales?
+          </h2>
+          <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
+            Join hundreds of teams using upmuch to close more deals with less effort.
+            Start your free trial today.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/signup">
+              <Button size="lg" className="bg-indigo-600 hover:bg-indigo-700 h-12 px-8" data-testid="cta-signup">
+                Start Free Trial
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </Link>
+            <Link to="/login">
+              <Button size="lg" variant="outline" className="h-12 px-8" data-testid="cta-login">
+                Sign In
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 px-6 bg-slate-900 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            {/* Company Info */}
+            <div className="md:col-span-2">
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">U</span>
+                </div>
+                <span className="text-xl font-semibold text-white">upmuch</span>
+              </div>
+              <p className="text-slate-400 text-sm mb-4">
+                AI-powered CRM for modern sales and marketing teams. Simplify your workflow, grow your business.
+              </p>
+              <div className="text-sm text-slate-500">
+                <p className="font-medium text-slate-400">Fintery Ltd.</p>
+                <p>Canbury Works, Units 6 and 7</p>
+                <p>Canbury Business Park, Elm Crescent</p>
+                <p>Kingston upon Thames, Surrey, KT2 6HJ, UK</p>
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="font-semibold text-white mb-4">Product</h4>
+              <div className="space-y-2 text-sm">
+                <a href="#features" className="block text-slate-400 hover:text-white transition-colors">Features</a>
+                <a href="#pricing" className="block text-slate-400 hover:text-white transition-colors">Pricing</a>
+                <Link to="/support" className="block text-slate-400 hover:text-white transition-colors">Support & FAQ</Link>
+                <button
+                  onClick={() => setShowLeadMagnet(true)}
+                  className="block text-slate-400 hover:text-white transition-colors text-left"
+                >
+                  Free Guide
+                </button>
+              </div>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="font-semibold text-white mb-4">Legal</h4>
+              <div className="space-y-2 text-sm">
+                <Link to="/support#legal" className="block text-slate-400 hover:text-white transition-colors">Terms of Service</Link>
+                <Link to="/support#legal" className="block text-slate-400 hover:text-white transition-colors">Privacy Policy</Link>
+                <Link to="/support#legal" className="block text-slate-400 hover:text-white transition-colors">Cookie Policy</Link>
+                <Link to="/support#contact" className="block text-slate-400 hover:text-white transition-colors">Contact Us</Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-sm text-slate-500">
+              © {new Date().getFullYear()} upmuch by Fintery Ltd. All rights reserved.
+            </p>
+            <p className="text-xs text-slate-600">
+              support@upmuch.com | Company No. registered in England & Wales
+            </p>
+          </div>
+        </div>
+      </footer>
+
+      {/* Lead Magnet Modal */}
+      <Dialog open={showLeadMagnet} onOpenChange={setShowLeadMagnet}>
+        <DialogContent className="max-w-md" data-testid="lead-magnet-modal">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <BookOpen className="w-6 h-6 text-indigo-600" />
+              Free LinkedIn Lead Generation Playbook
+            </DialogTitle>
+          </DialogHeader>
+          
+          {!downloadReady ? (
+            <form onSubmit={handleLeadMagnetSubmit} className="space-y-4 pt-4">
+              <div className="p-4 bg-indigo-50 rounded-lg mb-4">
+                <p className="text-sm text-indigo-800 font-medium mb-2">What you'll learn:</p>
+                <ul className="text-sm text-indigo-700 space-y-1">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    Profile optimization for lead gen
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    Connection request templates
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    Engagement & conversion tactics
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    Automation best practices
+                  </li>
+                </ul>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">First Name</label>
+                <Input
+                  type="text"
+                  placeholder="Your first name"
+                  value={leadMagnetName}
+                  onChange={(e) => setLeadMagnetName(e.target.value)}
+                  data-testid="lead-magnet-name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Email Address *</label>
+                <Input
+                  type="email"
+                  placeholder="you@company.com"
+                  value={leadMagnetEmail}
+                  onChange={(e) => setLeadMagnetEmail(e.target.value)}
+                  required
+                  data-testid="lead-magnet-email"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 h-12"
+                disabled={submitting}
+                data-testid="lead-magnet-submit"
+              >
+                {submitting ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Download className="w-5 h-5 mr-2" />
+                    Get Free Guide
+                  </>
+                )}
+              </Button>
+
+              <p className="text-xs text-center text-slate-500">
+                We'll also send you occasional tips. Unsubscribe anytime.
+              </p>
+            </form>
+          ) : (
+            <div className="text-center py-6">
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check className="w-8 h-8 text-emerald-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">You're all set!</h3>
+              <p className="text-slate-600 mb-6">
+                Click below to download your LinkedIn Lead Generation Playbook.
+              </p>
+              <Button
+                onClick={handleDownload}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 h-12"
+                data-testid="lead-magnet-download"
+              >
+                <Download className="w-5 h-5 mr-2" />
+                Download Playbook
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default LandingPage;

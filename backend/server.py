@@ -1,15 +1,24 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, timezone
-
+from datetime import datetime, timezone, timedelta
+import jwt
+import bcrypt
+import httpx
+import csv
+import io
+import asyncio
+import resend
+from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,52 +28,2925 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
-app = FastAPI()
+# JWT Settings
+JWT_SECRET = os.environ.get('JWT_SECRET', 'upmuch_secret_key')
+JWT_ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
+JWT_EXPIRY_HOURS = int(os.environ.get('JWT_EXPIRY_HOURS', 24))
+
+# Resend Email Configuration
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
+
+# Stripe Configuration
+STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
+
+# Subscription Plans (amounts in EUR)
+SUBSCRIPTION_PLANS = {
+    "monthly": {
+        "id": "monthly",
+        "name": "Pro Monthly",
+        "price": 15.00,
+        "currency": "eur",
+        "interval": "month",
+        "description": "€15 per user per month"
+    },
+    "annual": {
+        "id": "annual", 
+        "name": "Pro Annual",
+        "price": 144.00,  # €12/month * 12 = €144/year (20% discount)
+        "currency": "eur",
+        "interval": "year",
+        "description": "€12 per user per month (20% discount)"
+    }
+}
+
+# Create the main app
+app = FastAPI(title="upmuch CRM API")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+security = HTTPBearer(auto_error=False)
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# ==================== MODELS ====================
+
+class UserBase(BaseModel):
+    email: EmailStr
+    name: str
+    picture: Optional[str] = None
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    organization_name: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class User(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    user_id: str
+    email: EmailStr
+    name: str
+    picture: Optional[str] = None
+    organization_id: Optional[str] = None
+    role: str = "member"
+    created_at: datetime
+
+class Organization(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    organization_id: str
+    name: str
+    owner_id: str
+    plan: str = "free"
+    user_count: int = 1
+    max_free_users: int = 3
+    created_at: datetime
+
+class Lead(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    lead_id: str
+    organization_id: str
+    first_name: str
+    last_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    job_title: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    source: str = "manual"
+    status: str = "new"
+    ai_score: Optional[int] = None
+    notes: Optional[str] = None
+    assigned_to: Optional[str] = None
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+
+class LeadCreate(BaseModel):
+    first_name: str
+    last_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    job_title: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    source: str = "manual"
+    notes: Optional[str] = None
+
+class Company(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    company_id: str
+    organization_id: str
+    name: str
+    industry: Optional[str] = None
+    website: Optional[str] = None
+    size: Optional[str] = None
+    description: Optional[str] = None
+    created_by: str
+    created_at: datetime
+
+class CompanyCreate(BaseModel):
+    name: str
+    industry: Optional[str] = None
+    website: Optional[str] = None
+    size: Optional[str] = None
+    description: Optional[str] = None
+
+class Deal(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    deal_id: str
+    organization_id: str
+    name: str
+    value: float = 0
+    currency: str = "EUR"
+    stage: str = "lead"
+    probability: int = 0  # 0-100 percentage
+    lead_id: Optional[str] = None
+    company_id: Optional[str] = None
+    assigned_to: Optional[str] = None
+    expected_close_date: Optional[datetime] = None
+    tags: List[str] = []  # Tags for filtering
+    notes: Optional[str] = None
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+
+class DealCreate(BaseModel):
+    name: str
+    value: float = 0
+    currency: str = "EUR"
+    stage: str = "lead"
+    probability: int = 0
+    lead_id: Optional[str] = None
+    company_id: Optional[str] = None
+    expected_close_date: Optional[datetime] = None
+    tags: List[str] = []
+    notes: Optional[str] = None
+    # Mandatory task when creating a deal
+    task_title: str  # Required
+    task_owner_id: str  # Required - who owns the task
+    task_description: Optional[str] = None
+    task_due_date: Optional[datetime] = None
+
+class Task(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    task_id: str
+    organization_id: str
+    title: str
+    description: Optional[str] = None
+    status: str = "todo"
+    priority: str = "medium"
+    due_date: Optional[datetime] = None
+    assigned_to: Optional[str] = None
+    related_lead_id: Optional[str] = None
+    related_deal_id: Optional[str] = None
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+
+class TaskCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    status: str = "todo"
+    priority: str = "medium"
+    due_date: Optional[datetime] = None
+    assigned_to: Optional[str] = None
+    related_lead_id: Optional[str] = None
+    related_deal_id: Optional[str] = None
+
+class Campaign(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    campaign_id: str
+    organization_id: str
+    name: str
+    subject: str
+    content: str
+    status: str = "draft"
+    recipients: List[str] = []
+    sent_count: int = 0
+    open_count: int = 0
+    click_count: int = 0
+    created_by: str
+    created_at: datetime
+    scheduled_at: Optional[datetime] = None
+
+class CampaignCreate(BaseModel):
+    name: str
+    subject: str
+    content: str
+    recipients: List[str] = []
+    scheduled_at: Optional[datetime] = None
+
+class Subscription(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    subscription_id: str
+    organization_id: str
+    plan: str
+    billing_cycle: str = "monthly"
+    price_per_user: float = 15.0
+    discount_percent: float = 0
+    status: str = "active"
+    payment_method: str = "stripe"
+    current_period_start: datetime
+    current_period_end: datetime
+    created_at: datetime
+
+class PaymentTransaction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    transaction_id: str
+    organization_id: str
+    amount: float
+    currency: str = "EUR"
+    status: str = "pending"
+    payment_method: str
+    session_id: Optional[str] = None
+    metadata: Dict[str, Any] = {}
+    created_at: datetime
+
+# ==================== DISCOUNT & AFFILIATE MODELS ====================
+
+class DiscountCode(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    code_id: str
+    code: str  # The actual discount code string
+    discount_percent: float  # Percentage discount (0-100)
+    discount_type: str = "percentage"  # percentage, fixed_amount
+    fixed_amount: Optional[float] = None
+    valid_from: Optional[datetime] = None
+    valid_until: Optional[datetime] = None
+    max_uses: Optional[int] = None  # None = unlimited
+    current_uses: int = 0
+    applicable_plans: List[str] = []  # empty = all plans
+    created_by: str
+    created_at: datetime
+    is_active: bool = True
+
+class DiscountCodeCreate(BaseModel):
+    code: str
+    discount_percent: float = 0
+    discount_type: str = "percentage"
+    fixed_amount: Optional[float] = None
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    max_uses: Optional[int] = None
+    applicable_plans: List[str] = []
+
+class Affiliate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    affiliate_id: str
+    user_id: str  # The user who is an affiliate
+    affiliate_code: str  # Unique referral code
+    tier: int = 1  # 1, 2, or 3
+    parent_affiliate_id: Optional[str] = None  # For tier 2 & 3
+    grandparent_affiliate_id: Optional[str] = None  # For tier 3
+    commission_rate_tier1: float = 20.0  # Direct referral commission %
+    commission_rate_tier2: float = 10.0  # Tier 2 commission %
+    commission_rate_tier3: float = 5.0   # Tier 3 commission %
+    total_referrals: int = 0
+    total_earnings: float = 0
+    pending_earnings: float = 0
+    paid_earnings: float = 0
+    created_at: datetime
+    is_active: bool = True
+
+class AffiliateCreate(BaseModel):
+    user_id: str
+    affiliate_code: Optional[str] = None
+    parent_affiliate_id: Optional[str] = None
+    commission_rate_tier1: float = 20.0
+    commission_rate_tier2: float = 10.0
+    commission_rate_tier3: float = 5.0
+
+class AffiliateReferral(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    referral_id: str
+    affiliate_id: str  # Who referred
+    referred_user_id: str  # Who was referred
+    referred_org_id: Optional[str] = None
+    tier_level: int  # 1, 2, or 3
+    commission_amount: float = 0
+    commission_status: str = "pending"  # pending, paid, cancelled
+    payment_amount: float = 0  # The payment that triggered this
+    created_at: datetime
+
+class SuperAdminCreate(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+
+# ==================== SUPPORT & SETTINGS MODELS ====================
+
+class ContactFormSubmit(BaseModel):
+    name: str
+    email: EmailStr
+    subject: str
+    message: str
+
+class PlatformSettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    setting_id: str = "platform_settings"
+    support_email: str = "support@upmuch.com"
+    stripe_api_key: Optional[str] = None
+    paypal_client_id: Optional[str] = None
+    paypal_client_secret: Optional[str] = None
+    crypto_wallet_address: Optional[str] = None
+    # Pipeline stages configuration
+    deal_stages: List[dict] = [
+        {"id": "lead", "name": "Lead", "order": 1},
+        {"id": "qualified", "name": "Qualified", "order": 2},
+        {"id": "proposal", "name": "Proposal", "order": 3},
+        {"id": "negotiation", "name": "Negotiation", "order": 4},
+        {"id": "won", "name": "Won", "order": 5},
+        {"id": "lost", "name": "Lost", "order": 6}
+    ]
+    task_stages: List[dict] = [
+        {"id": "todo", "name": "To Do", "order": 1},
+        {"id": "in_progress", "name": "In Progress", "order": 2},
+        {"id": "done", "name": "Done", "order": 3}
+    ]
+    # UK VAT rate
+    vat_rate: float = 20.0
+    updated_at: Optional[datetime] = None
+
+# ==================== PAYMENT & INVOICE MODELS ====================
+
+class SubscriptionRequest(BaseModel):
+    plan_id: str  # "monthly" or "annual"
+    user_count: int = 1
+    discount_code: Optional[str] = None
+    use_crypto: bool = False  # If true, apply 5% crypto discount
+    origin_url: str  # Frontend origin for success/cancel URLs
+
+class PaymentTransaction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    transaction_id: str
+    organization_id: str
+    user_id: str
+    email: str
+    amount: float
+    currency: str
+    plan_id: str
+    user_count: int
+    discount_code: Optional[str] = None
+    discount_amount: float = 0
+    vat_amount: float = 0
+    vat_rate: float = 20.0
+    total_amount: float
+    stripe_session_id: str
+    payment_status: str = "pending"  # pending, paid, failed, expired
+    invoice_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+class Invoice(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    invoice_id: str
+    invoice_number: str
+    organization_id: str
+    user_id: str
+    email: str
+    billing_name: str
+    billing_address: Optional[str] = None
+    # Line items
+    plan_name: str
+    user_count: int
+    unit_price: float
+    subtotal: float
+    discount_code: Optional[str] = None
+    discount_amount: float = 0
+    net_amount: float
+    vat_rate: float = 20.0
+    vat_amount: float
+    total_amount: float
+    currency: str = "EUR"
+    # Status
+    status: str = "paid"  # draft, paid
+    transaction_id: str
+    stripe_session_id: str
+    # Dates
+    invoice_date: datetime
+    created_at: datetime
+
+# ==================== AUTH HELPERS ====================
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def create_jwt_token(user_id: str, email: str, organization_id: str = None) -> str:
+    payload = {
+        "user_id": user_id,
+        "email": email,
+        "organization_id": organization_id,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS)
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def decode_jwt_token(token: str) -> dict:
+    try:
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+async def get_current_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> dict:
+    # Check cookie first
+    session_token = request.cookies.get("session_token")
+    if session_token:
+        session = await db.user_sessions.find_one({"session_token": session_token}, {"_id": 0})
+        if session:
+            expires_at = session.get("expires_at")
+            if isinstance(expires_at, str):
+                expires_at = datetime.fromisoformat(expires_at)
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at > datetime.now(timezone.utc):
+                user = await db.users.find_one({"user_id": session["user_id"]}, {"_id": 0})
+                if user:
+                    return user
     
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Check Authorization header
+    if credentials:
+        token = credentials.credentials
+        payload = decode_jwt_token(token)
+        user = await db.users.find_one({"user_id": payload["user_id"]}, {"_id": 0})
+        if user:
+            return user
+    
+    raise HTTPException(status_code=401, detail="Not authenticated")
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+# Super Admin check helper
+SUPER_ADMIN_EMAIL = os.environ.get("SUPER_ADMIN_EMAIL", "florian@unyted.world")
 
-# Add your routes to the router instead of directly to app
+async def require_super_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    """Dependency that requires the user to be a super admin"""
+    if current_user.get("role") != "super_admin" and current_user.get("email") != SUPER_ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Super admin access required")
+    return current_user
+
+# ==================== AUTH ROUTES ====================
+
+@api_router.post("/auth/register")
+async def register(user_data: UserCreate, response: Response):
+    existing = await db.users.find_one({"email": user_data.email}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    # Create organization if name provided
+    organization_id = None
+    if user_data.organization_name:
+        organization_id = f"org_{uuid.uuid4().hex[:12]}"
+        org_doc = {
+            "organization_id": organization_id,
+            "name": user_data.organization_name,
+            "owner_id": user_id,
+            "plan": "free",
+            "user_count": 1,
+            "max_free_users": 3,
+            "created_at": now.isoformat()
+        }
+        await db.organizations.insert_one(org_doc)
+    
+    user_doc = {
+        "user_id": user_id,
+        "email": user_data.email,
+        "name": user_data.name,
+        "password_hash": hash_password(user_data.password),
+        "organization_id": organization_id,
+        "role": "owner" if organization_id else "member",
+        "created_at": now.isoformat()
+    }
+    await db.users.insert_one(user_doc)
+    
+    token = create_jwt_token(user_id, user_data.email, organization_id)
+    
+    return {
+        "user_id": user_id,
+        "email": user_data.email,
+        "name": user_data.name,
+        "organization_id": organization_id,
+        "token": token
+    }
+
+@api_router.post("/auth/login")
+async def login(credentials: UserLogin, response: Response):
+    user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
+    if not user or not verify_password(credentials.password, user.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    token = create_jwt_token(user["user_id"], user["email"], user.get("organization_id"))
+    
+    return {
+        "user_id": user["user_id"],
+        "email": user["email"],
+        "name": user["name"],
+        "organization_id": user.get("organization_id"),
+        "role": user.get("role", "member"),
+        "token": token
+    }
+
+@api_router.post("/auth/session")
+async def process_google_session(request: Request, response: Response):
+    body = await request.json()
+    session_id = body.get("session_id")
+    
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Session ID required")
+    
+    # Fetch session data from Emergent Auth
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+            headers={"X-Session-ID": session_id}
+        )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        session_data = resp.json()
+    
+    email = session_data["email"]
+    name = session_data.get("name", email.split("@")[0])
+    picture = session_data.get("picture")
+    session_token = session_data["session_token"]
+    
+    now = datetime.now(timezone.utc)
+    
+    # Find or create user
+    user = await db.users.find_one({"email": email}, {"_id": 0})
+    if not user:
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        user_doc = {
+            "user_id": user_id,
+            "email": email,
+            "name": name,
+            "picture": picture,
+            "organization_id": None,
+            "role": "member",
+            "created_at": now.isoformat()
+        }
+        await db.users.insert_one(user_doc)
+        user = user_doc
+    else:
+        user_id = user["user_id"]
+        # Update picture if changed
+        if picture and picture != user.get("picture"):
+            await db.users.update_one({"user_id": user_id}, {"$set": {"picture": picture}})
+    
+    # Store session
+    session_doc = {
+        "user_id": user_id,
+        "session_token": session_token,
+        "expires_at": (now + timedelta(days=7)).isoformat(),
+        "created_at": now.isoformat()
+    }
+    await db.user_sessions.delete_many({"user_id": user_id})
+    await db.user_sessions.insert_one(session_doc)
+    
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=7*24*60*60
+    )
+    
+    return {
+        "user_id": user_id,
+        "email": email,
+        "name": name,
+        "picture": picture,
+        "organization_id": user.get("organization_id"),
+        "role": user.get("role", "member")
+    }
+
+@api_router.get("/auth/me")
+async def get_me(current_user: dict = Depends(get_current_user)):
+    return {
+        "user_id": current_user["user_id"],
+        "email": current_user["email"],
+        "name": current_user["name"],
+        "picture": current_user.get("picture"),
+        "organization_id": current_user.get("organization_id"),
+        "role": current_user.get("role", "member")
+    }
+
+@api_router.post("/auth/logout")
+async def logout(request: Request, response: Response):
+    session_token = request.cookies.get("session_token")
+    if session_token:
+        await db.user_sessions.delete_one({"session_token": session_token})
+    response.delete_cookie("session_token", path="/")
+    return {"message": "Logged out successfully"}
+
+# ==================== ORGANIZATION ROUTES ====================
+
+@api_router.post("/organizations")
+async def create_organization(name: str, current_user: dict = Depends(get_current_user)):
+    if current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="User already belongs to an organization")
+    
+    organization_id = f"org_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    org_doc = {
+        "organization_id": organization_id,
+        "name": name,
+        "owner_id": current_user["user_id"],
+        "plan": "free",
+        "user_count": 1,
+        "max_free_users": 3,
+        "created_at": now.isoformat()
+    }
+    await db.organizations.insert_one(org_doc)
+    
+    await db.users.update_one(
+        {"user_id": current_user["user_id"]},
+        {"$set": {"organization_id": organization_id, "role": "owner"}}
+    )
+    
+    # Remove MongoDB's _id field before returning
+    org_doc.pop('_id', None)
+    return org_doc
+
+@api_router.get("/organizations/current")
+async def get_current_organization(current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        return None
+    org = await db.organizations.find_one(
+        {"organization_id": current_user["organization_id"]},
+        {"_id": 0}
+    )
+    return org
+
+@api_router.get("/organizations/{organization_id}/members")
+async def get_organization_members(organization_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user.get("organization_id") != organization_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    members = await db.users.find(
+        {"organization_id": organization_id},
+        {"_id": 0, "password_hash": 0}
+    ).to_list(1000)
+    return members
+
+# ==================== LEADS ROUTES ====================
+
+@api_router.get("/leads")
+async def get_leads(
+    status: Optional[str] = None,
+    source: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if not current_user.get("organization_id"):
+        return []
+    
+    query = {"organization_id": current_user["organization_id"]}
+    if status:
+        query["status"] = status
+    if source:
+        query["source"] = source
+    
+    leads = await db.leads.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return leads
+
+@api_router.post("/leads")
+async def create_lead(lead_data: LeadCreate, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="Join an organization first")
+    
+    lead_id = f"lead_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    lead_doc = {
+        "lead_id": lead_id,
+        "organization_id": current_user["organization_id"],
+        **lead_data.model_dump(),
+        "status": "new",
+        "ai_score": None,
+        "assigned_to": None,
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    }
+    await db.leads.insert_one(lead_doc)
+    # Remove MongoDB's _id field before returning
+    lead_doc.pop('_id', None)
+    return lead_doc
+
+@api_router.get("/leads/{lead_id}")
+async def get_lead(lead_id: str, current_user: dict = Depends(get_current_user)):
+    lead = await db.leads.find_one(
+        {"lead_id": lead_id, "organization_id": current_user.get("organization_id")},
+        {"_id": 0}
+    )
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return lead
+
+@api_router.put("/leads/{lead_id}")
+async def update_lead(lead_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.leads.update_one(
+        {"lead_id": lead_id, "organization_id": current_user.get("organization_id")},
+        {"$set": updates}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return await get_lead(lead_id, current_user)
+
+@api_router.delete("/leads/{lead_id}")
+async def delete_lead(lead_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.leads.delete_one(
+        {"lead_id": lead_id, "organization_id": current_user.get("organization_id")}
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return {"message": "Lead deleted"}
+
+@api_router.post("/leads/import-csv")
+async def import_leads_csv(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="Join an organization first")
+    
+    content = await file.read()
+    decoded = content.decode('utf-8')
+    reader = csv.DictReader(io.StringIO(decoded))
+    
+    now = datetime.now(timezone.utc)
+    imported = 0
+    
+    for row in reader:
+        lead_id = f"lead_{uuid.uuid4().hex[:12]}"
+        lead_doc = {
+            "lead_id": lead_id,
+            "organization_id": current_user["organization_id"],
+            "first_name": row.get("first_name", row.get("First Name", "")),
+            "last_name": row.get("last_name", row.get("Last Name", "")),
+            "email": row.get("email", row.get("Email", "")),
+            "phone": row.get("phone", row.get("Phone", "")),
+            "company": row.get("company", row.get("Company", "")),
+            "job_title": row.get("job_title", row.get("Job Title", row.get("Position", ""))),
+            "linkedin_url": row.get("linkedin_url", row.get("LinkedIn URL", row.get("Profile URL", ""))),
+            "source": "linkedin_import",
+            "status": "new",
+            "ai_score": None,
+            "notes": None,
+            "assigned_to": None,
+            "created_by": current_user["user_id"],
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat()
+        }
+        await db.leads.insert_one(lead_doc)
+        imported += 1
+    
+    return {"message": f"Imported {imported} leads", "count": imported}
+
+# ==================== COMPANIES ROUTES ====================
+
+@api_router.get("/companies")
+async def get_companies(current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        return []
+    
+    companies = await db.companies.find(
+        {"organization_id": current_user["organization_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(1000)
+    return companies
+
+@api_router.post("/companies")
+async def create_company(company_data: CompanyCreate, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="Join an organization first")
+    
+    company_id = f"company_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    company_doc = {
+        "company_id": company_id,
+        "organization_id": current_user["organization_id"],
+        **company_data.model_dump(),
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat()
+    }
+    await db.companies.insert_one(company_doc)
+    # Remove MongoDB's _id field before returning
+    company_doc.pop('_id', None)
+    return company_doc
+
+@api_router.get("/companies/{company_id}")
+async def get_company(company_id: str, current_user: dict = Depends(get_current_user)):
+    company = await db.companies.find_one(
+        {"company_id": company_id, "organization_id": current_user.get("organization_id")},
+        {"_id": 0}
+    )
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return company
+
+# ==================== DEALS ROUTES ====================
+
+@api_router.get("/deals")
+async def get_deals(
+    stage: Optional[str] = None,
+    tag: Optional[str] = None,
+    assigned_to: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if not current_user.get("organization_id"):
+        return []
+    
+    query = {"organization_id": current_user["organization_id"]}
+    if stage:
+        query["stage"] = stage
+    if tag:
+        query["tags"] = tag
+    if assigned_to:
+        query["assigned_to"] = assigned_to
+    
+    deals = await db.deals.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return deals
+
+@api_router.get("/deals/tags")
+async def get_deal_tags(current_user: dict = Depends(get_current_user)):
+    """Get all unique tags used in deals"""
+    if not current_user.get("organization_id"):
+        return {"tags": []}
+    
+    pipeline = [
+        {"$match": {"organization_id": current_user["organization_id"]}},
+        {"$unwind": "$tags"},
+        {"$group": {"_id": "$tags"}},
+        {"$sort": {"_id": 1}}
+    ]
+    tags = await db.deals.aggregate(pipeline).to_list(1000)
+    return {"tags": [t["_id"] for t in tags]}
+
+@api_router.post("/deals")
+async def create_deal(deal_data: DealCreate, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="Join an organization first")
+    
+    deal_id = f"deal_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    # Extract task data before creating deal_doc
+    task_title = deal_data.task_title
+    task_owner_id = deal_data.task_owner_id
+    task_description = deal_data.task_description
+    task_due_date = deal_data.task_due_date
+    
+    deal_dict = deal_data.model_dump()
+    # Remove task fields from deal
+    del deal_dict["task_title"]
+    del deal_dict["task_owner_id"]
+    del deal_dict["task_description"]
+    del deal_dict["task_due_date"]
+    
+    deal_doc = {
+        "deal_id": deal_id,
+        "organization_id": current_user["organization_id"],
+        **deal_dict,
+        "assigned_to": task_owner_id,  # Assign deal to task owner
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    }
+    if deal_doc.get("expected_close_date"):
+        deal_doc["expected_close_date"] = deal_doc["expected_close_date"].isoformat()
+    await db.deals.insert_one(deal_doc)
+    
+    # Create mandatory task for this deal
+    task_id = f"task_{uuid.uuid4().hex[:12]}"
+    task_doc = {
+        "task_id": task_id,
+        "organization_id": current_user["organization_id"],
+        "title": task_title,
+        "description": task_description or f"Initial task for deal: {deal_data.name}",
+        "status": "todo",
+        "priority": "medium",
+        "due_date": task_due_date.isoformat() if task_due_date else None,
+        "assigned_to": task_owner_id,
+        "related_lead_id": deal_data.lead_id,
+        "related_deal_id": deal_id,
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    }
+    await db.tasks.insert_one(task_doc)
+    
+    # Remove MongoDB's _id field before returning
+    deal_doc.pop('_id', None)
+    deal_doc["created_task_id"] = task_id
+    return deal_doc
+
+@api_router.put("/deals/{deal_id}")
+async def update_deal(deal_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    if updates.get("expected_close_date") and isinstance(updates["expected_close_date"], datetime):
+        updates["expected_close_date"] = updates["expected_close_date"].isoformat()
+    
+    # Check permission - org admin or owner can edit all, others only their own
+    deal = await db.deals.find_one({"deal_id": deal_id}, {"_id": 0})
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    
+    user_role = current_user.get("role", "member")
+    is_admin = user_role in ["admin", "owner", "super_admin"]
+    is_owner = deal.get("assigned_to") == current_user["user_id"] or deal.get("created_by") == current_user["user_id"]
+    
+    if not is_admin and not is_owner:
+        raise HTTPException(status_code=403, detail="You can only edit your own deals")
+    
+    result = await db.deals.update_one(
+        {"deal_id": deal_id, "organization_id": current_user.get("organization_id")},
+        {"$set": updates}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    
+    deal = await db.deals.find_one({"deal_id": deal_id}, {"_id": 0})
+    return deal
+
+# ==================== TASKS ROUTES ====================
+
+@api_router.get("/tasks")
+async def get_tasks(
+    status: Optional[str] = None,
+    assigned_to: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if not current_user.get("organization_id"):
+        return []
+    
+    query = {"organization_id": current_user["organization_id"]}
+    if status:
+        query["status"] = status
+    if assigned_to:
+        query["assigned_to"] = assigned_to
+    
+    tasks = await db.tasks.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return tasks
+
+@api_router.post("/tasks")
+async def create_task(task_data: TaskCreate, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="Join an organization first")
+    
+    task_id = f"task_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    task_doc = {
+        "task_id": task_id,
+        "organization_id": current_user["organization_id"],
+        **task_data.model_dump(),
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    }
+    if task_doc.get("due_date"):
+        task_doc["due_date"] = task_doc["due_date"].isoformat()
+    await db.tasks.insert_one(task_doc)
+    # Remove MongoDB's _id field before returning
+    task_doc.pop('_id', None)
+    return task_doc
+
+@api_router.put("/tasks/{task_id}")
+async def update_task(task_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    if updates.get("due_date") and isinstance(updates["due_date"], datetime):
+        updates["due_date"] = updates["due_date"].isoformat()
+    
+    result = await db.tasks.update_one(
+        {"task_id": task_id, "organization_id": current_user.get("organization_id")},
+        {"$set": updates}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task = await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
+    return task
+
+@api_router.delete("/tasks/{task_id}")
+async def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.tasks.delete_one(
+        {"task_id": task_id, "organization_id": current_user.get("organization_id")}
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"message": "Task deleted"}
+
+# ==================== CAMPAIGNS ROUTES ====================
+
+@api_router.get("/campaigns")
+async def get_campaigns(current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        return []
+    
+    campaigns = await db.campaigns.find(
+        {"organization_id": current_user["organization_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(1000)
+    return campaigns
+
+@api_router.post("/campaigns")
+async def create_campaign(campaign_data: CampaignCreate, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="Join an organization first")
+    
+    campaign_id = f"campaign_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    campaign_doc = {
+        "campaign_id": campaign_id,
+        "organization_id": current_user["organization_id"],
+        **campaign_data.model_dump(),
+        "status": "draft",
+        "sent_count": 0,
+        "open_count": 0,
+        "click_count": 0,
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat()
+    }
+    if campaign_doc.get("scheduled_at"):
+        campaign_doc["scheduled_at"] = campaign_doc["scheduled_at"].isoformat()
+    await db.campaigns.insert_one(campaign_doc)
+    # Remove MongoDB's _id field before returning
+    campaign_doc.pop('_id', None)
+    return campaign_doc
+
+# ==================== KIT.COM EMAIL INTEGRATION ====================
+
+KIT_API_KEY = os.environ.get("KIT_API_KEY")  # This is the public API key
+KIT_API_SECRET = os.environ.get("KIT_API_SECRET")  # This is the secret API key
+KIT_API_BASE = "https://api.convertkit.com/v3"
+
+class LeadMagnetSubscribe(BaseModel):
+    email: EmailStr
+    first_name: Optional[str] = None
+    source: str = "lead_magnet"
+
+class KitBroadcastCreate(BaseModel):
+    subject: str
+    content: str
+    send_at: Optional[str] = None  # ISO format datetime
+
+@api_router.get("/kit/account")
+async def get_kit_account():
+    """Get Kit.com account information - returns basic info with public key"""
+    try:
+        # With public key, we can only get forms/tags info, not full account
+        # Return a mock account info based on available data
+        async with httpx.AsyncClient() as client:
+            forms_response = await client.get(
+                f"{KIT_API_BASE}/forms",
+                params={"api_key": KIT_API_KEY}
+            )
+            tags_response = await client.get(
+                f"{KIT_API_BASE}/tags",
+                params={"api_key": KIT_API_KEY}
+            )
+            
+            forms_count = len(forms_response.json().get("forms", [])) if forms_response.status_code == 200 else 0
+            tags_count = len(tags_response.json().get("tags", [])) if tags_response.status_code == 200 else 0
+            
+            return {
+                "name": "Kit.com Account",
+                "plan_type": "Connected",
+                "forms_count": forms_count,
+                "tags_count": tags_count,
+                "status": "active"
+            }
+    except httpx.RequestError as e:
+        logger.error(f"Kit connection error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to Kit.com")
+
+@api_router.get("/kit/forms")
+async def get_kit_forms():
+    """List all Kit.com forms"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{KIT_API_BASE}/forms",
+                params={"api_key": KIT_API_KEY}
+            )
+            if response.status_code == 200:
+                return response.json()
+            raise HTTPException(status_code=response.status_code, detail="Failed to fetch forms")
+    except httpx.RequestError as e:
+        logger.error(f"Kit forms error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to Kit.com")
+
+@api_router.get("/kit/tags")
+async def get_kit_tags():
+    """List all Kit.com tags"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{KIT_API_BASE}/tags",
+                params={"api_key": KIT_API_KEY}
+            )
+            if response.status_code == 200:
+                return response.json()
+            raise HTTPException(status_code=response.status_code, detail="Failed to fetch tags")
+    except httpx.RequestError as e:
+        logger.error(f"Kit tags error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to Kit.com")
+
+@api_router.post("/kit/tags")
+async def create_kit_tag(name: str):
+    """Create a new tag in Kit.com (Note: requires api_secret, may fail with public key)"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{KIT_API_BASE}/tags",
+                json={
+                    "api_key": KIT_API_KEY,
+                    "tag": {"name": name}
+                }
+            )
+            if response.status_code in [200, 201]:
+                return response.json()
+            # If it fails, it's likely because we need api_secret for write operations
+            logger.warning(f"Kit create tag requires api_secret: {response.text}")
+            raise HTTPException(status_code=response.status_code, detail="Creating tags requires Kit.com secret key")
+    except httpx.RequestError as e:
+        logger.error(f"Kit create tag error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to Kit.com")
+
+@api_router.post("/kit/subscribe/{tag_id}")
+async def subscribe_to_tag(tag_id: int, subscriber: LeadMagnetSubscribe):
+    """Subscribe an email to a specific tag"""
+    try:
+        async with httpx.AsyncClient() as client:
+            payload = {
+                "api_key": KIT_API_KEY,
+                "email": subscriber.email
+            }
+            if subscriber.first_name:
+                payload["first_name"] = subscriber.first_name
+            
+            response = await client.post(
+                f"{KIT_API_BASE}/tags/{tag_id}/subscribe",
+                json=payload
+            )
+            if response.status_code in [200, 201]:
+                # Store in our database too
+                now = datetime.now(timezone.utc)
+                await db.lead_magnet_subscribers.insert_one({
+                    "email": subscriber.email,
+                    "first_name": subscriber.first_name,
+                    "source": subscriber.source,
+                    "kit_tag_id": tag_id,
+                    "subscribed_at": now.isoformat()
+                })
+                return {"success": True, "message": "Subscribed successfully", "data": response.json()}
+            raise HTTPException(status_code=response.status_code, detail="Failed to subscribe")
+    except httpx.RequestError as e:
+        logger.error(f"Kit subscribe error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to Kit.com")
+
+@api_router.post("/kit/subscribe-form/{form_id}")
+async def subscribe_to_form(form_id: int, subscriber: LeadMagnetSubscribe):
+    """Subscribe an email to a specific form"""
+    try:
+        async with httpx.AsyncClient() as client:
+            payload = {
+                "api_key": KIT_API_KEY,
+                "email": subscriber.email
+            }
+            if subscriber.first_name:
+                payload["first_name"] = subscriber.first_name
+            
+            response = await client.post(
+                f"{KIT_API_BASE}/forms/{form_id}/subscribe",
+                json=payload
+            )
+            if response.status_code in [200, 201]:
+                # Store in our database too
+                now = datetime.now(timezone.utc)
+                await db.lead_magnet_subscribers.insert_one({
+                    "email": subscriber.email,
+                    "first_name": subscriber.first_name,
+                    "source": subscriber.source,
+                    "kit_form_id": form_id,
+                    "subscribed_at": now.isoformat()
+                })
+                return {"success": True, "message": "Subscribed successfully", "data": response.json()}
+            raise HTTPException(status_code=response.status_code, detail="Failed to subscribe")
+    except httpx.RequestError as e:
+        logger.error(f"Kit subscribe form error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to Kit.com")
+
+@api_router.post("/lead-magnet/subscribe")
+async def lead_magnet_subscribe(subscriber: LeadMagnetSubscribe):
+    """Public endpoint for lead magnet signups - subscribes directly to Kit.com"""
+    try:
+        # First check if we already have this subscriber
+        existing = await db.lead_magnet_subscribers.find_one({"email": subscriber.email}, {"_id": 0})
+        if existing:
+            return {"success": True, "message": "Already subscribed", "existing": True}
+        
+        # Try to subscribe via Kit.com API (using forms endpoint)
+        # If no form ID configured, just store locally
+        async with httpx.AsyncClient() as client:
+            # First get available forms
+            forms_response = await client.get(
+                f"{KIT_API_BASE}/forms",
+                params={"api_key": KIT_API_KEY}
+            )
+            
+            kit_synced = False
+            if forms_response.status_code == 200:
+                forms = forms_response.json().get("forms", [])
+                if forms:
+                    # Subscribe to the first available form
+                    form_id = forms[0]["id"]
+                    subscribe_response = await client.post(
+                        f"{KIT_API_BASE}/forms/{form_id}/subscribe",
+                        json={
+                            "api_key": KIT_API_KEY,
+                            "email": subscriber.email,
+                            "first_name": subscriber.first_name or ""
+                        }
+                    )
+                    kit_synced = subscribe_response.status_code in [200, 201]
+        
+        # Store in our database
+        now = datetime.now(timezone.utc)
+        await db.lead_magnet_subscribers.insert_one({
+            "email": subscriber.email,
+            "first_name": subscriber.first_name,
+            "source": subscriber.source,
+            "kit_synced": kit_synced,
+            "subscribed_at": now.isoformat()
+        })
+        
+        return {
+            "success": True,
+            "message": "Subscribed successfully! Check your email for the guide.",
+            "kit_synced": kit_synced
+        }
+    except Exception as e:
+        logger.error(f"Lead magnet subscribe error: {e}")
+        # Still try to save locally even if Kit fails
+        try:
+            now = datetime.now(timezone.utc)
+            await db.lead_magnet_subscribers.insert_one({
+                "email": subscriber.email,
+                "first_name": subscriber.first_name,
+                "source": subscriber.source,
+                "kit_synced": False,
+                "subscribed_at": now.isoformat()
+            })
+            return {"success": True, "message": "Subscribed successfully!", "kit_synced": False}
+        except:
+            raise HTTPException(status_code=500, detail="Failed to subscribe")
+
+@api_router.get("/lead-magnet/subscribers")
+async def get_lead_magnet_subscribers(current_user: dict = Depends(get_current_user)):
+    """Get all lead magnet subscribers (admin only)"""
+    subscribers = await db.lead_magnet_subscribers.find({}, {"_id": 0}).sort("subscribed_at", -1).to_list(1000)
+    return {"subscribers": subscribers, "count": len(subscribers)}
+
+@api_router.get("/kit/subscribers")
+async def get_kit_subscribers():
+    """List Kit.com subscribers"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{KIT_API_BASE}/subscribers",
+                params={"api_secret": KIT_API_SECRET}
+            )
+            if response.status_code == 200:
+                return response.json()
+            raise HTTPException(status_code=response.status_code, detail="Failed to fetch subscribers")
+    except httpx.RequestError as e:
+        logger.error(f"Kit subscribers error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to Kit.com")
+
+@api_router.get("/kit/broadcasts")
+async def get_kit_broadcasts():
+    """List all broadcasts"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{KIT_API_BASE}/broadcasts",
+                params={"api_secret": KIT_API_SECRET}
+            )
+            if response.status_code == 200:
+                return response.json()
+            raise HTTPException(status_code=response.status_code, detail="Failed to fetch broadcasts")
+    except httpx.RequestError as e:
+        logger.error(f"Kit broadcasts error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to Kit.com")
+
+@api_router.post("/kit/broadcasts")
+async def create_kit_broadcast(broadcast: KitBroadcastCreate):
+    """Create a broadcast in Kit.com"""
+    try:
+        async with httpx.AsyncClient() as client:
+            payload = {
+                "api_secret": KIT_API_SECRET,
+                "subject": broadcast.subject,
+                "content": broadcast.content
+            }
+            if broadcast.send_at:
+                payload["send_at"] = broadcast.send_at
+            
+            response = await client.post(
+                f"{KIT_API_BASE}/broadcasts",
+                json=payload
+            )
+            if response.status_code in [200, 201]:
+                return response.json()
+            raise HTTPException(status_code=response.status_code, detail="Failed to create broadcast")
+    except httpx.RequestError as e:
+        logger.error(f"Kit broadcast error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to Kit.com")
+
+@api_router.post("/campaigns/{campaign_id}/send")
+async def send_campaign_via_kit(campaign_id: str, current_user: dict = Depends(get_current_user)):
+    """Send a campaign as a Kit.com broadcast"""
+    campaign = await db.campaigns.find_one(
+        {"campaign_id": campaign_id, "organization_id": current_user.get("organization_id")},
+        {"_id": 0}
+    )
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Create broadcast in Kit.com
+            response = await client.post(
+                f"{KIT_API_BASE}/broadcasts",
+                json={
+                    "api_secret": KIT_API_SECRET,
+                    "subject": campaign["subject"],
+                    "content": campaign["content"]
+                }
+            )
+            
+            if response.status_code in [200, 201]:
+                # Update campaign status
+                await db.campaigns.update_one(
+                    {"campaign_id": campaign_id},
+                    {"$set": {"status": "sent", "sent_at": datetime.now(timezone.utc).isoformat()}}
+                )
+                return {"success": True, "message": "Campaign sent via Kit.com", "broadcast": response.json()}
+            raise HTTPException(status_code=response.status_code, detail="Failed to send via Kit.com")
+    except httpx.RequestError as e:
+        logger.error(f"Kit send campaign error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to Kit.com")
+
+# ==================== AI ROUTES ====================
+
+@api_router.post("/ai/score-lead/{lead_id}")
+async def score_lead(lead_id: str, current_user: dict = Depends(get_current_user)):
+    lead = await db.leads.find_one(
+        {"lead_id": lead_id, "organization_id": current_user.get("organization_id")},
+        {"_id": 0}
+    )
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"lead_scoring_{lead_id}",
+            system_message="You are a lead scoring AI. Analyze lead data and return a score from 1-100 based on their potential value. Return ONLY a number."
+        ).with_model("openai", "gpt-5.2")
+        
+        lead_info = f"""
+        Name: {lead.get('first_name', '')} {lead.get('last_name', '')}
+        Company: {lead.get('company', 'Unknown')}
+        Job Title: {lead.get('job_title', 'Unknown')}
+        Email: {lead.get('email', 'Not provided')}
+        LinkedIn: {lead.get('linkedin_url', 'Not provided')}
+        Source: {lead.get('source', 'Unknown')}
+        """
+        
+        user_message = UserMessage(text=f"Score this lead (return only a number 1-100):\n{lead_info}")
+        response = await chat.send_message(user_message)
+        
+        try:
+            score = int(response.strip())
+            score = max(1, min(100, score))
+        except:
+            score = 50
+        
+        await db.leads.update_one(
+            {"lead_id": lead_id},
+            {"$set": {"ai_score": score, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        return {"lead_id": lead_id, "ai_score": score}
+    except Exception as e:
+        logger.error(f"AI scoring error: {e}")
+        raise HTTPException(status_code=500, detail="AI scoring failed")
+
+@api_router.post("/ai/draft-email")
+async def draft_email(
+    lead_id: Optional[str] = None,
+    purpose: str = "introduction",
+    current_user: dict = Depends(get_current_user)
+):
+    lead_context = ""
+    if lead_id:
+        lead = await db.leads.find_one(
+            {"lead_id": lead_id, "organization_id": current_user.get("organization_id")},
+            {"_id": 0}
+        )
+        if lead:
+            lead_context = f"""
+            Recipient: {lead.get('first_name', '')} {lead.get('last_name', '')}
+            Company: {lead.get('company', 'their company')}
+            Job Title: {lead.get('job_title', '')}
+            """
+    
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"email_draft_{uuid.uuid4().hex[:8]}",
+            system_message="You are a professional email writer. Write concise, engaging B2B emails. Keep them under 150 words."
+        ).with_model("openai", "gpt-5.2")
+        
+        prompt = f"Write a professional {purpose} email.{lead_context}\nMake it personalized and compelling."
+        
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        return {"subject": f"{purpose.title()} from upmuch", "content": response}
+    except Exception as e:
+        logger.error(f"AI email draft error: {e}")
+        raise HTTPException(status_code=500, detail="Email drafting failed")
+
+# ==================== PAYMENT ROUTES ====================
+
+PRICING = {
+    "monthly": {"price": 15.0, "discount": 0},
+    "yearly": {"price": 15.0, "discount": 0.20},
+    "crypto_monthly": {"price": 15.0, "discount": 0.05},
+    "crypto_yearly": {"price": 15.0, "discount": 0.25}
+}
+
+@api_router.post("/payments/checkout/stripe")
+async def create_stripe_checkout(
+    request: Request,
+    billing_cycle: str = "monthly",
+    additional_users: int = 1,
+    current_user: dict = Depends(get_current_user)
+):
+    from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+    
+    body = await request.json()
+    origin_url = body.get("origin_url", "")
+    
+    pricing = PRICING.get(billing_cycle, PRICING["monthly"])
+    amount = additional_users * pricing["price"] * (1 - pricing["discount"])
+    if billing_cycle in ["yearly", "crypto_yearly"]:
+        amount = amount * 12
+    
+    api_key = os.environ.get("STRIPE_API_KEY")
+    host_url = str(request.base_url).rstrip("/")
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    
+    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
+    
+    success_url = f"{origin_url}/dashboard?payment=success&session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin_url}/pricing?payment=cancelled"
+    
+    payment_methods = ["card"]
+    currency = "eur"
+    if "crypto" in billing_cycle:
+        payment_methods = ["card", "crypto"]
+        currency = "usd"
+        amount = amount * 1.1  # Convert EUR to USD estimate
+    
+    checkout_request = CheckoutSessionRequest(
+        amount=round(amount, 2),
+        currency=currency,
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={
+            "user_id": current_user["user_id"],
+            "organization_id": current_user.get("organization_id", ""),
+            "billing_cycle": billing_cycle,
+            "additional_users": str(additional_users)
+        },
+        payment_methods=payment_methods
+    )
+    
+    session = await stripe_checkout.create_checkout_session(checkout_request)
+    
+    # Record transaction
+    transaction_doc = {
+        "transaction_id": f"txn_{uuid.uuid4().hex[:12]}",
+        "organization_id": current_user.get("organization_id"),
+        "user_id": current_user["user_id"],
+        "amount": round(amount, 2),
+        "currency": currency,
+        "status": "pending",
+        "payment_method": "stripe",
+        "session_id": session.session_id,
+        "metadata": checkout_request.metadata,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.payment_transactions.insert_one(transaction_doc)
+    
+    return {"url": session.url, "session_id": session.session_id}
+
+@api_router.get("/payments/status/{session_id}")
+async def get_payment_status(session_id: str, current_user: dict = Depends(get_current_user)):
+    from emergentintegrations.payments.stripe.checkout import StripeCheckout
+    
+    api_key = os.environ.get("STRIPE_API_KEY")
+    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url="")
+    
+    status = await stripe_checkout.get_checkout_status(session_id)
+    
+    # Update transaction
+    if status.payment_status == "paid":
+        await db.payment_transactions.update_one(
+            {"session_id": session_id},
+            {"$set": {"status": "completed", "payment_status": status.payment_status}}
+        )
+        
+        # Get transaction metadata
+        txn = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+        if txn and txn.get("metadata"):
+            org_id = txn["metadata"].get("organization_id")
+            additional_users = int(txn["metadata"].get("additional_users", 1))
+            billing_cycle = txn["metadata"].get("billing_cycle", "monthly")
+            
+            if org_id:
+                await db.organizations.update_one(
+                    {"organization_id": org_id},
+                    {
+                        "$inc": {"user_count": additional_users},
+                        "$set": {
+                            "plan": "paid",
+                            "billing_cycle": billing_cycle
+                        }
+                    }
+                )
+    
+    return {
+        "status": status.status,
+        "payment_status": status.payment_status,
+        "amount": status.amount_total / 100,
+        "currency": status.currency
+    }
+
+@api_router.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    from emergentintegrations.payments.stripe.checkout import StripeCheckout
+    
+    api_key = os.environ.get("STRIPE_API_KEY")
+    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url="")
+    
+    body = await request.body()
+    signature = request.headers.get("Stripe-Signature")
+    
+    try:
+        webhook_response = await stripe_checkout.handle_webhook(body, signature)
+        
+        if webhook_response.payment_status == "paid":
+            await db.payment_transactions.update_one(
+                {"session_id": webhook_response.session_id},
+                {"$set": {"status": "completed", "payment_status": "paid"}}
+            )
+        
+        return {"received": True}
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return {"received": False, "error": str(e)}
+
+# ==================== DASHBOARD STATS ====================
+
+@api_router.get("/dashboard/stats")
+async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        return {
+            "total_leads": 0,
+            "total_deals": 0,
+            "total_tasks": 0,
+            "deal_value": 0,
+            "recent_leads": [],
+            "recent_tasks": []
+        }
+    
+    org_id = current_user["organization_id"]
+    
+    total_leads = await db.leads.count_documents({"organization_id": org_id})
+    total_deals = await db.deals.count_documents({"organization_id": org_id})
+    total_tasks = await db.tasks.count_documents({"organization_id": org_id})
+    
+    pipeline = [
+        {"$match": {"organization_id": org_id}},
+        {"$group": {"_id": None, "total": {"$sum": "$value"}}}
+    ]
+    deal_value_result = await db.deals.aggregate(pipeline).to_list(1)
+    deal_value = deal_value_result[0]["total"] if deal_value_result else 0
+    
+    recent_leads = await db.leads.find(
+        {"organization_id": org_id},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(5).to_list(5)
+    
+    recent_tasks = await db.tasks.find(
+        {"organization_id": org_id},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(5).to_list(5)
+    
+    return {
+        "total_leads": total_leads,
+        "total_deals": total_deals,
+        "total_tasks": total_tasks,
+        "deal_value": deal_value,
+        "recent_leads": recent_leads,
+        "recent_tasks": recent_tasks
+    }
+
+# ==================== ADMIN ROUTES ====================
+
+@api_router.get("/admin/organizations")
+async def admin_get_all_organizations(current_user: dict = Depends(get_current_user)):
+    # Super admin check
+    if current_user.get("role") != "super_admin" and current_user.get("email") != SUPER_ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    organizations = await db.organizations.find({}, {"_id": 0}).to_list(1000)
+    return organizations
+
+@api_router.get("/admin/stats")
+async def admin_get_stats(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "super_admin" and current_user.get("email") != SUPER_ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    total_users = await db.users.count_documents({})
+    total_orgs = await db.organizations.count_documents({})
+    total_leads = await db.leads.count_documents({})
+    total_deals = await db.deals.count_documents({})
+    total_affiliates = await db.affiliates.count_documents({})
+    total_discount_codes = await db.discount_codes.count_documents({})
+    
+    # Revenue calculation
+    pipeline = [
+        {"$match": {"status": "completed"}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]
+    revenue_result = await db.payment_transactions.aggregate(pipeline).to_list(1)
+    total_revenue = revenue_result[0]["total"] if revenue_result else 0
+    
+    # Affiliate earnings
+    affiliate_pipeline = [
+        {"$group": {"_id": None, "total": {"$sum": "$total_earnings"}}}
+    ]
+    affiliate_result = await db.affiliates.aggregate(affiliate_pipeline).to_list(1)
+    total_affiliate_earnings = affiliate_result[0]["total"] if affiliate_result else 0
+    
+    return {
+        "total_users": total_users,
+        "total_organizations": total_orgs,
+        "total_leads": total_leads,
+        "total_deals": total_deals,
+        "total_revenue": total_revenue,
+        "total_affiliates": total_affiliates,
+        "total_discount_codes": total_discount_codes,
+        "total_affiliate_earnings": total_affiliate_earnings
+    }
+
+@api_router.get("/admin/users")
+async def admin_get_all_users(current_user: dict = Depends(get_current_user)):
+    """Get all users (super admin only)"""
+    if current_user.get("role") != "super_admin" and current_user.get("email") != SUPER_ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
+    return {"users": users, "count": len(users)}
+
+@api_router.put("/admin/users/{user_id}/role")
+async def admin_update_user_role(user_id: str, role: str, current_user: dict = Depends(get_current_user)):
+    """Update a user's role (super admin only)"""
+    if current_user.get("role") != "super_admin" and current_user.get("email") != SUPER_ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    valid_roles = ["member", "admin", "owner", "super_admin"]
+    if role not in valid_roles:
+        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {valid_roles}")
+    
+    result = await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"role": role}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": f"User role updated to {role}"}
+
+# ==================== SUPER ADMIN SETUP ====================
+
+@api_router.post("/admin/setup-super-admin")
+async def setup_super_admin(data: SuperAdminCreate):
+    """Set up or reset super admin password"""
+    if data.email != SUPER_ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Only the designated super admin email can use this endpoint")
+    
+    now = datetime.now(timezone.utc)
+    
+    # Check if user exists
+    existing = await db.users.find_one({"email": data.email}, {"_id": 0})
+    if existing:
+        # Update password
+        await db.users.update_one(
+            {"email": data.email},
+            {"$set": {
+                "password_hash": hash_password(data.password),
+                "name": data.name,
+                "role": "super_admin"
+            }}
+        )
+        user_id = existing["user_id"]
+    else:
+        # Create new super admin
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        user_doc = {
+            "user_id": user_id,
+            "email": data.email,
+            "name": data.name,
+            "password_hash": hash_password(data.password),
+            "organization_id": None,
+            "role": "super_admin",
+            "created_at": now.isoformat()
+        }
+        await db.users.insert_one(user_doc)
+    
+    token = create_jwt_token(user_id, data.email, None)
+    
+    return {
+        "message": "Super admin account configured successfully",
+        "user_id": user_id,
+        "email": data.email,
+        "token": token
+    }
+
+# ==================== DISCOUNT CODE ROUTES ====================
+
+@api_router.get("/admin/discount-codes")
+async def get_discount_codes(current_user: dict = Depends(require_super_admin)):
+    """Get all discount codes (super admin only)"""
+    codes = await db.discount_codes.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return {"discount_codes": codes, "count": len(codes)}
+
+@api_router.post("/admin/discount-codes")
+async def create_discount_code(data: DiscountCodeCreate, current_user: dict = Depends(require_super_admin)):
+    """Create a new discount code (super admin only)"""
+    # Check if code already exists
+    existing = await db.discount_codes.find_one({"code": data.code.upper()}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="Discount code already exists")
+    
+    code_id = f"discount_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    code_doc = {
+        "code_id": code_id,
+        "code": data.code.upper(),
+        "discount_percent": data.discount_percent,
+        "discount_type": data.discount_type,
+        "fixed_amount": data.fixed_amount,
+        "valid_from": data.valid_from,
+        "valid_until": data.valid_until,
+        "max_uses": data.max_uses,
+        "current_uses": 0,
+        "applicable_plans": data.applicable_plans,
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat(),
+        "is_active": True
+    }
+    await db.discount_codes.insert_one(code_doc)
+    
+    # Remove MongoDB's _id field before returning
+    code_doc.pop('_id', None)
+    return {"message": "Discount code created", "discount_code": code_doc}
+
+@api_router.put("/admin/discount-codes/{code_id}")
+async def update_discount_code(code_id: str, updates: dict, current_user: dict = Depends(require_super_admin)):
+    """Update a discount code (super admin only)"""
+    allowed_fields = ["discount_percent", "discount_type", "fixed_amount", "valid_from", "valid_until", "max_uses", "applicable_plans", "is_active"]
+    filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
+    
+    result = await db.discount_codes.update_one(
+        {"code_id": code_id},
+        {"$set": filtered_updates}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Discount code not found")
+    
+    return {"message": "Discount code updated"}
+
+@api_router.delete("/admin/discount-codes/{code_id}")
+async def delete_discount_code(code_id: str, current_user: dict = Depends(require_super_admin)):
+    """Delete a discount code (super admin only)"""
+    result = await db.discount_codes.delete_one({"code_id": code_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Discount code not found")
+    return {"message": "Discount code deleted"}
+
+class DiscountCodeValidateRequest(BaseModel):
+    code: str
+    plan: str = "monthly"
+
+@api_router.post("/discount-codes/validate")
+async def validate_discount_code(request: DiscountCodeValidateRequest):
+    """Validate a discount code (public endpoint)"""
+    discount = await db.discount_codes.find_one(
+        {"code": request.code.upper(), "is_active": True},
+        {"_id": 0}
+    )
+    
+    if not discount:
+        raise HTTPException(status_code=404, detail="Invalid discount code")
+    
+    now = datetime.now(timezone.utc)
+    
+    # Check validity period
+    if discount.get("valid_from"):
+        valid_from = datetime.fromisoformat(discount["valid_from"]) if isinstance(discount["valid_from"], str) else discount["valid_from"]
+        if now < valid_from:
+            raise HTTPException(status_code=400, detail="Discount code not yet active")
+    
+    if discount.get("valid_until"):
+        valid_until = datetime.fromisoformat(discount["valid_until"]) if isinstance(discount["valid_until"], str) else discount["valid_until"]
+        if now > valid_until:
+            raise HTTPException(status_code=400, detail="Discount code has expired")
+    
+    # Check max uses
+    if discount.get("max_uses") and discount["current_uses"] >= discount["max_uses"]:
+        raise HTTPException(status_code=400, detail="Discount code has reached maximum uses")
+    
+    # Check applicable plans
+    if discount.get("applicable_plans") and len(discount["applicable_plans"]) > 0:
+        if request.plan not in discount["applicable_plans"]:
+            raise HTTPException(status_code=400, detail="Discount code not applicable to this plan")
+    
+    # Return format expected by frontend
+    return {
+        "valid": True,
+        "discount": {
+            "code": discount["code"],
+            "discount_percentage": discount["discount_percent"],
+            "discount_type": discount["discount_type"],
+            "fixed_amount": discount.get("fixed_amount")
+        }
+    }
+
+# ==================== AFFILIATE SYSTEM ROUTES ====================
+
+@api_router.get("/admin/affiliates")
+async def get_all_affiliates(current_user: dict = Depends(require_super_admin)):
+    """Get all affiliates (super admin only)"""
+    affiliates = await db.affiliates.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    
+    # Enrich with user info
+    for affiliate in affiliates:
+        user = await db.users.find_one({"user_id": affiliate["user_id"]}, {"_id": 0, "password_hash": 0})
+        affiliate["user"] = user
+        
+        # Get referral stats
+        referrals = await db.affiliate_referrals.find({"affiliate_id": affiliate["affiliate_id"]}, {"_id": 0}).to_list(100)
+        affiliate["referrals"] = referrals
+    
+    return {"affiliates": affiliates, "count": len(affiliates)}
+
+@api_router.post("/admin/affiliates")
+async def create_affiliate(data: AffiliateCreate, current_user: dict = Depends(require_super_admin)):
+    """Create a new affiliate (super admin only)"""
+    # Check if user exists
+    user = await db.users.find_one({"user_id": data.user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if already an affiliate
+    existing = await db.affiliates.find_one({"user_id": data.user_id}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="User is already an affiliate")
+    
+    affiliate_id = f"aff_{uuid.uuid4().hex[:12]}"
+    affiliate_code = data.affiliate_code or f"REF{uuid.uuid4().hex[:8].upper()}"
+    now = datetime.now(timezone.utc)
+    
+    # Determine tier based on parent
+    tier = 1
+    grandparent_id = None
+    if data.parent_affiliate_id:
+        parent = await db.affiliates.find_one({"affiliate_id": data.parent_affiliate_id}, {"_id": 0})
+        if parent:
+            tier = min(parent["tier"] + 1, 3)
+            grandparent_id = parent.get("parent_affiliate_id")
+    
+    affiliate_doc = {
+        "affiliate_id": affiliate_id,
+        "user_id": data.user_id,
+        "affiliate_code": affiliate_code.upper(),
+        "tier": tier,
+        "parent_affiliate_id": data.parent_affiliate_id,
+        "grandparent_affiliate_id": grandparent_id,
+        "commission_rate_tier1": data.commission_rate_tier1,
+        "commission_rate_tier2": data.commission_rate_tier2,
+        "commission_rate_tier3": data.commission_rate_tier3,
+        "total_referrals": 0,
+        "total_earnings": 0,
+        "pending_earnings": 0,
+        "paid_earnings": 0,
+        "created_at": now.isoformat(),
+        "is_active": True
+    }
+    await db.affiliates.insert_one(affiliate_doc)
+    
+    # Remove MongoDB's _id field before returning
+    affiliate_doc.pop('_id', None)
+    return {"message": "Affiliate created", "affiliate": affiliate_doc}
+
+@api_router.put("/admin/affiliates/{affiliate_id}")
+async def update_affiliate(affiliate_id: str, updates: dict, current_user: dict = Depends(require_super_admin)):
+    """Update an affiliate (super admin only)"""
+    allowed_fields = ["commission_rate_tier1", "commission_rate_tier2", "commission_rate_tier3", "is_active", "parent_affiliate_id"]
+    filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
+    
+    result = await db.affiliates.update_one(
+        {"affiliate_id": affiliate_id},
+        {"$set": filtered_updates}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Affiliate not found")
+    
+    return {"message": "Affiliate updated"}
+
+@api_router.delete("/admin/affiliates/{affiliate_id}")
+async def delete_affiliate(affiliate_id: str, current_user: dict = Depends(require_super_admin)):
+    """Delete an affiliate (super admin only)"""
+    result = await db.affiliates.delete_one({"affiliate_id": affiliate_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Affiliate not found")
+    return {"message": "Affiliate deleted"}
+
+@api_router.post("/admin/affiliates/{affiliate_id}/payout")
+async def process_affiliate_payout(affiliate_id: str, amount: float, current_user: dict = Depends(require_super_admin)):
+    """Process a payout to an affiliate (super admin only)"""
+    affiliate = await db.affiliates.find_one({"affiliate_id": affiliate_id}, {"_id": 0})
+    if not affiliate:
+        raise HTTPException(status_code=404, detail="Affiliate not found")
+    
+    if amount > affiliate["pending_earnings"]:
+        raise HTTPException(status_code=400, detail="Payout amount exceeds pending earnings")
+    
+    await db.affiliates.update_one(
+        {"affiliate_id": affiliate_id},
+        {
+            "$inc": {
+                "pending_earnings": -amount,
+                "paid_earnings": amount
+            }
+        }
+    )
+    
+    # Record payout
+    payout_doc = {
+        "payout_id": f"payout_{uuid.uuid4().hex[:12]}",
+        "affiliate_id": affiliate_id,
+        "amount": amount,
+        "processed_by": current_user["user_id"],
+        "processed_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.affiliate_payouts.insert_one(payout_doc)
+    
+    return {"message": f"Payout of €{amount} processed", "payout": payout_doc}
+
+@api_router.get("/admin/affiliates/{affiliate_id}/referrals")
+async def get_affiliate_referrals(affiliate_id: str, current_user: dict = Depends(require_super_admin)):
+    """Get referrals for a specific affiliate (super admin only)"""
+    referrals = await db.affiliate_referrals.find(
+        {"affiliate_id": affiliate_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(1000)
+    
+    # Enrich with user info
+    for ref in referrals:
+        user = await db.users.find_one({"user_id": ref["referred_user_id"]}, {"_id": 0, "password_hash": 0})
+        ref["referred_user"] = user
+    
+    return {"referrals": referrals, "count": len(referrals)}
+
+# Public affiliate endpoints
+@api_router.get("/affiliates/validate/{code}")
+async def validate_affiliate_code(code: str):
+    """Validate an affiliate referral code (public endpoint)"""
+    affiliate = await db.affiliates.find_one(
+        {"affiliate_code": code.upper(), "is_active": True},
+        {"_id": 0}
+    )
+    
+    if not affiliate:
+        raise HTTPException(status_code=404, detail="Invalid affiliate code")
+    
+    user = await db.users.find_one({"user_id": affiliate["user_id"]}, {"_id": 0, "password_hash": 0})
+    
+    return {
+        "valid": True,
+        "affiliate_code": affiliate["affiliate_code"],
+        "affiliate_name": user.get("name") if user else "Unknown"
+    }
+
+@api_router.post("/affiliates/track-referral")
+async def track_affiliate_referral(
+    affiliate_code: str,
+    referred_user_id: str,
+    payment_amount: float = 0
+):
+    """Track a new referral through affiliate link (internal use)"""
+    affiliate = await db.affiliates.find_one(
+        {"affiliate_code": affiliate_code.upper(), "is_active": True},
+        {"_id": 0}
+    )
+    
+    if not affiliate:
+        return {"success": False, "message": "Invalid affiliate code"}
+    
+    now = datetime.now(timezone.utc)
+    
+    # Calculate commission for tier 1
+    tier1_commission = payment_amount * (affiliate["commission_rate_tier1"] / 100)
+    
+    # Create referral record
+    referral_doc = {
+        "referral_id": f"ref_{uuid.uuid4().hex[:12]}",
+        "affiliate_id": affiliate["affiliate_id"],
+        "referred_user_id": referred_user_id,
+        "tier_level": 1,
+        "commission_amount": tier1_commission,
+        "commission_status": "pending" if tier1_commission > 0 else "none",
+        "payment_amount": payment_amount,
+        "created_at": now.isoformat()
+    }
+    await db.affiliate_referrals.insert_one(referral_doc)
+    
+    # Update affiliate stats
+    await db.affiliates.update_one(
+        {"affiliate_id": affiliate["affiliate_id"]},
+        {
+            "$inc": {
+                "total_referrals": 1,
+                "total_earnings": tier1_commission,
+                "pending_earnings": tier1_commission
+            }
+        }
+    )
+    
+    # Process tier 2 commission if parent exists
+    if affiliate.get("parent_affiliate_id"):
+        parent = await db.affiliates.find_one({"affiliate_id": affiliate["parent_affiliate_id"]}, {"_id": 0})
+        if parent and parent["is_active"]:
+            tier2_commission = payment_amount * (parent["commission_rate_tier2"] / 100)
+            
+            tier2_referral = {
+                "referral_id": f"ref_{uuid.uuid4().hex[:12]}",
+                "affiliate_id": parent["affiliate_id"],
+                "referred_user_id": referred_user_id,
+                "tier_level": 2,
+                "commission_amount": tier2_commission,
+                "commission_status": "pending" if tier2_commission > 0 else "none",
+                "payment_amount": payment_amount,
+                "created_at": now.isoformat()
+            }
+            await db.affiliate_referrals.insert_one(tier2_referral)
+            
+            await db.affiliates.update_one(
+                {"affiliate_id": parent["affiliate_id"]},
+                {
+                    "$inc": {
+                        "total_earnings": tier2_commission,
+                        "pending_earnings": tier2_commission
+                    }
+                }
+            )
+            
+            # Process tier 3 commission if grandparent exists
+            if parent.get("parent_affiliate_id"):
+                grandparent = await db.affiliates.find_one({"affiliate_id": parent["parent_affiliate_id"]}, {"_id": 0})
+                if grandparent and grandparent["is_active"]:
+                    tier3_commission = payment_amount * (grandparent["commission_rate_tier3"] / 100)
+                    
+                    tier3_referral = {
+                        "referral_id": f"ref_{uuid.uuid4().hex[:12]}",
+                        "affiliate_id": grandparent["affiliate_id"],
+                        "referred_user_id": referred_user_id,
+                        "tier_level": 3,
+                        "commission_amount": tier3_commission,
+                        "commission_status": "pending" if tier3_commission > 0 else "none",
+                        "payment_amount": payment_amount,
+                        "created_at": now.isoformat()
+                    }
+                    await db.affiliate_referrals.insert_one(tier3_referral)
+                    
+                    await db.affiliates.update_one(
+                        {"affiliate_id": grandparent["affiliate_id"]},
+                        {
+                            "$inc": {
+                                "total_earnings": tier3_commission,
+                                "pending_earnings": tier3_commission
+                            }
+                        }
+                    )
+    
+    return {"success": True, "message": "Referral tracked", "referral_id": referral_doc["referral_id"]}
+
+# ==================== SUPPORT & CONTACT ROUTES ====================
+
+@api_router.post("/support/contact")
+async def submit_contact_form(contact: ContactFormSubmit):
+    """Public endpoint for contact form submissions"""
+    now = datetime.now(timezone.utc)
+    
+    # Store the contact request
+    contact_doc = {
+        "contact_id": f"contact_{uuid.uuid4().hex[:12]}",
+        "name": contact.name,
+        "email": contact.email,
+        "subject": contact.subject,
+        "message": contact.message,
+        "status": "new",
+        "created_at": now.isoformat()
+    }
+    await db.contact_requests.insert_one(contact_doc)
+    
+    # Get platform settings to find support email
+    settings = await db.platform_settings.find_one({"setting_id": "platform_settings"}, {"_id": 0})
+    support_email = settings.get("support_email", "support@upmuch.com") if settings else "support@upmuch.com"
+    
+    # Send email notification via Resend
+    email_sent = False
+    if RESEND_API_KEY:
+        try:
+            # Email to support team
+            support_html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #4f46e5;">New Contact Form Submission</h2>
+                <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>From:</strong> {contact.name} ({contact.email})</p>
+                    <p><strong>Subject:</strong> {contact.subject}</p>
+                    <p><strong>Message:</strong></p>
+                    <div style="background: white; padding: 15px; border-radius: 4px; border-left: 4px solid #4f46e5;">
+                        {contact.message}
+                    </div>
+                </div>
+                <p style="color: #64748b; font-size: 12px;">This message was sent from the upmuch contact form.</p>
+            </div>
+            """
+            
+            await asyncio.to_thread(resend.Emails.send, {
+                "from": SENDER_EMAIL,
+                "to": [support_email],
+                "subject": f"[upmuch Contact] {contact.subject}",
+                "html": support_html
+            })
+            
+            # Confirmation email to user
+            confirmation_html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #4f46e5;">Thank you for contacting us!</h2>
+                <p>Hi {contact.name},</p>
+                <p>We've received your message and will get back to you as soon as possible.</p>
+                <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>Your message:</strong></p>
+                    <p style="color: #475569;">{contact.message}</p>
+                </div>
+                <p>Best regards,<br>The upmuch Team</p>
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                <p style="color: #64748b; font-size: 12px;">upmuch CRM - Simplify your sales</p>
+            </div>
+            """
+            
+            await asyncio.to_thread(resend.Emails.send, {
+                "from": SENDER_EMAIL,
+                "to": [contact.email],
+                "subject": "We received your message - upmuch",
+                "html": confirmation_html
+            })
+            
+            email_sent = True
+            logger.info(f"Contact form emails sent successfully for {contact.email}")
+            
+        except Exception as e:
+            logger.error(f"Failed to send contact form email: {str(e)}")
+    
+    logger.info(f"Contact form submitted: {contact.email} - {contact.subject}")
+    
+    return {
+        "success": True, 
+        "message": "Message received! We'll get back to you soon.", 
+        "contact_id": contact_doc["contact_id"],
+        "email_sent": email_sent
+    }
+
+@api_router.get("/admin/contact-requests")
+async def get_contact_requests(current_user: dict = Depends(require_super_admin)):
+    """Get all contact form submissions (super admin only)"""
+    requests = await db.contact_requests.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return {"contact_requests": requests, "count": len(requests)}
+
+# ==================== PLATFORM SETTINGS ROUTES ====================
+
+@api_router.get("/admin/settings")
+async def get_platform_settings(current_user: dict = Depends(require_super_admin)):
+    """Get platform settings (super admin only)"""
+    settings = await db.platform_settings.find_one({"setting_id": "platform_settings"}, {"_id": 0})
+    if not settings:
+        # Return defaults
+        settings = {
+            "setting_id": "platform_settings",
+            "support_email": "support@upmuch.com",
+            "stripe_api_key": None,
+            "paypal_client_id": None,
+            "paypal_client_secret": None,
+            "crypto_wallet_address": None,
+            "deal_stages": [
+                {"id": "lead", "name": "Lead", "order": 1},
+                {"id": "qualified", "name": "Qualified", "order": 2},
+                {"id": "proposal", "name": "Proposal", "order": 3},
+                {"id": "negotiation", "name": "Negotiation", "order": 4},
+                {"id": "won", "name": "Won", "order": 5},
+                {"id": "lost", "name": "Lost", "order": 6}
+            ],
+            "task_stages": [
+                {"id": "todo", "name": "To Do", "order": 1},
+                {"id": "in_progress", "name": "In Progress", "order": 2},
+                {"id": "done", "name": "Done", "order": 3}
+            ],
+            "vat_rate": 20.0
+        }
+    return settings
+
+@api_router.put("/admin/settings")
+async def update_platform_settings(updates: dict, current_user: dict = Depends(require_super_admin)):
+    """Update platform settings (super admin only)"""
+    allowed_fields = [
+        "support_email", "stripe_api_key", "paypal_client_id", "paypal_client_secret",
+        "crypto_wallet_address", "deal_stages", "task_stages", "vat_rate"
+    ]
+    filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
+    filtered_updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.platform_settings.update_one(
+        {"setting_id": "platform_settings"},
+        {"$set": filtered_updates},
+        upsert=True
+    )
+    
+    return {"message": "Settings updated successfully"}
+
+@api_router.get("/settings/stages")
+async def get_stages(current_user: dict = Depends(get_current_user)):
+    """Get deal and task stages (for dropdowns)"""
+    settings = await db.platform_settings.find_one({"setting_id": "platform_settings"}, {"_id": 0})
+    
+    deal_stages = settings.get("deal_stages") if settings else None
+    task_stages = settings.get("task_stages") if settings else None
+    
+    if not deal_stages:
+        deal_stages = [
+            {"id": "lead", "name": "Lead", "order": 1},
+            {"id": "qualified", "name": "Qualified", "order": 2},
+            {"id": "proposal", "name": "Proposal", "order": 3},
+            {"id": "negotiation", "name": "Negotiation", "order": 4},
+            {"id": "won", "name": "Won", "order": 5},
+            {"id": "lost", "name": "Lost", "order": 6}
+        ]
+    
+    if not task_stages:
+        task_stages = [
+            {"id": "todo", "name": "To Do", "order": 1},
+            {"id": "in_progress", "name": "In Progress", "order": 2},
+            {"id": "done", "name": "Done", "order": 3}
+        ]
+    
+    return {"deal_stages": deal_stages, "task_stages": task_stages}
+
+# ==================== PIPELINE REPORT ROUTES ====================
+
+@api_router.get("/pipeline/report")
+async def get_pipeline_report(current_user: dict = Depends(get_current_user)):
+    """Get pipeline report - admins see all, users see only their own deals"""
+    if not current_user.get("organization_id"):
+        return {"stages": [], "total_value": 0, "deals": []}
+    
+    org_id = current_user["organization_id"]
+    user_role = current_user.get("role", "member")
+    is_admin = user_role in ["admin", "owner", "super_admin"]
+    
+    # Build query - admins see all, regular users see only their deals
+    query = {"organization_id": org_id}
+    if not is_admin:
+        query["$or"] = [
+            {"assigned_to": current_user["user_id"]},
+            {"created_by": current_user["user_id"]}
+        ]
+    
+    deals = await db.deals.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    
+    # Get stages from settings
+    settings = await db.platform_settings.find_one({"setting_id": "platform_settings"}, {"_id": 0})
+    default_stages = [
+        {"id": "lead", "name": "Lead", "order": 1},
+        {"id": "qualified", "name": "Qualified", "order": 2},
+        {"id": "proposal", "name": "Proposal", "order": 3},
+        {"id": "negotiation", "name": "Negotiation", "order": 4},
+        {"id": "won", "name": "Won", "order": 5},
+        {"id": "lost", "name": "Lost", "order": 6}
+    ]
+    deal_stages = (settings.get("deal_stages") if settings else None) or default_stages
+    
+    # Calculate stage summaries
+    stage_summaries = []
+    total_value = 0
+    weighted_value = 0
+    
+    for stage in deal_stages:
+        stage_deals = [d for d in deals if d.get("stage") == stage["id"]]
+        stage_value = sum(d.get("value", 0) for d in stage_deals)
+        stage_weighted = sum(d.get("value", 0) * (d.get("probability", 0) / 100) for d in stage_deals)
+        total_value += stage_value
+        weighted_value += stage_weighted
+        
+        stage_summaries.append({
+            "id": stage["id"],
+            "name": stage["name"],
+            "count": len(stage_deals),
+            "value": stage_value,
+            "weighted_value": stage_weighted
+        })
+    
+    return {
+        "stages": stage_summaries,
+        "total_value": total_value,
+        "weighted_value": weighted_value,
+        "deals": deals,
+        "is_admin_view": is_admin
+    }
+
+@api_router.get("/pipeline/team-summary")
+async def get_team_pipeline_summary(current_user: dict = Depends(get_current_user)):
+    """Get pipeline summary by team member (admin only)"""
+    if not current_user.get("organization_id"):
+        return {"members": []}
+    
+    user_role = current_user.get("role", "member")
+    is_admin = user_role in ["admin", "owner", "super_admin"]
+    
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    org_id = current_user["organization_id"]
+    
+    # Get all team members
+    members = await db.users.find(
+        {"organization_id": org_id},
+        {"_id": 0, "password_hash": 0}
+    ).to_list(100)
+    
+    # Get all deals for this org
+    deals = await db.deals.find({"organization_id": org_id}, {"_id": 0}).to_list(1000)
+    
+    # Calculate summary per member
+    member_summaries = []
+    for member in members:
+        member_deals = [d for d in deals if d.get("assigned_to") == member["user_id"] or d.get("created_by") == member["user_id"]]
+        total_value = sum(d.get("value", 0) for d in member_deals)
+        weighted_value = sum(d.get("value", 0) * (d.get("probability", 0) / 100) for d in member_deals)
+        won_value = sum(d.get("value", 0) for d in member_deals if d.get("stage") == "won")
+        
+        member_summaries.append({
+            "user_id": member["user_id"],
+            "name": member["name"],
+            "email": member["email"],
+            "deal_count": len(member_deals),
+            "total_value": total_value,
+            "weighted_value": weighted_value,
+            "won_value": won_value
+        })
+    
+    return {"members": member_summaries}
+
+# ==================== SUBSCRIPTION & PAYMENT ROUTES ====================
+
+@api_router.get("/subscriptions/plans")
+async def get_subscription_plans():
+    """Get available subscription plans"""
+    return {"plans": list(SUBSCRIPTION_PLANS.values())}
+
+@api_router.post("/subscriptions/checkout")
+async def create_subscription_checkout(
+    request: SubscriptionRequest,
+    http_request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a Stripe checkout session for subscription"""
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=500, detail="Payment system not configured")
+    
+    # Validate plan
+    if request.plan_id not in SUBSCRIPTION_PLANS:
+        raise HTTPException(status_code=400, detail="Invalid subscription plan")
+    
+    plan = SUBSCRIPTION_PLANS[request.plan_id]
+    
+    # Calculate pricing
+    base_price = plan["price"] * request.user_count
+    discount_amount = 0.0
+    discount_info = None
+    
+    # Apply discount code if provided
+    if request.discount_code:
+        discount = await db.discount_codes.find_one({
+            "code": request.discount_code.upper(),
+            "is_active": True
+        }, {"_id": 0})
+        
+        if discount:
+            discount_amount = base_price * (discount["discount_percent"] / 100)
+            discount_info = {
+                "code": discount["code"],
+                "percentage": discount["discount_percent"]
+            }
+    
+    # Apply crypto discount (5%) if using crypto
+    crypto_discount = 0.0
+    if request.use_crypto:
+        crypto_discount = (base_price - discount_amount) * 0.05
+    
+    # Calculate VAT
+    settings = await db.platform_settings.find_one({"setting_id": "platform_settings"}, {"_id": 0})
+    vat_rate = settings.get("vat_rate", 20.0) if settings else 20.0
+    
+    net_amount = base_price - discount_amount - crypto_discount
+    vat_amount = net_amount * (vat_rate / 100)
+    total_amount = net_amount + vat_amount
+    
+    # Create URLs
+    success_url = f"{request.origin_url}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{request.origin_url}/pricing"
+    
+    # Initialize Stripe
+    host_url = str(http_request.base_url).rstrip('/')
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    
+    # Create checkout session
+    metadata = {
+        "organization_id": current_user.get("organization_id", ""),
+        "user_id": current_user["user_id"],
+        "email": current_user["email"],
+        "plan_id": request.plan_id,
+        "user_count": str(request.user_count),
+        "discount_code": request.discount_code or "",
+        "vat_rate": str(vat_rate)
+    }
+    
+    payment_methods = ["card", "crypto"] if request.use_crypto else ["card"]
+    currency = "usd" if request.use_crypto else "eur"
+    
+    # Convert to USD if using crypto (required by Stripe)
+    if request.use_crypto:
+        total_amount = total_amount * 1.08  # Approximate EUR to USD conversion
+    
+    checkout_request = CheckoutSessionRequest(
+        amount=round(total_amount, 2),
+        currency=currency,
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata=metadata,
+        payment_methods=payment_methods
+    )
+    
+    session = await stripe_checkout.create_checkout_session(checkout_request)
+    
+    # Create payment transaction record
+    now = datetime.now(timezone.utc)
+    transaction_doc = {
+        "transaction_id": f"txn_{uuid.uuid4().hex[:12]}",
+        "organization_id": current_user.get("organization_id", ""),
+        "user_id": current_user["user_id"],
+        "email": current_user["email"],
+        "amount": base_price,
+        "currency": plan["currency"],
+        "plan_id": request.plan_id,
+        "user_count": request.user_count,
+        "discount_code": request.discount_code,
+        "discount_amount": discount_amount + crypto_discount,
+        "vat_amount": vat_amount,
+        "vat_rate": vat_rate,
+        "total_amount": total_amount,
+        "stripe_session_id": session.session_id,
+        "payment_status": "pending",
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    }
+    await db.payment_transactions.insert_one(transaction_doc)
+    
+    return {
+        "checkout_url": session.url,
+        "session_id": session.session_id,
+        "breakdown": {
+            "base_price": base_price,
+            "discount_amount": discount_amount,
+            "crypto_discount": crypto_discount,
+            "net_amount": net_amount,
+            "vat_rate": vat_rate,
+            "vat_amount": vat_amount,
+            "total_amount": total_amount,
+            "currency": currency.upper()
+        }
+    }
+
+@api_router.get("/subscriptions/status/{session_id}")
+async def get_subscription_status(session_id: str, http_request: Request):
+    """Check payment status and update transaction"""
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=500, detail="Payment system not configured")
+    
+    host_url = str(http_request.base_url).rstrip('/')
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    
+    try:
+        status = await stripe_checkout.get_checkout_status(session_id)
+    except Exception as e:
+        logger.error(f"Failed to get checkout status: {str(e)}")
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    
+    # Update transaction in database
+    transaction = await db.payment_transactions.find_one(
+        {"stripe_session_id": session_id}, 
+        {"_id": 0}
+    )
+    
+    if transaction and transaction.get("payment_status") != status.payment_status:
+        now = datetime.now(timezone.utc)
+        await db.payment_transactions.update_one(
+            {"stripe_session_id": session_id},
+            {"$set": {
+                "payment_status": status.payment_status,
+                "updated_at": now.isoformat()
+            }}
+        )
+        
+        # If payment successful, create invoice and update organization
+        if status.payment_status == "paid" and not transaction.get("invoice_id"):
+            invoice_id = await create_invoice_for_transaction(transaction)
+            await db.payment_transactions.update_one(
+                {"stripe_session_id": session_id},
+                {"$set": {"invoice_id": invoice_id}}
+            )
+            
+            # Update organization subscription status
+            if transaction.get("organization_id"):
+                await db.organizations.update_one(
+                    {"organization_id": transaction["organization_id"]},
+                    {"$set": {
+                        "subscription_status": "active",
+                        "subscription_plan": transaction["plan_id"],
+                        "max_users": transaction["user_count"] + 3,  # +3 free users
+                        "subscription_updated_at": now.isoformat()
+                    }}
+                )
+    
+    return {
+        "status": status.status,
+        "payment_status": status.payment_status,
+        "amount_total": status.amount_total,
+        "currency": status.currency,
+        "transaction_id": transaction.get("transaction_id") if transaction else None,
+        "invoice_id": transaction.get("invoice_id") if transaction else None
+    }
+
+@api_router.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhooks"""
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=500, detail="Payment system not configured")
+    
+    body = await request.body()
+    signature = request.headers.get("Stripe-Signature")
+    
+    host_url = str(request.base_url).rstrip('/')
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    
+    try:
+        webhook_response = await stripe_checkout.handle_webhook(body, signature)
+        
+        # Update payment transaction
+        if webhook_response.session_id:
+            now = datetime.now(timezone.utc)
+            await db.payment_transactions.update_one(
+                {"stripe_session_id": webhook_response.session_id},
+                {"$set": {
+                    "payment_status": webhook_response.payment_status,
+                    "updated_at": now.isoformat()
+                }}
+            )
+        
+        return {"received": True, "event_type": webhook_response.event_type}
+    except Exception as e:
+        logger.error(f"Webhook error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ==================== INVOICE ROUTES ====================
+
+async def create_invoice_for_transaction(transaction: dict) -> str:
+    """Create an invoice for a completed transaction"""
+    now = datetime.now(timezone.utc)
+    
+    # Get the latest invoice number
+    last_invoice = await db.invoices.find_one(
+        {}, 
+        {"_id": 0, "invoice_number": 1},
+        sort=[("created_at", -1)]
+    )
+    
+    if last_invoice:
+        try:
+            last_num = int(last_invoice["invoice_number"].split("-")[1])
+            invoice_num = last_num + 1
+        except:
+            invoice_num = 1001
+    else:
+        invoice_num = 1001
+    
+    invoice_number = f"INV-{invoice_num:05d}"
+    
+    # Get plan details
+    plan = SUBSCRIPTION_PLANS.get(transaction["plan_id"], {})
+    
+    # Get user details
+    user = await db.users.find_one(
+        {"user_id": transaction["user_id"]}, 
+        {"_id": 0, "name": 1, "email": 1}
+    )
+    
+    invoice_doc = {
+        "invoice_id": f"inv_{uuid.uuid4().hex[:12]}",
+        "invoice_number": invoice_number,
+        "organization_id": transaction.get("organization_id", ""),
+        "user_id": transaction["user_id"],
+        "email": transaction["email"],
+        "billing_name": user.get("name", transaction["email"]) if user else transaction["email"],
+        "billing_address": None,
+        "plan_name": plan.get("name", transaction["plan_id"]),
+        "user_count": transaction["user_count"],
+        "unit_price": plan.get("price", 0),
+        "subtotal": transaction["amount"],
+        "discount_code": transaction.get("discount_code"),
+        "discount_amount": transaction.get("discount_amount", 0),
+        "net_amount": transaction["amount"] - transaction.get("discount_amount", 0),
+        "vat_rate": transaction.get("vat_rate", 20.0),
+        "vat_amount": transaction.get("vat_amount", 0),
+        "total_amount": transaction["total_amount"],
+        "currency": transaction.get("currency", "EUR").upper(),
+        "status": "paid",
+        "transaction_id": transaction["transaction_id"],
+        "stripe_session_id": transaction["stripe_session_id"],
+        "invoice_date": now.isoformat(),
+        "created_at": now.isoformat()
+    }
+    
+    await db.invoices.insert_one(invoice_doc)
+    
+    # Send invoice email
+    await send_invoice_email(invoice_doc)
+    
+    return invoice_doc["invoice_id"]
+
+async def send_invoice_email(invoice: dict):
+    """Send invoice email with PDF attachment"""
+    if not RESEND_API_KEY:
+        logger.warning("Resend not configured, skipping invoice email")
+        return
+    
+    try:
+        # Generate invoice HTML
+        invoice_html = generate_invoice_html(invoice)
+        
+        # Terms and Conditions
+        terms_html = """
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <h2 style="color: #1e293b;">Terms & Conditions</h2>
+            <h3>1. Service Agreement</h3>
+            <p>By subscribing to upmuch CRM services, you agree to these terms and conditions.</p>
+            
+            <h3>2. Subscription & Billing</h3>
+            <ul>
+                <li>Subscriptions are billed in advance on a monthly or annual basis</li>
+                <li>Prices are in EUR unless otherwise specified</li>
+                <li>UK VAT at 20% is added to all invoices</li>
+                <li>Refunds are available within 14 days of initial purchase</li>
+            </ul>
+            
+            <h3>3. User Limits</h3>
+            <p>Free tier includes up to 3 users. Additional users are charged at the subscribed rate.</p>
+            
+            <h3>4. Data Protection</h3>
+            <p>We comply with GDPR and UK data protection regulations. Your data is stored securely and never shared with third parties.</p>
+            
+            <h3>5. Cancellation</h3>
+            <p>You may cancel your subscription at any time. Access continues until the end of your billing period.</p>
+            
+            <h3>6. Contact</h3>
+            <p>For support, please contact support@upmuch.com</p>
+            
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+            <p style="color: #64748b; font-size: 12px;">
+                <strong>Fintery Ltd.</strong><br>
+                71-75 Shelton Street, Covent Garden, London, WC2H 9JQ, United Kingdom<br>
+                Company Registration: UK Registered Company
+            </p>
+        </div>
+        """
+        
+        # Combine invoice and terms
+        full_html = f"""
+        <div style="font-family: Arial, sans-serif;">
+            <p>Dear {invoice['billing_name']},</p>
+            <p>Thank you for subscribing to upmuch CRM! Please find your invoice details below.</p>
+            
+            {invoice_html}
+            
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;">
+            
+            {terms_html}
+            
+            <p style="margin-top: 30px;">Best regards,<br>The upmuch Team</p>
+        </div>
+        """
+        
+        await asyncio.to_thread(resend.Emails.send, {
+            "from": SENDER_EMAIL,
+            "to": [invoice["email"]],
+            "subject": f"Your upmuch Invoice {invoice['invoice_number']}",
+            "html": full_html
+        })
+        
+        logger.info(f"Invoice email sent: {invoice['invoice_number']} to {invoice['email']}")
+        
+    except Exception as e:
+        logger.error(f"Failed to send invoice email: {str(e)}")
+
+def generate_invoice_html(invoice: dict) -> str:
+    """Generate HTML invoice"""
+    return f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="background: #4f46e5; color: white; padding: 20px;">
+            <h1 style="margin: 0; font-size: 24px;">INVOICE</h1>
+            <p style="margin: 5px 0 0 0; opacity: 0.9;">{invoice['invoice_number']}</p>
+        </div>
+        
+        <div style="padding: 20px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <div>
+                    <h3 style="color: #64748b; margin: 0 0 5px 0; font-size: 12px;">FROM</h3>
+                    <p style="margin: 0; font-weight: bold;">Fintery Ltd.</p>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">71-75 Shelton Street</p>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">Covent Garden, London</p>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">WC2H 9JQ, United Kingdom</p>
+                </div>
+                <div style="text-align: right;">
+                    <h3 style="color: #64748b; margin: 0 0 5px 0; font-size: 12px;">BILL TO</h3>
+                    <p style="margin: 0; font-weight: bold;">{invoice['billing_name']}</p>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">{invoice['email']}</p>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <p style="margin: 0; color: #64748b; font-size: 14px;">Invoice Date: {invoice['invoice_date'][:10]}</p>
+            </div>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr style="background: #f8fafc;">
+                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0;">Description</th>
+                        <th style="padding: 10px; text-align: center; border-bottom: 1px solid #e2e8f0;">Qty</th>
+                        <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e2e8f0;">Unit Price</th>
+                        <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e2e8f0;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">{invoice['plan_name']}</td>
+                        <td style="padding: 10px; text-align: center; border-bottom: 1px solid #e2e8f0;">{invoice['user_count']}</td>
+                        <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e2e8f0;">€{invoice['unit_price']:.2f}</td>
+                        <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e2e8f0;">€{invoice['subtotal']:.2f}</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div style="text-align: right;">
+                <p style="margin: 5px 0;"><span style="color: #64748b;">Subtotal:</span> €{invoice['subtotal']:.2f}</p>
+                {"<p style='margin: 5px 0;'><span style='color: #64748b;'>Discount (" + invoice['discount_code'] + "):</span> -€" + f"{invoice['discount_amount']:.2f}" + "</p>" if invoice.get('discount_code') else ""}
+                <p style="margin: 5px 0;"><span style="color: #64748b;">VAT ({invoice['vat_rate']}%):</span> €{invoice['vat_amount']:.2f}</p>
+                <p style="margin: 10px 0 0 0; font-size: 20px; font-weight: bold; color: #4f46e5;">Total: €{invoice['total_amount']:.2f}</p>
+            </div>
+        </div>
+        
+        <div style="background: #f8fafc; padding: 15px 20px; text-align: center;">
+            <p style="margin: 0; color: #64748b; font-size: 12px;">Thank you for your business!</p>
+        </div>
+    </div>
+    """
+
+@api_router.get("/invoices")
+async def get_user_invoices(current_user: dict = Depends(get_current_user)):
+    """Get invoices for the current user's organization"""
+    query = {}
+    if current_user.get("organization_id"):
+        query["organization_id"] = current_user["organization_id"]
+    else:
+        query["user_id"] = current_user["user_id"]
+    
+    invoices = await db.invoices.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"invoices": invoices}
+
+@api_router.get("/invoices/{invoice_id}")
+async def get_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    """Get a specific invoice"""
+    invoice = await db.invoices.find_one({"invoice_id": invoice_id}, {"_id": 0})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Check permission
+    if invoice.get("organization_id") != current_user.get("organization_id") and invoice.get("user_id") != current_user["user_id"]:
+        user_role = current_user.get("role", "member")
+        if user_role not in ["super_admin"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+    
+    return invoice
+
+@api_router.get("/invoices/{invoice_id}/html")
+async def get_invoice_html(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    """Get invoice as HTML for printing/PDF"""
+    invoice = await db.invoices.find_one({"invoice_id": invoice_id}, {"_id": 0})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    html = generate_invoice_html(invoice)
+    return Response(content=html, media_type="text/html")
+
+@api_router.get("/admin/invoices")
+async def get_all_invoices(current_user: dict = Depends(require_super_admin)):
+    """Get all invoices (super admin only)"""
+    invoices = await db.invoices.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return {"invoices": invoices, "count": len(invoices)}
+
+@api_router.get("/admin/transactions")
+async def get_all_transactions(current_user: dict = Depends(require_super_admin)):
+    """Get all payment transactions (super admin only)"""
+    transactions = await db.payment_transactions.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return {"transactions": transactions, "count": len(transactions)}
+
+# ==================== BASIC ROUTES ====================
+
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "upmuch CRM API", "version": "1.0.0"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+@api_router.get("/health")
+async def health():
+    return {"status": "healthy"}
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -72,17 +2954,10 @@ app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

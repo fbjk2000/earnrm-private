@@ -1,53 +1,279 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { Toaster } from './components/ui/sonner';
+
+// Pages
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
+import DashboardPage from './pages/DashboardPage';
+import LeadsPage from './pages/LeadsPage';
+import DealsPage from './pages/DealsPage';
+import TasksPage from './pages/TasksPage';
+import CompaniesPage from './pages/CompaniesPage';
+import CampaignsPage from './pages/CampaignsPage';
+import SettingsPage from './pages/SettingsPage';
+import AdminPage from './pages/AdminPage';
+import PricingPage from './pages/PricingPage';
+import SupportPage from './pages/SupportPage';
+import PipelineReportPage from './pages/PipelineReportPage';
+import SubscriptionSuccessPage from './pages/SubscriptionSuccessPage';
+
+import './App.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+export const API = `${BACKEND_URL}/api`;
 
-const Home = () => {
-  const helloWorldApi = async () => {
+// Auth Context
+const AuthContext = createContext(null);
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+};
+
+const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
+
+  const login = async (email, password) => {
+    const response = await axios.post(`${API}/auth/login`, { email, password });
+    const { token: newToken, ...userData } = response.data;
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+    setUser(userData);
+    return userData;
+  };
+
+  const register = async (data) => {
+    const response = await axios.post(`${API}/auth/register`, data);
+    const { token: newToken, ...userData } = response.data;
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+    setUser(userData);
+    return userData;
+  };
+
+  const logout = async () => {
     try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
+      await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
     } catch (e) {
-      console.error(e, `errored out requesting / api`);
+      console.error('Logout error:', e);
+    }
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+  };
+
+  const checkAuth = async () => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${API}/auth/me`, {
+        withCredentials: true,
+        headers
+      });
+      setUser(response.data);
+    } catch (e) {
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    helloWorldApi();
+    checkAuth();
   }, []);
 
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
+    <AuthContext.Provider value={{ user, setUser, token, loading, login, register, logout, checkAuth }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Auth Callback Component
+const AuthCallback = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { setUser, checkAuth } = useAuth();
+  const hasProcessed = useRef(false);
+
+  useEffect(() => {
+    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+    if (hasProcessed.current) return;
+    hasProcessed.current = true;
+
+    const processSession = async () => {
+      const hash = location.hash;
+      const sessionId = hash.split('session_id=')[1];
+
+      if (sessionId) {
+        try {
+          const response = await axios.post(
+            `${API}/auth/session`,
+            { session_id: sessionId },
+            { withCredentials: true }
+          );
+          setUser(response.data);
+          navigate('/dashboard', { replace: true, state: { user: response.data } });
+        } catch (error) {
+          console.error('Session processing error:', error);
+          navigate('/login', { replace: true });
+        }
+      } else {
+        navigate('/login', { replace: true });
+      }
+    };
+
+    processSession();
+  }, []);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-slate-600">Signing you in...</p>
+      </div>
     </div>
+  );
+};
+
+// Protected Route
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+};
+
+// App Router
+const AppRouter = () => {
+  const location = useLocation();
+
+  // Check for session_id in hash BEFORE rendering routes
+  if (location.hash?.includes('session_id=')) {
+    return <AuthCallback />;
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/support" element={<SupportPage />} />
+      <Route
+        path="/subscription/success"
+        element={
+          <ProtectedRoute>
+            <SubscriptionSuccessPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/leads"
+        element={
+          <ProtectedRoute>
+            <LeadsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/deals"
+        element={
+          <ProtectedRoute>
+            <DealsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tasks"
+        element={
+          <ProtectedRoute>
+            <TasksPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/companies"
+        element={
+          <ProtectedRoute>
+            <CompaniesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/campaigns"
+        element={
+          <ProtectedRoute>
+            <CampaignsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pipeline"
+        element={
+          <ProtectedRoute>
+            <PipelineReportPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 
 function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRouter />
+        <Toaster position="top-right" />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 
