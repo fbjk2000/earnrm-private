@@ -16,7 +16,8 @@ import {
   X,
   LogOut,
   ChevronRight,
-  BarChart3
+  BarChart3,
+  HelpCircle
 } from 'lucide-react';
 
 const DashboardLayout = ({ children }) => {
@@ -35,6 +36,7 @@ const DashboardLayout = ({ children }) => {
     { path: '/campaigns', label: 'Campaigns', icon: <Mail className="w-5 h-5" /> },
     { divider: true },
     { path: '/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
+    { path: '/support', label: 'Support', icon: <HelpCircle className="w-5 h-5" /> },
     { path: '/admin', label: 'Admin', icon: <Shield className="w-5 h-5" /> }
   ];
 
