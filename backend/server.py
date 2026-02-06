@@ -708,6 +708,298 @@ async def get_organization_members(organization_id: str, current_user: dict = De
     ).to_list(1000)
     return members
 
+# ==================== ORGANIZATION SETTINGS & PIPELINES ====================
+
+class OrgSettingsUpdate(BaseModel):
+    deal_stages: Optional[List[dict]] = None
+    task_stages: Optional[List[dict]] = None
+    affiliate_enabled: Optional[bool] = None
+
+class PipelineCreate(BaseModel):
+    name: str
+    stages: List[dict]
+    is_default: bool = False
+
+@api_router.get("/organizations/settings")
+async def get_organization_settings(current_user: dict = Depends(get_current_user)):
+    """Get organization-specific settings (deal stages, task stages, etc.)"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    org = await db.organizations.find_one(
+        {"organization_id": current_user["organization_id"]},
+        {"_id": 0}
+    )
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    
+    # Return org settings with defaults if not set
+    return {
+        "organization_id": org["organization_id"],
+        "name": org["name"],
+        "deal_stages": org.get("deal_stages", [
+            {"id": "lead", "name": "Lead", "order": 1},
+            {"id": "qualified", "name": "Qualified", "order": 2},
+            {"id": "proposal", "name": "Proposal", "order": 3},
+            {"id": "negotiation", "name": "Negotiation", "order": 4},
+            {"id": "won", "name": "Won", "order": 5},
+            {"id": "lost", "name": "Lost", "order": 6}
+        ]),
+        "task_stages": org.get("task_stages", [
+            {"id": "todo", "name": "To Do", "order": 1},
+            {"id": "in_progress", "name": "In Progress", "order": 2},
+            {"id": "done", "name": "Done", "order": 3}
+        ]),
+        "pipelines": org.get("pipelines", []),
+        "affiliate_enabled": org.get("affiliate_enabled", False)
+    }
+
+@api_router.put("/organizations/settings")
+async def update_organization_settings(
+    settings: OrgSettingsUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update organization settings (owner/admin only)"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    # Check if user is owner or admin
+    if current_user.get("role") not in ["owner", "admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Only owners/admins can update organization settings")
+    
+    update_data = {}
+    if settings.deal_stages is not None:
+        update_data["deal_stages"] = settings.deal_stages
+    if settings.task_stages is not None:
+        update_data["task_stages"] = settings.task_stages
+    if settings.affiliate_enabled is not None:
+        update_data["affiliate_enabled"] = settings.affiliate_enabled
+    
+    if update_data:
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.organizations.update_one(
+            {"organization_id": current_user["organization_id"]},
+            {"$set": update_data}
+        )
+    
+    return await get_organization_settings(current_user)
+
+@api_router.get("/organizations/pipelines")
+async def get_organization_pipelines(current_user: dict = Depends(get_current_user)):
+    """Get all pipelines for the organization"""
+    if not current_user.get("organization_id"):
+        return {"pipelines": []}
+    
+    org = await db.organizations.find_one(
+        {"organization_id": current_user["organization_id"]},
+        {"_id": 0, "pipelines": 1}
+    )
+    return {"pipelines": org.get("pipelines", []) if org else []}
+
+@api_router.post("/organizations/pipelines")
+async def create_pipeline(
+    pipeline: PipelineCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new pipeline (owner/admin only)"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    if current_user.get("role") not in ["owner", "admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Only owners/admins can create pipelines")
+    
+    pipeline_id = f"pipeline_{uuid.uuid4().hex[:8]}"
+    pipeline_doc = {
+        "pipeline_id": pipeline_id,
+        "name": pipeline.name,
+        "stages": pipeline.stages,
+        "is_default": pipeline.is_default,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # If this is set as default, unset other defaults
+    if pipeline.is_default:
+        await db.organizations.update_one(
+            {"organization_id": current_user["organization_id"]},
+            {"$set": {"pipelines.$[].is_default": False}}
+        )
+    
+    await db.organizations.update_one(
+        {"organization_id": current_user["organization_id"]},
+        {"$push": {"pipelines": pipeline_doc}}
+    )
+    
+    return pipeline_doc
+
+@api_router.put("/organizations/pipelines/{pipeline_id}")
+async def update_pipeline(
+    pipeline_id: str,
+    pipeline: PipelineCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a pipeline (owner/admin only)"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    if current_user.get("role") not in ["owner", "admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Only owners/admins can update pipelines")
+    
+    await db.organizations.update_one(
+        {"organization_id": current_user["organization_id"], "pipelines.pipeline_id": pipeline_id},
+        {"$set": {
+            "pipelines.$.name": pipeline.name,
+            "pipelines.$.stages": pipeline.stages,
+            "pipelines.$.is_default": pipeline.is_default,
+            "pipelines.$.updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"message": "Pipeline updated"}
+
+@api_router.delete("/organizations/pipelines/{pipeline_id}")
+async def delete_pipeline(pipeline_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a pipeline (owner/admin only)"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    if current_user.get("role") not in ["owner", "admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Only owners/admins can delete pipelines")
+    
+    await db.organizations.update_one(
+        {"organization_id": current_user["organization_id"]},
+        {"$pull": {"pipelines": {"pipeline_id": pipeline_id}}}
+    )
+    
+    return {"message": "Pipeline deleted"}
+
+# ==================== USER ROLE MANAGEMENT (ORG LEVEL) ====================
+
+@api_router.put("/organizations/members/{user_id}/role")
+async def update_member_role(
+    user_id: str,
+    role: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a team member's role (owner only can transfer ownership)"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    valid_roles = ["member", "admin", "owner"]
+    if role not in valid_roles:
+        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {valid_roles}")
+    
+    # Only owner can change roles
+    if current_user.get("role") != "owner" and current_user.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only the owner can change member roles")
+    
+    # Check target user is in same org
+    target_user = await db.users.find_one(
+        {"user_id": user_id, "organization_id": current_user["organization_id"]},
+        {"_id": 0}
+    )
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found in organization")
+    
+    # If transferring ownership, demote current owner to admin
+    if role == "owner" and user_id != current_user["user_id"]:
+        await db.users.update_one(
+            {"user_id": current_user["user_id"]},
+            {"$set": {"role": "admin"}}
+        )
+        # Update organization owner_id
+        await db.organizations.update_one(
+            {"organization_id": current_user["organization_id"]},
+            {"$set": {"owner_id": user_id}}
+        )
+    
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"role": role}}
+    )
+    
+    return {"message": f"User role updated to {role}"}
+
+# ==================== AFFILIATE SELF-ENROLLMENT ====================
+
+@api_router.post("/affiliate/enroll")
+async def enroll_as_affiliate(current_user: dict = Depends(get_current_user)):
+    """Self-enroll as an affiliate (if organization has affiliate enabled)"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    # Check if org has affiliate enabled
+    org = await db.organizations.find_one(
+        {"organization_id": current_user["organization_id"]},
+        {"_id": 0}
+    )
+    if not org or not org.get("affiliate_enabled", False):
+        raise HTTPException(status_code=400, detail="Affiliate program not enabled for your organization")
+    
+    # Check if already an affiliate
+    existing = await db.affiliates.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    if existing:
+        return {"message": "Already enrolled", "affiliate": existing}
+    
+    # Create affiliate entry
+    affiliate_id = f"aff_{uuid.uuid4().hex[:12]}"
+    affiliate_code = f"{current_user['name'].split()[0].lower()}_{uuid.uuid4().hex[:6]}"
+    now = datetime.now(timezone.utc)
+    
+    affiliate_doc = {
+        "affiliate_id": affiliate_id,
+        "user_id": current_user["user_id"],
+        "email": current_user["email"],
+        "name": current_user["name"],
+        "organization_id": current_user["organization_id"],
+        "affiliate_code": affiliate_code,
+        "tier": 1,
+        "commission_rate_tier1": 20.0,
+        "commission_rate_tier2": 10.0,
+        "commission_rate_tier3": 5.0,
+        "total_referrals": 0,
+        "total_earnings": 0,
+        "pending_earnings": 0,
+        "paid_earnings": 0,
+        "created_at": now.isoformat(),
+        "is_active": True
+    }
+    await db.affiliates.insert_one(affiliate_doc)
+    affiliate_doc.pop('_id', None)
+    
+    return {"message": "Successfully enrolled as affiliate", "affiliate": affiliate_doc}
+
+@api_router.get("/affiliate/me")
+async def get_my_affiliate_status(current_user: dict = Depends(get_current_user)):
+    """Get current user's affiliate status and referral link"""
+    affiliate = await db.affiliates.find_one(
+        {"user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    
+    if not affiliate:
+        return {"enrolled": False, "affiliate": None}
+    
+    # Get referral stats
+    referrals = await db.affiliate_referrals.find(
+        {"affiliate_id": affiliate["affiliate_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    
+    return {
+        "enrolled": True,
+        "affiliate": affiliate,
+        "referral_link": f"https://upmuch.com/signup?ref={affiliate['affiliate_code']}",
+        "referrals": referrals
+    }
+
+@api_router.post("/affiliate/unenroll")
+async def unenroll_from_affiliate(current_user: dict = Depends(get_current_user)):
+    """Unenroll from affiliate program"""
+    result = await db.affiliates.delete_one({"user_id": current_user["user_id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Not enrolled as affiliate")
+    return {"message": "Successfully unenrolled from affiliate program"}
+
 # ==================== LEADS ROUTES ====================
 
 @api_router.get("/leads")
