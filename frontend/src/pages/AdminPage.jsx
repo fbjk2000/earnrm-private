@@ -707,9 +707,9 @@ const AdminPage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="w-5 h-5" />
-                  Platform Settings
+                  upmuch Platform Settings
                 </CardTitle>
-                <CardDescription>Configure payment integrations, support email, and other platform settings</CardDescription>
+                <CardDescription>Configure upmuch platform payment integrations, support email, and global settings (Super Admin only)</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSaveAllSettings} className="space-y-6">
