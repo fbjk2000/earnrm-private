@@ -8,6 +8,9 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
+import { Switch } from '../components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { 
@@ -22,7 +25,16 @@ import {
   ExternalLink,
   CheckCircle,
   Clock,
-  Zap
+  Zap,
+  Users,
+  Copy,
+  Link,
+  Gift,
+  Layers,
+  Edit,
+  Trash2,
+  Save,
+  Crown
 } from 'lucide-react';
 
 const SettingsPage = () => {
@@ -30,10 +42,17 @@ const SettingsPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [organization, setOrganization] = useState(null);
+  const [orgSettings, setOrgSettings] = useState(null);
+  const [members, setMembers] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [affiliateStatus, setAffiliateStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [newOrgName, setNewOrgName] = useState('');
   const [creatingOrg, setCreatingOrg] = useState(false);
+  const [editingStages, setEditingStages] = useState(false);
+  const [dealStages, setDealStages] = useState([]);
+  const [isPipelineDialogOpen, setIsPipelineDialogOpen] = useState(false);
+  const [newPipeline, setNewPipeline] = useState({ name: '', stages: [] });
 
   const defaultTab = searchParams.get('tab') || 'profile';
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -41,7 +60,15 @@ const SettingsPage = () => {
   useEffect(() => {
     fetchOrganization();
     fetchInvoices();
+    fetchAffiliateStatus();
   }, []);
+
+  useEffect(() => {
+    if (organization) {
+      fetchOrgSettings();
+      fetchMembers();
+    }
+  }, [organization]);
 
   const fetchOrganization = async () => {
     try {
@@ -54,6 +81,44 @@ const SettingsPage = () => {
       console.error('Failed to fetch organization');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOrgSettings = async () => {
+    try {
+      const response = await axios.get(`${API}/organizations/settings`, {
+        headers,
+        withCredentials: true
+      });
+      setOrgSettings(response.data);
+      setDealStages(response.data.deal_stages || []);
+    } catch (error) {
+      console.error('Failed to fetch org settings');
+    }
+  };
+
+  const fetchMembers = async () => {
+    if (!organization?.organization_id) return;
+    try {
+      const response = await axios.get(`${API}/organizations/${organization.organization_id}/members`, {
+        headers,
+        withCredentials: true
+      });
+      setMembers(response.data);
+    } catch (error) {
+      console.error('Failed to fetch members');
+    }
+  };
+
+  const fetchAffiliateStatus = async () => {
+    try {
+      const response = await axios.get(`${API}/affiliate/me`, {
+        headers,
+        withCredentials: true
+      });
+      setAffiliateStatus(response.data);
+    } catch (error) {
+      console.error('Failed to fetch affiliate status');
     }
   };
 
