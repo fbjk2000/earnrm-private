@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, API } from '../App';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -10,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { Plus, MoreVertical, Euro, Calendar, Percent, Tag, Filter, X, Users } from 'lucide-react';
+import { Plus, MoreVertical, Euro, Calendar, Percent, Tag, Filter, X, Users, MessageSquare } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,7 @@ import {
 
 const DealsPage = () => {
   const { token, user } = useAuth();
+  const navigate = useNavigate();
   const [deals, setDeals] = useState([]);
   const [members, setMembers] = useState([]);
   const [existingTags, setExistingTags] = useState([]);
