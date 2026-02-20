@@ -52,7 +52,7 @@ const DashboardLayout = ({ children }) => {
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4">
         <Link to="/dashboard" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-earnrm-purple rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-lg">U</span>
           </div>
           <span className="text-xl font-semibold text-slate-900">upmuch</span>
@@ -107,7 +107,7 @@ const DashboardLayout = ({ children }) => {
                     onClick={() => setSidebarOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 ${
                       isActive(item.path)
-                        ? 'bg-indigo-50 text-indigo-600 font-medium'
+                        ? 'bg-purple-50 text-earnrm-purple font-medium'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                     data-testid={`nav-${item.label.toLowerCase()}`}
@@ -133,8 +133,8 @@ const DashboardLayout = ({ children }) => {
                   className="w-10 h-10 rounded-full"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                  <span className="text-indigo-600 font-medium">
+                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                  <span className="text-earnrm-purple font-medium">
                     {user?.name?.[0]?.toUpperCase() || 'U'}
                   </span>
                 </div>

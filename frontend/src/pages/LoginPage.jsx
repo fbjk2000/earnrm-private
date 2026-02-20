@@ -53,11 +53,11 @@ const LoginPage = () => {
       <main className="flex-1 flex items-center justify-center px-6 py-12">
         <Card className="w-full max-w-md border-slate-200 shadow-lg" data-testid="login-card">
           <CardHeader className="text-center pb-2">
-            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-earnrm-purple rounded-xl flex items-center justify-center mx-auto mb-4">
               <span className="text-white font-bold text-xl">U</span>
             </div>
             <CardTitle className="text-2xl font-bold text-slate-900" data-testid="login-title">Welcome back</CardTitle>
-            <CardDescription className="text-slate-600">Sign in to your upmuch account</CardDescription>
+            <CardDescription className="text-slate-600">Sign in to your earnrm account</CardDescription>
           </CardHeader>
           
           <CardContent className="space-y-6 pt-4">
@@ -108,7 +108,7 @@ const LoginPage = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-slate-700">Password</Label>
-                  <a href="#" className="text-sm text-indigo-600 hover:text-indigo-700">Forgot password?</a>
+                  <a href="#" className="text-sm text-earnrm-purple hover:text-purple-700">Forgot password?</a>
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -135,7 +135,7 @@ const LoginPage = () => {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700"
+                className="w-full h-12 bg-earnrm-purple hover:bg-purple-700"
                 disabled={loading}
                 data-testid="login-submit-btn"
               >
@@ -149,7 +149,7 @@ const LoginPage = () => {
 
             <p className="text-center text-sm text-slate-600">
               Don't have an account?{' '}
-              <Link to="/signup" className="text-indigo-600 hover:text-indigo-700 font-medium" data-testid="signup-link">
+              <Link to="/signup" className="text-earnrm-purple hover:text-purple-700 font-medium" data-testid="signup-link">
                 Sign up free
               </Link>
             </p>

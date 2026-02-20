@@ -70,7 +70,7 @@ const SupportPage = () => {
         },
         {
           q: 'Is there a free trial?',
-          a: 'Yes! upmuch is free for up to 3 users. You only pay when you add more team members. No credit card required to start.'
+          a: 'Yes! earnrm is free for up to 3 users. You only pay when you add more team members. No credit card required to start.'
         },
         {
           q: 'How do I invite team members?',
@@ -95,7 +95,7 @@ const SupportPage = () => {
         },
         {
           q: 'How does the LinkedIn integration work?',
-          a: 'You can import LinkedIn contacts via CSV export. Go to LinkedIn > My Network > Connections > Export, then upload the CSV to upmuch. Web scraping features coming soon.'
+          a: 'You can import LinkedIn contacts via CSV export. Go to LinkedIn > My Network > Connections > Export, then upload the CSV to earnrm. Web scraping features coming soon.'
         },
         {
           q: 'What email integrations are supported?',
@@ -107,7 +107,7 @@ const SupportPage = () => {
       category: 'Billing & Pricing',
       questions: [
         {
-          q: 'How much does upmuch cost?',
+          q: 'How much does earnrm cost?',
           a: 'Free for up to 3 users. €15/user/month for additional users. Annual billing saves 20% (€12/user/month). Pay with crypto for an extra 5% discount.'
         },
         {
@@ -116,11 +116,11 @@ const SupportPage = () => {
         },
         {
           q: 'Can I get a refund?',
-          a: 'Yes, we offer a 30-day money-back guarantee. Contact support@upmuch.com within 30 days of purchase for a full refund.'
+          a: 'Yes, we offer a 30-day money-back guarantee. Contact support@earnrm.com within 30 days of purchase for a full refund.'
         },
         {
           q: 'Do you offer discounts for startups or non-profits?',
-          a: 'Yes! Contact us at support@upmuch.com with details about your organization, and we\'ll work out a custom plan.'
+          a: 'Yes! Contact us at support@earnrm.com with details about your organization, and we\'ll work out a custom plan.'
         }
       ]
     },
@@ -218,42 +218,42 @@ const SupportPage = () => {
       best_for: 'Complex B2B sales with long cycles',
       description: 'Focus on Situation, Problem, Implication, and Need-payoff questions to uncover customer needs.',
       when_to_use: 'When selling high-value solutions that require deep understanding of customer challenges.',
-      in_upmuch: 'Use lead notes to track SPIN questions asked. Create tasks for each stage of the SPIN process.'
+      in_earnrm: 'Use lead notes to track SPIN questions asked. Create tasks for each stage of the SPIN process.'
     },
     {
       name: 'Challenger Sale',
       best_for: 'Disruptive products or new market categories',
       description: 'Teach, tailor, and take control. Challenge customer assumptions with insights.',
       when_to_use: 'When your product changes how customers think about their problems.',
-      in_upmuch: 'Use AI email drafting to create insight-driven messages. Track "teaching moments" in deal notes.'
+      in_earnrm: 'Use AI email drafting to create insight-driven messages. Track "teaching moments" in deal notes.'
     },
     {
       name: 'Solution Selling',
       best_for: 'Service-based businesses and consultancies',
       description: 'Focus on solving specific customer problems rather than pushing product features.',
       when_to_use: 'When customers have clear pain points that your solution addresses.',
-      in_upmuch: 'Document pain points in lead profiles. Move deals through pipeline based on solution fit.'
+      in_earnrm: 'Document pain points in lead profiles. Move deals through pipeline based on solution fit.'
     },
     {
       name: 'MEDDIC',
       best_for: 'Enterprise sales with multiple stakeholders',
       description: 'Metrics, Economic Buyer, Decision Criteria, Decision Process, Identify Pain, Champion.',
       when_to_use: 'Complex deals with multiple decision-makers and long approval processes.',
-      in_upmuch: 'Create custom fields for MEDDIC criteria. Use companies to track all stakeholders.'
+      in_earnrm: 'Create custom fields for MEDDIC criteria. Use companies to track all stakeholders.'
     },
     {
       name: 'Sandler Selling',
       best_for: 'Consultative sales where trust is paramount',
       description: 'Build relationships first, qualify rigorously, and let buyers "discover" the solution.',
       when_to_use: 'When building long-term client relationships matters more than quick closes.',
-      in_upmuch: 'Use AI scoring to identify high-trust potential leads. Track relationship milestones in notes.'
+      in_earnrm: 'Use AI scoring to identify high-trust potential leads. Track relationship milestones in notes.'
     },
     {
       name: 'Value Selling',
       best_for: 'Premium products and services',
       description: 'Demonstrate ROI and value rather than competing on price.',
       when_to_use: 'When your product costs more but delivers superior results.',
-      in_upmuch: 'Document value metrics in deal notes. Use pipeline value to forecast ROI conversations.'
+      in_earnrm: 'Document value metrics in deal notes. Use pipeline value to forecast ROI conversations.'
     }
   ];
 
@@ -264,10 +264,10 @@ const SupportPage = () => {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-earnrm-purple rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">U</span>
               </div>
-              <span className="text-xl font-semibold text-slate-900">upmuch</span>
+              <span className="text-xl font-semibold text-slate-900">earnrm</span>
             </Link>
             <div className="flex items-center gap-4">
               <Link to="/">
@@ -277,7 +277,7 @@ const SupportPage = () => {
                 </Button>
               </Link>
               <Link to="/login">
-                <Button className="bg-indigo-600 hover:bg-indigo-700" size="sm">
+                <Button className="bg-earnrm-purple hover:bg-purple-700" size="sm">
                   Sign In
                 </Button>
               </Link>
@@ -287,7 +287,7 @@ const SupportPage = () => {
       </header>
 
       {/* Hero */}
-      <section className="bg-gradient-to-r from-indigo-600 to-purple-600 py-16 px-6">
+      <section className="bg-gradient-to-r from-earnrm-purple to-purple-600 py-16 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl font-bold text-white mb-4" data-testid="support-title">
             How Can We Help?
@@ -326,7 +326,7 @@ const SupportPage = () => {
               <h2 className="text-2xl font-bold text-slate-900 mb-6">Frequently Asked Questions</h2>
               {faqs.map((category, idx) => (
                 <div key={idx} className="mb-8">
-                  <h3 className="text-lg font-semibold text-indigo-600 mb-4">{category.category}</h3>
+                  <h3 className="text-lg font-semibold text-earnrm-purple mb-4">{category.category}</h3>
                   <Accordion type="single" collapsible className="space-y-2">
                     {category.questions.map((item, qIdx) => (
                       <AccordionItem key={qIdx} value={`${idx}-${qIdx}`} className="bg-white rounded-lg border border-slate-200">
@@ -354,7 +354,7 @@ const SupportPage = () => {
                   {trainingModules.map((module, idx) => (
                     <Card key={idx} className="hover:shadow-lg transition-shadow" data-testid={`training-module-${idx}`}>
                       <CardHeader>
-                        <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 mb-3">
+                        <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-earnrm-purple mb-3">
                           {module.icon}
                         </div>
                         <CardTitle className="text-lg">{module.title}</CardTitle>
@@ -364,7 +364,7 @@ const SupportPage = () => {
                         <ul className="space-y-2">
                           {module.steps.map((step, sIdx) => (
                             <li key={sIdx} className="flex items-start gap-2 text-sm text-slate-600">
-                              <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-medium">
+                              <span className="w-5 h-5 rounded-full bg-indigo-100 text-earnrm-purple flex items-center justify-center flex-shrink-0 text-xs font-medium">
                                 {sIdx + 1}
                               </span>
                               {step}
@@ -380,20 +380,20 @@ const SupportPage = () => {
               {/* Sales Methodologies */}
               <div>
                 <div className="flex items-center gap-3 mb-6">
-                  <TrendingUp className="w-8 h-8 text-indigo-600" />
+                  <TrendingUp className="w-8 h-8 text-earnrm-purple" />
                   <h2 className="text-2xl font-bold text-slate-900">Sales Methodologies</h2>
                 </div>
                 <p className="text-slate-600 mb-6 max-w-3xl">
-                  Choose the right sales approach for your business. Here's how to apply proven methodologies within upmuch.
+                  Choose the right sales approach for your business. Here's how to apply proven methodologies within earnrm.
                 </p>
                 
                 <div className="grid md:grid-cols-2 gap-6">
                   {salesMethodologies.map((method, idx) => (
-                    <Card key={idx} className="border-l-4 border-l-indigo-600" data-testid={`methodology-${idx}`}>
+                    <Card key={idx} className="border-l-4 border-l-earnrm-purple" data-testid={`methodology-${idx}`}>
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-lg flex items-center gap-2">
-                            <Award className="w-5 h-5 text-indigo-600" />
+                            <Award className="w-5 h-5 text-earnrm-purple" />
                             {method.name}
                           </CardTitle>
                         </div>
@@ -413,9 +413,9 @@ const SupportPage = () => {
                         <div className="p-3 bg-indigo-50 rounded-lg">
                           <p className="text-sm font-medium text-indigo-800 flex items-center gap-2">
                             <Lightbulb className="w-4 h-4" />
-                            In upmuch:
+                            In earnrm:
                           </p>
-                          <p className="text-sm text-indigo-700 mt-1">{method.in_upmuch}</p>
+                          <p className="text-sm text-purple-700 mt-1">{method.in_earnrm}</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -433,7 +433,7 @@ const SupportPage = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Mail className="w-5 h-5 text-indigo-600" />
+                      <Mail className="w-5 h-5 text-earnrm-purple" />
                       Send Us a Message
                     </CardTitle>
                     <CardDescription>
@@ -482,7 +482,7 @@ const SupportPage = () => {
                       </div>
                       <Button
                         type="submit"
-                        className="w-full bg-indigo-600 hover:bg-indigo-700"
+                        className="w-full bg-earnrm-purple hover:bg-purple-700"
                         disabled={sending}
                         data-testid="contact-submit"
                       >
@@ -506,16 +506,16 @@ const SupportPage = () => {
                       <h3 className="font-semibold text-slate-900 mb-4">Contact Information</h3>
                       <div className="space-y-4">
                         <div className="flex items-start gap-3">
-                          <Mail className="w-5 h-5 text-indigo-600 mt-0.5" />
+                          <Mail className="w-5 h-5 text-earnrm-purple mt-0.5" />
                           <div>
                             <p className="font-medium text-slate-900">Email</p>
-                            <a href="mailto:support@upmuch.com" className="text-indigo-600 hover:text-indigo-700">
-                              support@upmuch.com
+                            <a href="mailto:support@earnrm.com" className="text-earnrm-purple hover:text-purple-700">
+                              support@earnrm.com
                             </a>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
-                          <MapPin className="w-5 h-5 text-indigo-600 mt-0.5" />
+                          <MapPin className="w-5 h-5 text-earnrm-purple mt-0.5" />
                           <div>
                             <p className="font-medium text-slate-900">Address</p>
                             <p className="text-slate-600 text-sm">
@@ -528,7 +528,7 @@ const SupportPage = () => {
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
-                          <Clock className="w-5 h-5 text-indigo-600 mt-0.5" />
+                          <Clock className="w-5 h-5 text-earnrm-purple mt-0.5" />
                           <div>
                             <p className="font-medium text-slate-900">Business Hours</p>
                             <p className="text-slate-600 text-sm">
@@ -544,11 +544,11 @@ const SupportPage = () => {
                   <Card className="bg-indigo-50 border-indigo-100">
                     <CardContent className="p-6">
                       <h3 className="font-semibold text-indigo-900 mb-2">Need Urgent Help?</h3>
-                      <p className="text-sm text-indigo-700 mb-4">
+                      <p className="text-sm text-purple-700 mb-4">
                         For urgent technical issues, email us with "URGENT" in the subject line.
                       </p>
-                      <a href="mailto:support@upmuch.com?subject=URGENT:">
-                        <Button variant="outline" className="border-indigo-300 text-indigo-700 hover:bg-indigo-100">
+                      <a href="mailto:support@earnrm.com?subject=URGENT:">
+                        <Button variant="outline" className="border-indigo-300 text-purple-700 hover:bg-indigo-100">
                           <Mail className="w-4 h-4 mr-2" />
                           Send Urgent Request
                         </Button>
@@ -567,7 +567,7 @@ const SupportPage = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Building className="w-5 h-5 text-indigo-600" />
+                    <Building className="w-5 h-5 text-earnrm-purple" />
                     Company Information
                   </CardTitle>
                 </CardHeader>
@@ -597,7 +597,7 @@ const SupportPage = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-indigo-600" />
+                    <FileText className="w-5 h-5 text-earnrm-purple" />
                     Terms of Service
                   </CardTitle>
                 </CardHeader>
@@ -606,13 +606,13 @@ const SupportPage = () => {
                   
                   <h4 className="text-lg font-semibold text-slate-900 mt-4">1. Acceptance of Terms</h4>
                   <p className="text-slate-600">
-                    By accessing or using upmuch services, you agree to be bound by these Terms of Service. 
+                    By accessing or using earnrm services, you agree to be bound by these Terms of Service. 
                     If you do not agree, please do not use our services.
                   </p>
 
                   <h4 className="text-lg font-semibold text-slate-900 mt-4">2. Description of Service</h4>
                   <p className="text-slate-600">
-                    upmuch provides a customer relationship management (CRM) platform with features including 
+                    earnrm provides a customer relationship management (CRM) platform with features including 
                     lead management, deal tracking, task management, email campaigns, and AI-powered insights.
                   </p>
 
@@ -624,14 +624,14 @@ const SupportPage = () => {
 
                   <h4 className="text-lg font-semibold text-slate-900 mt-4">4. Acceptable Use</h4>
                   <p className="text-slate-600">
-                    You agree not to use upmuch for any unlawful purpose or in violation of any applicable 
+                    You agree not to use earnrm for any unlawful purpose or in violation of any applicable 
                     laws, including data protection regulations such as GDPR.
                   </p>
 
                   <h4 className="text-lg font-semibold text-slate-900 mt-4">5. Payment Terms</h4>
                   <p className="text-slate-600">
                     Paid subscriptions are billed monthly or annually as selected. Refunds are available 
-                    within 30 days of purchase. Contact support@upmuch.com for refund requests.
+                    within 30 days of purchase. Contact support@earnrm.com for refund requests.
                   </p>
                 </CardContent>
               </Card>
@@ -640,7 +640,7 @@ const SupportPage = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-indigo-600" />
+                    <Shield className="w-5 h-5 text-earnrm-purple" />
                     Privacy Policy
                   </CardTitle>
                 </CardHeader>
@@ -669,7 +669,7 @@ const SupportPage = () => {
                   <h4 className="text-lg font-semibold text-slate-900 mt-4">Your Rights (GDPR)</h4>
                   <p className="text-slate-600">
                     You have the right to access, correct, delete, or export your data. Contact 
-                    support@upmuch.com to exercise these rights.
+                    support@earnrm.com to exercise these rights.
                   </p>
                 </CardContent>
               </Card>
@@ -695,7 +695,7 @@ const SupportPage = () => {
                 </CardHeader>
                 <CardContent className="text-amber-700">
                   <p>
-                    upmuch is provided "as is" without warranties of any kind. We do not guarantee that the 
+                    earnrm is provided "as is" without warranties of any kind. We do not guarantee that the 
                     service will be uninterrupted or error-free. We are not liable for any indirect, 
                     incidental, or consequential damages arising from use of our services.
                   </p>
@@ -714,7 +714,7 @@ const SupportPage = () => {
       <footer className="bg-slate-900 py-8 px-6">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-slate-400 text-sm">
-            © {new Date().getFullYear()} upmuch by Fintery Ltd. All rights reserved.
+            © {new Date().getFullYear()} earnrm by Fintery Ltd. All rights reserved.
           </p>
           <p className="text-slate-500 text-xs mt-2">
             Canbury Works, Units 6 and 7, Canbury Business Park, Elm Crescent, Kingston upon Thames, Surrey, KT2 6HJ, UK

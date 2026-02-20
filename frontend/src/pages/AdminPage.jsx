@@ -207,14 +207,14 @@ const AdminPage = () => {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-earnrm-purple border-t-transparent rounded-full animate-spin" />
         </div>
       </DashboardLayout>
     );
   }
 
   const statCards = [
-    { title: 'Total Users', value: stats?.total_users || 0, icon: <Users className="w-5 h-5" />, color: 'bg-indigo-100 text-indigo-600' },
+    { title: 'Total Users', value: stats?.total_users || 0, icon: <Users className="w-5 h-5" />, color: 'bg-indigo-100 text-earnrm-purple' },
     { title: 'Organizations', value: stats?.total_organizations || 0, icon: <Building className="w-5 h-5" />, color: 'bg-emerald-100 text-emerald-600' },
     { title: 'Revenue', value: `€${(stats?.total_revenue || 0).toLocaleString()}`, icon: <DollarSign className="w-5 h-5" />, color: 'bg-rose-100 text-rose-600' },
     { title: 'Affiliates', value: stats?.total_affiliates || 0, icon: <UserPlus className="w-5 h-5" />, color: 'bg-purple-100 text-purple-600' },
@@ -389,7 +389,7 @@ const AdminPage = () => {
                 </div>
                 <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700" data-testid="create-discount-btn">
+                    <Button className="bg-earnrm-purple hover:bg-purple-700" data-testid="create-discount-btn">
                       <Tag className="w-4 h-4 mr-2" />
                       Create Code
                     </Button>
@@ -441,7 +441,7 @@ const AdminPage = () => {
                           data-testid="discount-valid-until"
                         />
                       </div>
-                      <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" data-testid="submit-discount-btn">
+                      <Button type="submit" className="w-full bg-earnrm-purple hover:bg-purple-700" data-testid="submit-discount-btn">
                         Create Discount Code
                       </Button>
                     </form>
@@ -480,7 +480,7 @@ const AdminPage = () => {
                               </div>
                             </td>
                             <td className="py-3 px-4">
-                              <span className="text-indigo-600 font-semibold">{code.discount_percent}%</span>
+                              <span className="text-earnrm-purple font-semibold">{code.discount_percent}%</span>
                             </td>
                             <td className="py-3 px-4 text-slate-600">
                               {code.current_uses}/{code.max_uses || '∞'}
@@ -528,7 +528,7 @@ const AdminPage = () => {
                 </div>
                 <Dialog open={isAffiliateDialogOpen} onOpenChange={setIsAffiliateDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700" data-testid="create-affiliate-btn">
+                    <Button className="bg-earnrm-purple hover:bg-purple-700" data-testid="create-affiliate-btn">
                       <UserPlus className="w-4 h-4 mr-2" />
                       Add Affiliate
                     </Button>
@@ -597,7 +597,7 @@ const AdminPage = () => {
                           </div>
                         </div>
                       </div>
-                      <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" data-testid="submit-affiliate-btn">
+                      <Button type="submit" className="w-full bg-earnrm-purple hover:bg-purple-700" data-testid="submit-affiliate-btn">
                         Create Affiliate
                       </Button>
                     </form>
@@ -610,7 +610,7 @@ const AdminPage = () => {
                   <h4 className="font-semibold text-indigo-900 mb-2">Three-Tier Commission Structure</h4>
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div className="text-center p-2 bg-white rounded">
-                      <p className="font-bold text-indigo-600">Tier 1</p>
+                      <p className="font-bold text-earnrm-purple">Tier 1</p>
                       <p className="text-slate-600">Direct Referral</p>
                       <p className="text-lg font-bold">20%</p>
                     </div>
@@ -651,7 +651,7 @@ const AdminPage = () => {
                             </td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-indigo-600">{aff.affiliate_code}</span>
+                                <span className="font-mono font-bold text-earnrm-purple">{aff.affiliate_code}</span>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -707,16 +707,16 @@ const AdminPage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="w-5 h-5" />
-                  upmuch Platform Settings
+                  earnrm Platform Settings
                 </CardTitle>
-                <CardDescription>Configure upmuch platform payment integrations, support email, and global settings (Super Admin only)</CardDescription>
+                <CardDescription>Configure earnrm platform payment integrations, support email, and global settings (Super Admin only)</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSaveAllSettings} className="space-y-6">
                   {/* Support Email */}
                   <div className="space-y-4 border-b pb-6">
                     <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                      <Mail className="w-5 h-5 text-indigo-600" />
+                      <Mail className="w-5 h-5 text-earnrm-purple" />
                       Support Settings
                     </h3>
                     <div className="grid md:grid-cols-2 gap-4">
@@ -726,7 +726,7 @@ const AdminPage = () => {
                           type="email"
                           value={platformSettings?.support_email || ''}
                           onChange={(e) => setPlatformSettings({...platformSettings, support_email: e.target.value})}
-                          placeholder="support@upmuch.com"
+                          placeholder="support@earnrm.com"
                           data-testid="settings-support-email"
                         />
                         <p className="text-xs text-slate-500">Contact form submissions will be sent to this email</p>
@@ -812,7 +812,7 @@ const AdminPage = () => {
                     </div>
                   </div>
 
-                  <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" data-testid="save-settings-btn">
+                  <Button type="submit" className="bg-earnrm-purple hover:bg-purple-700" data-testid="save-settings-btn">
                     <Save className="w-4 h-4 mr-2" />
                     Save All Settings
                   </Button>

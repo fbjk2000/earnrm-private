@@ -50,7 +50,7 @@ const SubscriptionSuccessPage = () => {
 
       if (response.data.payment_status === 'paid') {
         setStatus('success');
-        toast.success('Payment successful! Welcome to upmuch Pro.');
+        toast.success('Payment successful! Welcome to earnrm Pro.');
       } else if (response.data.status === 'expired') {
         setStatus('expired');
       } else {
@@ -70,7 +70,7 @@ const SubscriptionSuccessPage = () => {
       case 'loading':
         return (
           <div className="text-center py-12">
-            <Loader2 className="w-16 h-16 text-indigo-600 animate-spin mx-auto mb-6" />
+            <Loader2 className="w-16 h-16 text-earnrm-purple animate-spin mx-auto mb-6" />
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Processing Payment</h2>
             <p className="text-slate-600">Please wait while we confirm your payment...</p>
           </div>
@@ -84,7 +84,7 @@ const SubscriptionSuccessPage = () => {
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Payment Successful!</h2>
             <p className="text-slate-600 mb-8">
-              Thank you for subscribing to upmuch Pro. Your invoice has been sent to your email.
+              Thank you for subscribing to earnrm Pro. Your invoice has been sent to your email.
             </p>
 
             {paymentData && (
@@ -110,7 +110,7 @@ const SubscriptionSuccessPage = () => {
                       <span className="text-slate-600">Invoice</span>
                       <Link
                         to={`/settings?tab=billing`}
-                        className="text-indigo-600 hover:text-indigo-700 font-medium"
+                        className="text-earnrm-purple hover:text-indigo-700 font-medium"
                       >
                         View Invoice
                       </Link>
@@ -123,7 +123,7 @@ const SubscriptionSuccessPage = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => navigate('/dashboard')}
-                className="bg-indigo-600 hover:bg-indigo-700"
+                className="bg-earnrm-purple hover:bg-indigo-700"
                 data-testid="go-to-dashboard"
               >
                 Go to Dashboard
@@ -161,7 +161,7 @@ const SubscriptionSuccessPage = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => navigate('/pricing')}
-                className="bg-indigo-600 hover:bg-indigo-700"
+                className="bg-earnrm-purple hover:bg-indigo-700"
               >
                 Try Again
               </Button>
@@ -187,7 +187,7 @@ const SubscriptionSuccessPage = () => {
             </p>
             <Button
               onClick={() => navigate('/pricing')}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="bg-earnrm-purple hover:bg-indigo-700"
             >
               Return to Pricing
             </Button>
