@@ -111,7 +111,13 @@ const DashboardPage = () => {
             </h1>
             <p className="text-slate-600 mt-1">Here's what's happening with your sales today.</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
+            <SmartSearch onSelectResult={(type, item) => {
+              if (type === 'lead') navigate(`/leads`);
+              else if (type === 'deal') navigate(`/deals`);
+              else if (type === 'task') navigate(`/tasks`);
+            }} />
+            <AIEmailComposer />
             <Link to="/leads">
               <Button variant="outline" data-testid="add-lead-btn">
                 <Plus className="w-4 h-4 mr-2" />
@@ -126,6 +132,25 @@ const DashboardPage = () => {
             </Link>
           </div>
         </div>
+
+        {/* AI Assistant Card */}
+        <Card className="bg-gradient-to-r from-[#A100FF]/5 to-purple-50 border-purple-100">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#A100FF] to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                <Sparkles className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-slate-900">AI Assistant Ready</h3>
+                <p className="text-sm text-slate-600">Use Smart Search to find anything, or generate AI-powered emails in seconds.</p>
+              </div>
+              <div className="flex gap-2">
+                <SmartSearch />
+                <AIEmailComposer />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
