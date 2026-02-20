@@ -34,7 +34,11 @@ import {
   Edit,
   Trash2,
   Save,
-  Crown
+  Crown,
+  Send,
+  Upload,
+  UserPlus,
+  X
 } from 'lucide-react';
 
 const SettingsPage = () => {
@@ -53,6 +57,14 @@ const SettingsPage = () => {
   const [dealStages, setDealStages] = useState([]);
   const [isPipelineDialogOpen, setIsPipelineDialogOpen] = useState(false);
   const [newPipeline, setNewPipeline] = useState({ name: '', stages: [] });
+  
+  // Invitation states
+  const [inviteLink, setInviteLink] = useState(null);
+  const [inviteEmails, setInviteEmails] = useState('');
+  const [inviteRole, setInviteRole] = useState('member');
+  const [pendingInvites, setPendingInvites] = useState([]);
+  const [sendingInvites, setSendingInvites] = useState(false);
+  const [generatingLink, setGeneratingLink] = useState(false);
 
   const defaultTab = searchParams.get('tab') || 'profile';
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
