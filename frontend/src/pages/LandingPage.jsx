@@ -330,7 +330,7 @@ const LandingPage = () => {
                 data-testid={`feature-card-${index}`}
               >
                 <CardContent className="p-6">
-                  <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 mb-4">
+                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-earnrm-purple mb-4">
                     {feature.icon}
                   </div>
                   <h3 className="text-xl font-semibold text-slate-900 mb-2">{feature.title}</h3>
@@ -366,24 +366,24 @@ const LandingPage = () => {
                 </div>
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    <Check className="w-5 h-5 text-earnrm-purple mr-2" />
                     Up to 3 users
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    <Check className="w-5 h-5 text-earnrm-purple mr-2" />
                     500 leads
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    <Check className="w-5 h-5 text-earnrm-purple mr-2" />
                     Basic AI scoring
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    <Check className="w-5 h-5 text-earnrm-purple mr-2" />
                     Email support
                   </li>
                 </ul>
                 <Link to="/signup">
-                  <Button variant="outline" className="w-full" data-testid="pricing-free-btn">
+                  <Button variant="outline" className="w-full border-earnrm-purple text-earnrm-purple hover:bg-purple-50" data-testid="pricing-free-btn">
                     Get Started
                   </Button>
                 </Link>
@@ -391,9 +391,9 @@ const LandingPage = () => {
             </Card>
 
             {/* Pro Plan - Monthly */}
-            <Card className="border-2 border-indigo-600 relative" data-testid="pricing-pro">
+            <Card className="border-2 border-earnrm-purple relative" data-testid="pricing-pro">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                <span className="bg-earnrm-purple text-white px-3 py-1 rounded-full text-sm font-medium">
                   Most Popular
                 </span>
               </div>
@@ -406,15 +406,15 @@ const LandingPage = () => {
                 </div>
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    <Check className="w-5 h-5 text-earnrm-purple mr-2" />
                     Unlimited users
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    <Check className="w-5 h-5 text-earnrm-purple mr-2" />
                     Unlimited leads
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-emerald-500 mr-2" />
+                    <Check className="w-5 h-5 text-earnrm-purple mr-2" />
                     Advanced AI features
                   </li>
                   <li className="flex items-center text-slate-600">
