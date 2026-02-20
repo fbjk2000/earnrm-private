@@ -72,13 +72,19 @@ const AuthProvider = ({ children }) => {
   };
 
   const checkAuth = async () => {
+    const storedToken = localStorage.getItem('token');
+    if (!storedToken) {
+      setLoading(false);
+      return;
+    }
+    
     try {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await axios.get(`${API}/auth/me`, {
         withCredentials: true,
-        headers
+        headers: { Authorization: `Bearer ${storedToken}` }
       });
       setUser(response.data);
+      setToken(storedToken);
     } catch (e) {
       localStorage.removeItem('token');
       setToken(null);
