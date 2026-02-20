@@ -63,6 +63,22 @@ earnrm is an AI-powered CRM with the slogan "Your CRM that pAIs you back". Featu
 - [x] Affiliate self-enrollment system
 - [x] Support page with FAQ and contact form
 - [x] Complete rebrand to earnrm (Feb 2026)
+- [x] **AI Quick Wins (Feb 20, 2026)**:
+  - Smart Search: Natural language search across CRM data (leads, deals, tasks, companies)
+  - AI Email Drafting: Generate personalized sales emails with purpose/tone selection
+  - Lead Summary Generation: AI-powered analysis of lead profiles with engagement assessment
+
+## Upcoming Features (User Requested)
+- **Team Chat**: Real-time collaboration on leads and opportunities within organizations
+- **Mobile Apps**: iOS/Android apps downloadable from landing page
+
+## Future/Backlog Features
+- AI-Powered Lead Enrichment (LinkedIn data)
+- Conversation Intelligence (call recordings)
+- Deal Forecast AI
+- AI Chatbot for website
+- Outbound call service integration
+- Recording and analytics with AI feedback on calls
 
 ## Next Action Items
 - Configure earnrm.com domain DNS
