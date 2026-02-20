@@ -172,6 +172,7 @@ const PricingPage = () => {
                 {Object.entries(plans).map(([key, plan]) => (
                   <label
                     key={key}
+                    htmlFor={`plan-${key}`}
                     className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${
                       selectedPlan === key
                         ? 'border-[#A100FF] bg-purple-50'
@@ -179,6 +180,15 @@ const PricingPage = () => {
                     }`}
                     data-testid={`plan-${key}`}
                   >
+                    <input
+                      type="radio"
+                      id={`plan-${key}`}
+                      name="plan"
+                      value={key}
+                      checked={selectedPlan === key}
+                      onChange={() => setSelectedPlan(key)}
+                      className="sr-only"
+                    />
                     <div className="flex items-center gap-4">
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                         selectedPlan === key ? 'border-[#A100FF]' : 'border-slate-300'
