@@ -553,16 +553,72 @@ const ChatPage = () => {
               {/* Channel Header */}
               <CardHeader className="border-b py-3">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <Hash className="w-5 h-5" />
+                      {(() => {
+                        const config = CHANNEL_CONFIG[activeChannel.channel_type || 'general'];
+                        const Icon = config.icon;
+                        return <Icon className={`w-5 h-5 ${config.color}`} />;
+                      })()}
                       {activeChannel.name}
+                      {activeChannel.channel_type && activeChannel.channel_type !== 'general' && (
+                        <Badge variant="outline" className={`text-xs ${CHANNEL_CONFIG[activeChannel.channel_type]?.color}`}>
+                          {activeChannel.channel_type}
+                        </Badge>
+                      )}
                     </CardTitle>
                     {activeChannel.description && (
                       <p className="text-sm text-slate-500 mt-1">{activeChannel.description}</p>
                     )}
                   </div>
+                  {/* Link to entity for contextual channels */}
+                  {activeChannel.channel_type && activeChannel.channel_type !== 'general' && getEntityLink() && (
+                    <Link
+                      to={getEntityLink()}
+                      className="flex items-center gap-1 text-sm text-slate-600 hover:text-[#A100FF] transition-colors"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      View {activeChannel.channel_type}
+                    </Link>
+                  )}
                 </div>
+                
+                {/* Context entity info card */}
+                {contextEntity && activeChannel.channel_type === 'lead' && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <UserCircle className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-900">
+                          {contextEntity.first_name} {contextEntity.last_name}
+                        </p>
+                        <p className="text-sm text-slate-500">
+                          {contextEntity.job_title && `${contextEntity.job_title} at `}{contextEntity.company || 'No company'}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="ml-auto capitalize">{contextEntity.status}</Badge>
+                    </div>
+                  </div>
+                )}
+                
+                {contextEntity && activeChannel.channel_type === 'deal' && (
+                  <div className="mt-3 p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <Target className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-900">{contextEntity.name}</p>
+                        <p className="text-sm text-slate-500">
+                          €{contextEntity.value?.toLocaleString()} • Stage: {contextEntity.stage}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="ml-auto">{contextEntity.probability}% probability</Badge>
+                    </div>
+                  </div>
+                )}
               </CardHeader>
 
               {/* Messages */}
@@ -572,6 +628,11 @@ const ChatPage = () => {
                     <div className="text-center py-12">
                       <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                       <p className="text-slate-500">No messages yet. Start the conversation!</p>
+                      {activeChannel.channel_type && activeChannel.channel_type !== 'general' && (
+                        <p className="text-sm text-slate-400 mt-1">
+                          Discuss this {activeChannel.channel_type} with your team
+                        </p>
+                      )}
                     </div>
                   ) : (
                     messages.map((message, index) => {
