@@ -1,4 +1,4 @@
-/* upmuch CRM Styles */
+/* earnrm CRM Styles */
 
 /* Smooth scrolling */
 html {
@@ -7,7 +7,7 @@ html {
 
 /* Focus styles */
 *:focus-visible {
-  outline: 2px solid hsl(238.7 83.5% 58.6%);
+  outline: 2px solid #A100FF;
   outline-offset: 2px;
 }
 
@@ -23,7 +23,7 @@ button {
 
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px -10px rgba(161, 0, 255, 0.15);
 }
 
 /* Glass effect */
@@ -33,12 +33,23 @@ button {
   -webkit-backdrop-filter: blur(20px);
 }
 
-/* Gradient text */
+/* Gradient text - earnrm purple */
 .gradient-text {
-  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  background: linear-gradient(135deg, #A100FF 0%, #7C3AED 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* earnrm brand gradient */
+.earnrm-gradient {
+  background: linear-gradient(135deg, #A100FF 0%, #8B00E6 50%, #7200BD 100%);
+}
+
+/* AI highlight for slogan */
+.ai-highlight {
+  color: #A100FF;
+  font-weight: 700;
 }
 
 /* Loading spinner */
