@@ -520,7 +520,7 @@ const LandingPage = () => {
             Ready to transform your sales?
           </h2>
           <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
-            Join hundreds of teams using upmuch to close more deals with less effort.
+            Join hundreds of teams using earnrm to close more deals with less effort.
             Start your free trial today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
