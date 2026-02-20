@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, API } from '../App';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -21,7 +22,8 @@ import {
   Building,
   Filter,
   Sparkles,
-  FileText
+  FileText,
+  MessageSquare
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -33,6 +35,7 @@ import { SmartSearch, AIEmailComposer, LeadSummary } from '../components/AIAssis
 
 const LeadsPage = () => {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
