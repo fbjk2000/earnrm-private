@@ -129,11 +129,9 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center space-x-2" data-testid="logo-link">
-              <img 
-                src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/u9efkh3m_earnrm_logo_horizontal_light_notag_purpleword.png" 
-                alt="earnrm" 
-                className="h-8"
-              />
+              <div className="w-10 h-10 bg-[#A100FF] rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-xl">e</span>
+              </div>
             </Link>
 
             {/* Desktop Nav */}
