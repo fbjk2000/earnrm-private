@@ -920,6 +920,284 @@ async def update_member_role(
     
     return {"message": f"User role updated to {role}"}
 
+# ==================== TEAM INVITATIONS ====================
+
+class InviteEmailRequest(BaseModel):
+    emails: List[EmailStr]
+    role: str = "member"
+
+class InviteLinkResponse(BaseModel):
+    invite_link: str
+    invite_code: str
+    expires_at: str
+
+@api_router.post("/organizations/invites/link")
+async def generate_invite_link(
+    role: str = "member",
+    current_user: dict = Depends(get_current_user)
+):
+    """Generate a shareable invite link for the organization"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    # Only owner/admin can invite
+    if current_user.get("role") not in ["owner", "admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Only owners and admins can invite members")
+    
+    valid_roles = ["member", "admin"]
+    if role not in valid_roles:
+        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {valid_roles}")
+    
+    invite_code = f"inv_{uuid.uuid4().hex[:16]}"
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=7)  # Link valid for 7 days
+    
+    invite_doc = {
+        "invite_id": f"invite_{uuid.uuid4().hex[:12]}",
+        "invite_code": invite_code,
+        "organization_id": current_user["organization_id"],
+        "role": role,
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat(),
+        "expires_at": expires_at.isoformat(),
+        "type": "link",
+        "used_count": 0,
+        "max_uses": 100,  # Allow multiple uses
+        "is_active": True
+    }
+    await db.invites.insert_one(invite_doc)
+    
+    # Get the app URL from environment or use a default
+    app_url = os.environ.get('APP_URL', 'https://earnrm.com')
+    invite_link = f"{app_url}/signup?invite={invite_code}"
+    
+    return {
+        "invite_link": invite_link,
+        "invite_code": invite_code,
+        "expires_at": expires_at.isoformat(),
+        "role": role
+    }
+
+@api_router.post("/organizations/invites/email")
+async def send_email_invites(
+    request: InviteEmailRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Send email invitations to join the organization"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    # Only owner/admin can invite
+    if current_user.get("role") not in ["owner", "admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Only owners and admins can invite members")
+    
+    valid_roles = ["member", "admin"]
+    if request.role not in valid_roles:
+        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {valid_roles}")
+    
+    # Get organization name
+    org = await db.organizations.find_one(
+        {"organization_id": current_user["organization_id"]},
+        {"_id": 0, "name": 1}
+    )
+    org_name = org.get("name", "the team") if org else "the team"
+    
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=7)
+    app_url = os.environ.get('APP_URL', 'https://earnrm.com')
+    
+    sent_invites = []
+    failed_invites = []
+    
+    for email in request.emails:
+        # Check if user already exists
+        existing_user = await db.users.find_one({"email": email.lower()}, {"_id": 0})
+        if existing_user:
+            if existing_user.get("organization_id") == current_user["organization_id"]:
+                failed_invites.append({"email": email, "reason": "Already a member"})
+                continue
+            else:
+                failed_invites.append({"email": email, "reason": "User belongs to another organization"})
+                continue
+        
+        # Check for existing pending invite
+        existing_invite = await db.invites.find_one({
+            "email": email.lower(),
+            "organization_id": current_user["organization_id"],
+            "is_active": True,
+            "expires_at": {"$gt": now.isoformat()}
+        }, {"_id": 0})
+        
+        if existing_invite:
+            failed_invites.append({"email": email, "reason": "Invite already sent"})
+            continue
+        
+        invite_code = f"inv_{uuid.uuid4().hex[:16]}"
+        invite_link = f"{app_url}/signup?invite={invite_code}"
+        
+        invite_doc = {
+            "invite_id": f"invite_{uuid.uuid4().hex[:12]}",
+            "invite_code": invite_code,
+            "organization_id": current_user["organization_id"],
+            "email": email.lower(),
+            "role": request.role,
+            "created_by": current_user["user_id"],
+            "created_at": now.isoformat(),
+            "expires_at": expires_at.isoformat(),
+            "type": "email",
+            "used_count": 0,
+            "max_uses": 1,
+            "is_active": True
+        }
+        await db.invites.insert_one(invite_doc)
+        
+        # Send email invitation
+        if RESEND_API_KEY:
+            try:
+                resend.Emails.send({
+                    "from": SENDER_EMAIL,
+                    "to": email,
+                    "subject": f"You're invited to join {org_name} on earnrm",
+                    "html": f"""
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #A100FF;">You're Invited!</h2>
+                        <p>{current_user['name']} has invited you to join <strong>{org_name}</strong> on earnrm.</p>
+                        <p>earnrm is an AI-powered CRM that helps teams manage leads, deals, and customer relationships more effectively.</p>
+                        <div style="margin: 30px 0;">
+                            <a href="{invite_link}" style="background-color: #A100FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+                                Accept Invitation
+                            </a>
+                        </div>
+                        <p style="color: #666; font-size: 14px;">This invitation expires in 7 days.</p>
+                        <p style="color: #666; font-size: 14px;">If you didn't expect this invitation, you can safely ignore this email.</p>
+                    </div>
+                    """
+                })
+                sent_invites.append({"email": email, "status": "sent"})
+            except Exception as e:
+                logging.error(f"Failed to send invite email to {email}: {e}")
+                sent_invites.append({"email": email, "status": "pending", "note": "Email delivery pending"})
+        else:
+            sent_invites.append({"email": email, "status": "pending", "note": "Email service not configured"})
+    
+    return {
+        "sent": sent_invites,
+        "failed": failed_invites,
+        "total_sent": len(sent_invites),
+        "total_failed": len(failed_invites)
+    }
+
+@api_router.post("/organizations/invites/csv")
+async def import_invites_csv(
+    file: UploadFile = File(...),
+    role: str = "member",
+    current_user: dict = Depends(get_current_user)
+):
+    """Import team members via CSV file (columns: email, name)"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    # Only owner/admin can invite
+    if current_user.get("role") not in ["owner", "admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Only owners and admins can invite members")
+    
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+    
+    content = await file.read()
+    decoded = content.decode('utf-8')
+    
+    # Parse CSV
+    reader = csv.DictReader(io.StringIO(decoded))
+    emails = []
+    
+    for row in reader:
+        email = row.get('email', '').strip().lower()
+        if email and '@' in email:
+            emails.append(email)
+    
+    if not emails:
+        raise HTTPException(status_code=400, detail="No valid emails found in CSV. Ensure column header is 'email'")
+    
+    # Use the email invite function
+    request = InviteEmailRequest(emails=emails, role=role)
+    return await send_email_invites(request, current_user)
+
+@api_router.get("/organizations/invites")
+async def get_pending_invites(current_user: dict = Depends(get_current_user)):
+    """Get all pending invitations for the organization"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    now = datetime.now(timezone.utc)
+    
+    invites = await db.invites.find({
+        "organization_id": current_user["organization_id"],
+        "is_active": True
+    }, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    # Mark expired invites
+    for invite in invites:
+        if invite.get("expires_at") and invite["expires_at"] < now.isoformat():
+            invite["status"] = "expired"
+        elif invite.get("used_count", 0) >= invite.get("max_uses", 1):
+            invite["status"] = "used"
+        else:
+            invite["status"] = "pending"
+    
+    return {"invites": invites}
+
+@api_router.delete("/organizations/invites/{invite_id}")
+async def revoke_invite(
+    invite_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Revoke a pending invitation"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    result = await db.invites.update_one(
+        {"invite_id": invite_id, "organization_id": current_user["organization_id"]},
+        {"$set": {"is_active": False}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    
+    return {"message": "Invite revoked"}
+
+@api_router.get("/invites/validate/{invite_code}")
+async def validate_invite(invite_code: str):
+    """Validate an invite code (public endpoint for signup page)"""
+    now = datetime.now(timezone.utc)
+    
+    invite = await db.invites.find_one({
+        "invite_code": invite_code,
+        "is_active": True
+    }, {"_id": 0})
+    
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invalid or expired invitation")
+    
+    if invite.get("expires_at") and invite["expires_at"] < now.isoformat():
+        raise HTTPException(status_code=400, detail="Invitation has expired")
+    
+    if invite.get("used_count", 0) >= invite.get("max_uses", 1):
+        raise HTTPException(status_code=400, detail="Invitation has reached maximum uses")
+    
+    # Get organization name
+    org = await db.organizations.find_one(
+        {"organization_id": invite["organization_id"]},
+        {"_id": 0, "name": 1}
+    )
+    
+    return {
+        "valid": True,
+        "organization_name": org.get("name", "Unknown") if org else "Unknown",
+        "role": invite.get("role", "member"),
+        "email": invite.get("email")  # For email-specific invites
+    }
+
 # ==================== AFFILIATE SELF-ENROLLMENT ====================
 
 @api_router.post("/affiliate/enroll")
