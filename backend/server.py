@@ -1203,7 +1203,7 @@ async def create_deal(deal_data: DealCreate, current_user: dict = Depends(get_cu
     
     # Extract task data before creating deal_doc
     task_title = deal_data.task_title
-    task_owner_id = deal_data.task_owner_id
+    task_owner_id = deal_data.task_owner_id or current_user["user_id"]
     task_description = deal_data.task_description
     task_due_date = deal_data.task_due_date
     
@@ -1218,7 +1218,7 @@ async def create_deal(deal_data: DealCreate, current_user: dict = Depends(get_cu
         "deal_id": deal_id,
         "organization_id": current_user["organization_id"],
         **deal_dict,
-        "assigned_to": task_owner_id,  # Assign deal to task owner
+        "assigned_to": task_owner_id,
         "created_by": current_user["user_id"],
         "created_at": now.isoformat(),
         "updated_at": now.isoformat()
@@ -1227,28 +1227,31 @@ async def create_deal(deal_data: DealCreate, current_user: dict = Depends(get_cu
         deal_doc["expected_close_date"] = deal_doc["expected_close_date"].isoformat()
     await db.deals.insert_one(deal_doc)
     
-    # Create mandatory task for this deal
-    task_id = f"task_{uuid.uuid4().hex[:12]}"
-    task_doc = {
-        "task_id": task_id,
-        "organization_id": current_user["organization_id"],
-        "title": task_title,
-        "description": task_description or f"Initial task for deal: {deal_data.name}",
-        "status": "todo",
-        "priority": "medium",
-        "due_date": task_due_date.isoformat() if task_due_date else None,
-        "assigned_to": task_owner_id,
-        "related_lead_id": deal_data.lead_id,
-        "related_deal_id": deal_id,
-        "created_by": current_user["user_id"],
-        "created_at": now.isoformat(),
-        "updated_at": now.isoformat()
-    }
-    await db.tasks.insert_one(task_doc)
+    # Create task only if task_title is provided
+    task_id = None
+    if task_title:
+        task_id = f"task_{uuid.uuid4().hex[:12]}"
+        task_doc = {
+            "task_id": task_id,
+            "organization_id": current_user["organization_id"],
+            "title": task_title,
+            "description": task_description or f"Initial task for deal: {deal_data.name}",
+            "status": "todo",
+            "priority": "medium",
+            "due_date": task_due_date.isoformat() if task_due_date else None,
+            "assigned_to": task_owner_id,
+            "related_lead_id": deal_data.lead_id,
+            "related_deal_id": deal_id,
+            "created_by": current_user["user_id"],
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat()
+        }
+        await db.tasks.insert_one(task_doc)
     
     # Remove MongoDB's _id field before returning
     deal_doc.pop('_id', None)
-    deal_doc["created_task_id"] = task_id
+    if task_id:
+        deal_doc["created_task_id"] = task_id
     return deal_doc
 
 @api_router.put("/deals/{deal_id}")
