@@ -570,131 +570,64 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Mobile Apps Section */}
+      {/* Mobile App Section */}
       <section className="py-24 px-6 bg-gradient-to-b from-purple-50 to-white" id="mobile-apps">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <span className="text-[#A100FF] font-semibold text-sm uppercase tracking-wide">Mobile Apps</span>
+            <span className="text-[#A100FF] font-semibold text-sm uppercase tracking-wide">Mobile App</span>
             <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mt-2 mb-4">
               Take earnrm everywhere
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Manage your leads, close deals, and collaborate with your team on the go with our native mobile apps.
+              Install earnrm on your phone or tablet. Works on iOS, Android, and desktop — no app store needed.
             </p>
           </div>
-          
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* Android App */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg border border-slate-100">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-2xl overflow-hidden">
-                  <img 
-                    src="https://static.prod-images.emergentagent.com/jobs/bf31783e-7e9c-47ad-b065-3e62a7895ee8/images/977544a9bde2db71095b46cbca4196a6c8febb31e16210aabe15fb947b023b30.png"
-                    alt="earnrm app icon"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">Android App</h3>
-                  <p className="text-slate-500 text-sm">Version 1.0.0</p>
-                </div>
-              </div>
-              <ul className="space-y-3 mb-6 text-slate-600">
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  Dashboard & analytics
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  Lead management
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  Deal pipeline
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  Team chat
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  AI features
-                </li>
-              </ul>
-              <a 
-                href="https://play.google.com/store/apps" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
-                data-testid="download-android"
-              >
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 0 1 0 1.73l-2.808 1.626L15.206 12l2.492-2.491zM5.864 2.658L16.8 8.99l-2.302 2.302-8.634-8.634z"/>
-                </svg>
-                Get on Google Play
-              </a>
-              <p className="text-xs text-slate-400 mt-3 text-center">Coming soon to Google Play Store</p>
-            </div>
 
-            {/* iOS App */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg border border-slate-100">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-2xl overflow-hidden">
-                  <img 
-                    src="https://static.prod-images.emergentagent.com/jobs/bf31783e-7e9c-47ad-b065-3e62a7895ee8/images/977544a9bde2db71095b46cbca4196a6c8febb31e16210aabe15fb947b023b30.png"
-                    alt="earnrm app icon"
-                    className="w-full h-full object-cover"
-                  />
+          <div className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-slate-100 max-w-3xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              <div>
+                <div className="flex items-center gap-4 mb-6">
+                  <img src="/icon-192.png" alt="earnrm" className="w-16 h-16 rounded-2xl shadow-md" />
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">earnrm PWA</h3>
+                    <p className="text-slate-500 text-sm">Install directly from your browser</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">iOS App</h3>
-                  <p className="text-slate-500 text-sm">Version 1.0.0</p>
-                </div>
+                <ul className="space-y-3 mb-6 text-slate-600">
+                  {['Full CRM on mobile', 'Works offline', 'Push notifications', 'Home screen icon', 'Fast & lightweight'].map((f) => (
+                    <li key={f} className="flex items-center gap-2">
+                      <Check className="w-5 h-5 text-emerald-500 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="space-y-3 mb-6 text-slate-600">
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  Dashboard & analytics
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  Lead management
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  Deal pipeline
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  Team chat
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  AI features
-                </li>
-              </ul>
-              <a 
-                href="https://apps.apple.com/app" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
-                data-testid="download-ios"
-              >
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-                </svg>
-                Get on App Store
-              </a>
-              <p className="text-xs text-slate-400 mt-3 text-center">Coming soon to Apple App Store</p>
-            </div>
-          </div>
-
-          {/* PWA Install Option */}
-          <div className="mt-12 text-center">
-            <p className="text-slate-600 mb-4">Can't wait? Install our Progressive Web App now:</p>
-            <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-6 py-3">
-              <Smartphone className="w-5 h-5 text-[#A100FF]" />
-              <span className="text-slate-700">Open <strong>earnrm.com</strong> in your browser → Share → Add to Home Screen</span>
+              <div className="space-y-4">
+                <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+                  <p className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                    <Smartphone className="w-5 h-5 text-[#A100FF]" /> How to install
+                  </p>
+                  <div className="space-y-2 text-sm text-slate-600">
+                    <p><strong>Chrome / Edge:</strong> Click the install icon in the address bar, or Menu → Install app</p>
+                    <p><strong>Safari (iOS):</strong> Tap Share → Add to Home Screen</p>
+                    <p><strong>Android:</strong> Tap the "Add to Home Screen" banner that appears</p>
+                  </div>
+                </div>
+                <Button
+                  size="lg"
+                  className="w-full bg-[#A100FF] hover:bg-purple-700 h-12"
+                  data-testid="pwa-install-btn"
+                  onClick={() => {
+                    if (window.deferredPWAPrompt) {
+                      window.deferredPWAPrompt.prompt();
+                    } else {
+                      toast.success('Open this site in Chrome or Safari and follow the install instructions above!');
+                    }
+                  }}
+                >
+                  <Download className="w-5 h-5 mr-2" /> Install earnrm App
+                </Button>
+              </div>
             </div>
           </div>
         </div>
