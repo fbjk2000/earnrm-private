@@ -87,11 +87,10 @@ const DashboardLayout = ({ children }) => {
           {/* Logo */}
           <div className="h-16 flex items-center px-6 border-b border-slate-100">
             <Link to="/dashboard" className="flex items-center space-x-2">
-              <img 
-                src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/u9efkh3m_earnrm_logo_horizontal_light_notag_purpleword.png" 
-                alt="earnrm" 
-                className="h-8"
-              />
+              <div className="w-10 h-10 bg-[#A100FF] rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-xl">e</span>
+              </div>
+              <span className="text-xl font-semibold text-slate-900">earnrm</span>
             </Link>
           </div>
 
