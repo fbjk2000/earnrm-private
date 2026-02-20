@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { SmartSearch, AIEmailComposer } from '../components/AIAssistant';
 import {
   Users,
   Target,
@@ -13,7 +14,8 @@ import {
   TrendingUp,
   Plus,
   ArrowRight,
-  Zap
+  Zap,
+  Sparkles
 } from 'lucide-react';
 
 const DashboardPage = () => {
