@@ -173,7 +173,15 @@ const LeadsPage = () => {
             <h1 className="text-2xl font-bold text-slate-900" data-testid="leads-title">Leads</h1>
             <p className="text-slate-600 mt-1">Manage and track your sales leads</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
+            {/* AI Features */}
+            <SmartSearch onSelectResult={(type, item) => {
+              if (type === 'lead') {
+                toast.info(`Selected lead: ${item.first_name} ${item.last_name}`);
+              }
+            }} />
+            <AIEmailComposer />
+            
             <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" data-testid="import-csv-btn">
