@@ -3530,6 +3530,347 @@ async def get_all_transactions(current_user: dict = Depends(require_super_admin)
     transactions = await db.payment_transactions.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return {"transactions": transactions, "count": len(transactions)}
 
+# ==================== TEAM CHAT ROUTES ====================
+
+class ChatMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    message_id: str
+    organization_id: str
+    channel_id: str  # 'general' or specific like 'lead_{id}', 'deal_{id}'
+    sender_id: str
+    sender_name: str
+    sender_picture: Optional[str] = None
+    content: str
+    mentions: List[str] = []  # List of user_ids mentioned
+    reply_to: Optional[str] = None  # message_id if this is a reply
+    attachments: List[dict] = []
+    reactions: Dict[str, List[str]] = {}  # emoji: [user_ids]
+    is_edited: bool = False
+    created_at: datetime
+    updated_at: datetime
+
+class ChatMessageCreate(BaseModel):
+    channel_id: str = "general"
+    content: str
+    mentions: List[str] = []
+    reply_to: Optional[str] = None
+    attachments: List[dict] = []
+
+class ChatChannel(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    channel_id: str
+    organization_id: str
+    name: str
+    description: Optional[str] = None
+    channel_type: str = "general"  # general, lead, deal, task, direct
+    related_id: Optional[str] = None  # lead_id, deal_id, etc.
+    members: List[str] = []  # For direct messages
+    created_by: str
+    created_at: datetime
+    last_message_at: Optional[datetime] = None
+
+class ChatChannelCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    channel_type: str = "general"
+    related_id: Optional[str] = None
+    members: List[str] = []
+
+@api_router.get("/chat/channels")
+async def get_chat_channels(current_user: dict = Depends(get_current_user)):
+    """Get all chat channels for the organization"""
+    if not current_user.get("organization_id"):
+        return {"channels": []}
+    
+    channels = await db.chat_channels.find(
+        {"organization_id": current_user["organization_id"]},
+        {"_id": 0}
+    ).sort("last_message_at", -1).to_list(100)
+    
+    # Always include the general channel
+    general_exists = any(c["channel_id"] == "general" for c in channels)
+    if not general_exists:
+        # Create the general channel if it doesn't exist
+        now = datetime.now(timezone.utc)
+        general_channel = {
+            "channel_id": "general",
+            "organization_id": current_user["organization_id"],
+            "name": "General",
+            "description": "Team-wide discussions",
+            "channel_type": "general",
+            "related_id": None,
+            "members": [],
+            "created_by": current_user["user_id"],
+            "created_at": now.isoformat(),
+            "last_message_at": None
+        }
+        await db.chat_channels.insert_one(general_channel)
+        general_channel.pop('_id', None)
+        channels.insert(0, general_channel)
+    
+    return {"channels": channels}
+
+@api_router.post("/chat/channels")
+async def create_chat_channel(
+    channel_data: ChatChannelCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new chat channel"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    channel_id = f"channel_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    channel_doc = {
+        "channel_id": channel_id,
+        "organization_id": current_user["organization_id"],
+        "name": channel_data.name,
+        "description": channel_data.description,
+        "channel_type": channel_data.channel_type,
+        "related_id": channel_data.related_id,
+        "members": channel_data.members,
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat(),
+        "last_message_at": None
+    }
+    await db.chat_channels.insert_one(channel_doc)
+    channel_doc.pop('_id', None)
+    return channel_doc
+
+@api_router.get("/chat/channels/{channel_id}/messages")
+async def get_channel_messages(
+    channel_id: str,
+    limit: int = 50,
+    before: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get messages from a channel with pagination"""
+    if not current_user.get("organization_id"):
+        return {"messages": []}
+    
+    query = {
+        "organization_id": current_user["organization_id"],
+        "channel_id": channel_id
+    }
+    
+    if before:
+        # Get messages before a specific message (for infinite scroll)
+        ref_message = await db.chat_messages.find_one({"message_id": before}, {"_id": 0})
+        if ref_message:
+            query["created_at"] = {"$lt": ref_message["created_at"]}
+    
+    messages = await db.chat_messages.find(
+        query, {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    # Reverse to get chronological order
+    messages.reverse()
+    
+    return {"messages": messages, "has_more": len(messages) == limit}
+
+@api_router.post("/chat/channels/{channel_id}/messages")
+async def send_chat_message(
+    channel_id: str,
+    message_data: ChatMessageCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Send a message to a channel"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    message_id = f"msg_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    # Parse mentions from content (format: @[user_name](user_id))
+    mentions = message_data.mentions.copy()
+    mention_pattern = r'@\[([^\]]+)\]\(([^)]+)\)'
+    content_mentions = re.findall(mention_pattern, message_data.content)
+    for name, user_id in content_mentions:
+        if user_id not in mentions:
+            mentions.append(user_id)
+    
+    message_doc = {
+        "message_id": message_id,
+        "organization_id": current_user["organization_id"],
+        "channel_id": channel_id,
+        "sender_id": current_user["user_id"],
+        "sender_name": current_user["name"],
+        "sender_picture": current_user.get("picture"),
+        "content": message_data.content,
+        "mentions": mentions,
+        "reply_to": message_data.reply_to,
+        "attachments": message_data.attachments,
+        "reactions": {},
+        "is_edited": False,
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    }
+    await db.chat_messages.insert_one(message_doc)
+    
+    # Update channel's last_message_at
+    await db.chat_channels.update_one(
+        {"channel_id": channel_id, "organization_id": current_user["organization_id"]},
+        {"$set": {"last_message_at": now.isoformat()}}
+    )
+    
+    # Create notifications for mentioned users
+    for mentioned_user_id in mentions:
+        if mentioned_user_id != current_user["user_id"]:
+            notification_doc = {
+                "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+                "user_id": mentioned_user_id,
+                "organization_id": current_user["organization_id"],
+                "type": "mention",
+                "title": f"{current_user['name']} mentioned you",
+                "content": message_data.content[:100],
+                "link": f"/chat?channel={channel_id}&message={message_id}",
+                "is_read": False,
+                "created_at": now.isoformat()
+            }
+            await db.notifications.insert_one(notification_doc)
+    
+    message_doc.pop('_id', None)
+    return message_doc
+
+@api_router.put("/chat/messages/{message_id}")
+async def edit_chat_message(
+    message_id: str,
+    content: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Edit a message (only sender can edit)"""
+    message = await db.chat_messages.find_one(
+        {"message_id": message_id, "sender_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found or access denied")
+    
+    now = datetime.now(timezone.utc)
+    await db.chat_messages.update_one(
+        {"message_id": message_id},
+        {"$set": {"content": content, "is_edited": True, "updated_at": now.isoformat()}}
+    )
+    
+    return {"message": "Message updated"}
+
+@api_router.delete("/chat/messages/{message_id}")
+async def delete_chat_message(
+    message_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a message (sender or admin can delete)"""
+    message = await db.chat_messages.find_one({"message_id": message_id}, {"_id": 0})
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    # Check permission
+    is_sender = message["sender_id"] == current_user["user_id"]
+    is_admin = current_user.get("role") in ["admin", "owner", "super_admin"]
+    
+    if not is_sender and not is_admin:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    await db.chat_messages.delete_one({"message_id": message_id})
+    return {"message": "Message deleted"}
+
+@api_router.post("/chat/messages/{message_id}/reactions")
+async def toggle_reaction(
+    message_id: str,
+    emoji: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Toggle a reaction on a message"""
+    message = await db.chat_messages.find_one({"message_id": message_id}, {"_id": 0})
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    reactions = message.get("reactions", {})
+    user_id = current_user["user_id"]
+    
+    if emoji not in reactions:
+        reactions[emoji] = []
+    
+    if user_id in reactions[emoji]:
+        reactions[emoji].remove(user_id)
+        if not reactions[emoji]:
+            del reactions[emoji]
+    else:
+        reactions[emoji].append(user_id)
+    
+    await db.chat_messages.update_one(
+        {"message_id": message_id},
+        {"$set": {"reactions": reactions}}
+    )
+    
+    return {"reactions": reactions}
+
+@api_router.get("/chat/messages/new")
+async def get_new_messages(
+    since: str,
+    channel_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Poll for new messages since a timestamp (for real-time updates)"""
+    if not current_user.get("organization_id"):
+        return {"messages": []}
+    
+    query = {
+        "organization_id": current_user["organization_id"],
+        "created_at": {"$gt": since}
+    }
+    if channel_id:
+        query["channel_id"] = channel_id
+    
+    messages = await db.chat_messages.find(
+        query, {"_id": 0}
+    ).sort("created_at", 1).limit(100).to_list(100)
+    
+    return {"messages": messages}
+
+@api_router.get("/notifications")
+async def get_notifications(
+    unread_only: bool = False,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get notifications for the current user"""
+    query = {"user_id": current_user["user_id"]}
+    if unread_only:
+        query["is_read"] = False
+    
+    notifications = await db.notifications.find(
+        query, {"_id": 0}
+    ).sort("created_at", -1).limit(50).to_list(50)
+    
+    unread_count = await db.notifications.count_documents({
+        "user_id": current_user["user_id"],
+        "is_read": False
+    })
+    
+    return {"notifications": notifications, "unread_count": unread_count}
+
+@api_router.put("/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark a notification as read"""
+    await db.notifications.update_one(
+        {"notification_id": notification_id, "user_id": current_user["user_id"]},
+        {"$set": {"is_read": True}}
+    )
+    return {"message": "Notification marked as read"}
+
+@api_router.put("/notifications/read-all")
+async def mark_all_notifications_read(current_user: dict = Depends(get_current_user)):
+    """Mark all notifications as read"""
+    await db.notifications.update_many(
+        {"user_id": current_user["user_id"], "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+    return {"message": "All notifications marked as read"}
+
 # ==================== BASIC ROUTES ====================
 
 @api_router.get("/")
