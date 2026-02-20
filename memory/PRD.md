@@ -78,7 +78,6 @@ earnrm is an AI-powered CRM with the slogan "Your CRM that pAIs you back". Featu
   - Team member list with click-to-mention
 
 ## Upcoming Features (User Requested)
-- **Team Chat**: Real-time collaboration on leads and opportunities within organizations
 - **Mobile Apps**: iOS/Android apps downloadable from landing page
 
 ## Future/Backlog Features
