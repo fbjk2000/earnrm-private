@@ -53,9 +53,11 @@ const LoginPage = () => {
       <main className="flex-1 flex items-center justify-center px-6 py-12">
         <Card className="w-full max-w-md border-slate-200 shadow-lg" data-testid="login-card">
           <CardHeader className="text-center pb-2">
-            <div className="w-12 h-12 bg-earnrm-purple rounded-xl flex items-center justify-center mx-auto mb-4">
-              <span className="text-white font-bold text-xl">U</span>
-            </div>
+            <img 
+              src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/u9efkh3m_earnrm_logo_horizontal_light_notag_purpleword.png" 
+              alt="earnrm" 
+              className="h-10 mx-auto mb-4"
+            />
             <CardTitle className="text-2xl font-bold text-slate-900" data-testid="login-title">Welcome back</CardTitle>
             <CardDescription className="text-slate-600">Sign in to your earnrm account</CardDescription>
           </CardHeader>
