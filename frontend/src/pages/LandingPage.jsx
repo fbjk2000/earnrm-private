@@ -58,10 +58,10 @@ const LandingPage = () => {
 
   const handleDownload = () => {
     // Download the actual PDF playbook
-    const pdfUrl = 'https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/r6qssw68_Linked%20In%20Lead%20Generation%20Playbook%20%E2%80%93%20Upmuch.pdf';
+    const pdfUrl = 'https://customer-assets.emergentagent.com/job_bf31783e-7e9c-47ad-b065-3e62a7895ee8/artifacts/7c9fmulw_EarnRM_LinkedIn_Lead_Generation_Playbook_Agency_Edition.pdf';
     const a = document.createElement('a');
     a.href = pdfUrl;
-    a.download = 'LinkedIn_Lead_Generation_Playbook_Upmuch.pdf';
+    a.download = 'EarnRM_LinkedIn_Lead_Generation_Playbook_Agency_Edition.pdf';
     a.target = '_blank';
     document.body.appendChild(a);
     a.click();
