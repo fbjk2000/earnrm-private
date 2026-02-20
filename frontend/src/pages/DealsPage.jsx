@@ -52,7 +52,7 @@ const DealsPage = () => {
 
   const stages = [
     { id: 'lead', name: 'Lead', color: 'bg-slate-100 border-slate-300', probability: 10 },
-    { id: 'qualified', name: 'Qualified', color: 'bg-indigo-50 border-indigo-300', probability: 30 },
+    { id: 'qualified', name: 'Qualified', color: 'bg-purple-50 border-indigo-300', probability: 30 },
     { id: 'proposal', name: 'Proposal', color: 'bg-amber-50 border-amber-300', probability: 50 },
     { id: 'negotiation', name: 'Negotiation', color: 'bg-purple-50 border-purple-300', probability: 70 },
     { id: 'won', name: 'Won', color: 'bg-emerald-50 border-emerald-300', probability: 100 },
@@ -211,7 +211,7 @@ const DealsPage = () => {
           </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-indigo-600 hover:bg-indigo-700" data-testid="add-deal-btn">
+              <Button className="bg-earnrm-purple hover:bg-purple-700" data-testid="add-deal-btn">
                 <Plus className="w-4 h-4 mr-2" />
                 New Deal
               </Button>
@@ -355,12 +355,12 @@ const DealsPage = () => {
                 </div>
                 
                 {/* Mandatory Task Section */}
-                <div className="space-y-4 bg-indigo-50 p-4 rounded-lg">
+                <div className="space-y-4 bg-purple-50 p-4 rounded-lg">
                   <h3 className="font-semibold text-indigo-900 flex items-center gap-2">
                     <Users className="w-4 h-4" />
                     Initial Task (Required)
                   </h3>
-                  <p className="text-xs text-indigo-700">Every deal must have an initial task and owner</p>
+                  <p className="text-xs text-purple-700">Every deal must have an initial task and owner</p>
                   
                   <div className="space-y-2">
                     <Label>Task Title *</Label>
@@ -420,7 +420,7 @@ const DealsPage = () => {
                   </div>
                 </div>
                 
-                <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" data-testid="submit-deal-btn">
+                <Button type="submit" className="w-full bg-earnrm-purple hover:bg-purple-700" data-testid="submit-deal-btn">
                   Create Deal with Task
                 </Button>
               </form>
@@ -484,7 +484,7 @@ const DealsPage = () => {
         {/* Pipeline Board */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-earnrm-purple border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <div className="overflow-x-auto pb-4">
@@ -519,7 +519,7 @@ const DealsPage = () => {
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-slate-900 text-sm truncate">{deal.name}</p>
-                                <p className="text-lg font-bold text-indigo-600 mt-1">
+                                <p className="text-lg font-bold text-earnrm-purple mt-1">
                                   €{(deal.value || 0).toLocaleString()}
                                 </p>
                                 

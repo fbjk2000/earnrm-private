@@ -135,7 +135,7 @@ const CampaignsPage = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'sent': return 'bg-emerald-100 text-emerald-700';
-      case 'scheduled': return 'bg-indigo-100 text-indigo-700';
+      case 'scheduled': return 'bg-purple-100 text-purple-700';
       default: return 'bg-slate-100 text-slate-700';
     }
   };
@@ -168,7 +168,7 @@ const CampaignsPage = () => {
                   <Button
                     onClick={handleAIDraft}
                     disabled={aiLoading}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700"
+                    className="w-full bg-earnrm-purple hover:bg-purple-700"
                     data-testid="generate-ai-btn"
                   >
                     {aiLoading ? (
@@ -186,7 +186,7 @@ const CampaignsPage = () => {
 
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-indigo-600 hover:bg-indigo-700" data-testid="create-campaign-btn">
+                <Button className="bg-earnrm-purple hover:bg-purple-700" data-testid="create-campaign-btn">
                   <Plus className="w-4 h-4 mr-2" />
                   New Campaign
                 </Button>
@@ -227,7 +227,7 @@ const CampaignsPage = () => {
                       data-testid="campaign-content"
                     />
                   </div>
-                  <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" data-testid="submit-campaign-btn">
+                  <Button type="submit" className="w-full bg-earnrm-purple hover:bg-purple-700" data-testid="submit-campaign-btn">
                     Create Campaign
                   </Button>
                 </form>
@@ -273,13 +273,13 @@ const CampaignsPage = () => {
                 </CardContent>
               </Card>
             ) : (
-              <Card className="bg-indigo-50 border-indigo-100" data-testid="kit-pending-banner">
+              <Card className="bg-purple-50 border-purple-100" data-testid="kit-pending-banner">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <Mail className="w-5 h-5 text-indigo-600" />
+                    <Mail className="w-5 h-5 text-earnrm-purple" />
                     <div>
                       <p className="text-sm font-medium text-indigo-900">Kit.com Integration {kitLoading ? 'Loading...' : 'Active'}</p>
-                      <p className="text-sm text-indigo-700">Send campaigns directly to your Kit.com subscribers.</p>
+                      <p className="text-sm text-purple-700">Send campaigns directly to your Kit.com subscribers.</p>
                     </div>
                   </div>
                 </CardContent>
@@ -289,7 +289,7 @@ const CampaignsPage = () => {
             {/* Campaigns List */}
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-earnrm-purple border-t-transparent rounded-full animate-spin" />
               </div>
             ) : campaigns.length === 0 ? (
               <Card>
@@ -298,7 +298,7 @@ const CampaignsPage = () => {
                   <p className="text-slate-600 mb-4">No campaigns yet</p>
                   <Button
                     onClick={() => setIsAddDialogOpen(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700"
+                    className="bg-earnrm-purple hover:bg-purple-700"
                   >
                     Create your first campaign
                   </Button>
@@ -347,7 +347,7 @@ const CampaignsPage = () => {
                           {campaign.status === 'draft' && (
                             <Button
                               size="sm"
-                              className="bg-indigo-600 hover:bg-indigo-700"
+                              className="bg-earnrm-purple hover:bg-purple-700"
                               onClick={() => handleSendCampaign(campaign.campaign_id)}
                               data-testid={`send-campaign-${index}`}
                             >
@@ -387,7 +387,7 @@ const CampaignsPage = () => {
                         href="https://app.kit.com"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1 mt-4"
+                        className="text-sm text-earnrm-purple hover:text-purple-700 flex items-center gap-1 mt-4"
                       >
                         Open Kit.com Dashboard <ExternalLink className="w-3 h-3" />
                       </a>
@@ -430,7 +430,7 @@ const CampaignsPage = () => {
                   {kitTags.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {kitTags.slice(0, 10).map((tag) => (
-                        <span key={tag.id} className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full">
+                        <span key={tag.id} className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
                           {tag.name}
                         </span>
                       ))}
@@ -452,8 +452,8 @@ const CampaignsPage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-                      <Users className="w-6 h-6 text-indigo-600" />
+                    <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                      <Users className="w-6 h-6 text-earnrm-purple" />
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-slate-900">
@@ -479,7 +479,7 @@ const CampaignsPage = () => {
                     </CardDescription>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-indigo-600">{leadMagnetSubscribers.length}</p>
+                    <p className="text-2xl font-bold text-earnrm-purple">{leadMagnetSubscribers.length}</p>
                     <p className="text-sm text-slate-500">total downloads</p>
                   </div>
                 </div>
@@ -511,7 +511,7 @@ const CampaignsPage = () => {
                             <td className="py-3 px-4 text-sm text-slate-900">{sub.email}</td>
                             <td className="py-3 px-4 text-sm text-slate-600">{sub.first_name || '—'}</td>
                             <td className="py-3 px-4">
-                              <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full">
+                              <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
                                 {sub.source || 'lead_magnet'}
                               </span>
                             </td>

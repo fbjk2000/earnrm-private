@@ -91,7 +91,7 @@ const CompaniesPage = () => {
           </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-indigo-600 hover:bg-indigo-700" data-testid="add-company-btn">
+              <Button className="bg-earnrm-purple hover:bg-purple-700" data-testid="add-company-btn">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Company
               </Button>
@@ -153,7 +153,7 @@ const CompaniesPage = () => {
                     data-testid="company-description"
                   />
                 </div>
-                <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" data-testid="submit-company-btn">
+                <Button type="submit" className="w-full bg-earnrm-purple hover:bg-purple-700" data-testid="submit-company-btn">
                   Add Company
                 </Button>
               </form>
@@ -180,7 +180,7 @@ const CompaniesPage = () => {
         {/* Companies Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-earnrm-purple border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filteredCompanies.length === 0 ? (
           <Card>
@@ -202,8 +202,8 @@ const CompaniesPage = () => {
               <Card key={company.company_id} className="hover:shadow-md transition-shadow" data-testid={`company-card-${index}`}>
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                      <Building className="w-6 h-6 text-indigo-600" />
+                    <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+                      <Building className="w-6 h-6 text-earnrm-purple" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <h3 className="font-semibold text-slate-900 truncate">{company.name}</h3>
@@ -219,7 +219,7 @@ const CompaniesPage = () => {
                         href={company.website}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700"
+                        className="flex items-center gap-2 text-sm text-earnrm-purple hover:text-purple-700"
                       >
                         <Globe className="w-4 h-4" />
                         {company.website.replace(/(^\w+:|^)\/\//, '')}

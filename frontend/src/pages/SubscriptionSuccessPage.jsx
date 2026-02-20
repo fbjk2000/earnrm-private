@@ -110,7 +110,7 @@ const SubscriptionSuccessPage = () => {
                       <span className="text-slate-600">Invoice</span>
                       <Link
                         to={`/settings?tab=billing`}
-                        className="text-earnrm-purple hover:text-indigo-700 font-medium"
+                        className="text-earnrm-purple hover:text-purple-700 font-medium"
                       >
                         View Invoice
                       </Link>
@@ -123,7 +123,7 @@ const SubscriptionSuccessPage = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => navigate('/dashboard')}
-                className="bg-earnrm-purple hover:bg-indigo-700"
+                className="bg-earnrm-purple hover:bg-purple-700"
                 data-testid="go-to-dashboard"
               >
                 Go to Dashboard
@@ -139,8 +139,8 @@ const SubscriptionSuccessPage = () => {
               </Button>
             </div>
 
-            <div className="mt-8 p-4 bg-indigo-50 rounded-lg">
-              <div className="flex items-center justify-center gap-2 text-indigo-700">
+            <div className="mt-8 p-4 bg-purple-50 rounded-lg">
+              <div className="flex items-center justify-center gap-2 text-purple-700">
                 <Mail className="w-5 h-5" />
                 <span>Invoice and Terms & Conditions have been sent to your email</span>
               </div>
@@ -161,7 +161,7 @@ const SubscriptionSuccessPage = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => navigate('/pricing')}
-                className="bg-earnrm-purple hover:bg-indigo-700"
+                className="bg-earnrm-purple hover:bg-purple-700"
               >
                 Try Again
               </Button>
@@ -187,7 +187,7 @@ const SubscriptionSuccessPage = () => {
             </p>
             <Button
               onClick={() => navigate('/pricing')}
-              className="bg-earnrm-purple hover:bg-indigo-700"
+              className="bg-earnrm-purple hover:bg-purple-700"
             >
               Return to Pricing
             </Button>

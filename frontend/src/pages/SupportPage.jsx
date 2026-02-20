@@ -292,7 +292,7 @@ const SupportPage = () => {
           <h1 className="text-4xl font-bold text-white mb-4" data-testid="support-title">
             How Can We Help?
           </h1>
-          <p className="text-indigo-100 text-lg">
+          <p className="text-purple-100 text-lg">
             Find answers, learn best practices, and get in touch with our team.
           </p>
         </div>
@@ -354,7 +354,7 @@ const SupportPage = () => {
                   {trainingModules.map((module, idx) => (
                     <Card key={idx} className="hover:shadow-lg transition-shadow" data-testid={`training-module-${idx}`}>
                       <CardHeader>
-                        <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-earnrm-purple mb-3">
+                        <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-earnrm-purple mb-3">
                           {module.icon}
                         </div>
                         <CardTitle className="text-lg">{module.title}</CardTitle>
@@ -364,7 +364,7 @@ const SupportPage = () => {
                         <ul className="space-y-2">
                           {module.steps.map((step, sIdx) => (
                             <li key={sIdx} className="flex items-start gap-2 text-sm text-slate-600">
-                              <span className="w-5 h-5 rounded-full bg-indigo-100 text-earnrm-purple flex items-center justify-center flex-shrink-0 text-xs font-medium">
+                              <span className="w-5 h-5 rounded-full bg-purple-100 text-earnrm-purple flex items-center justify-center flex-shrink-0 text-xs font-medium">
                                 {sIdx + 1}
                               </span>
                               {step}
@@ -410,8 +410,8 @@ const SupportPage = () => {
                           </p>
                           <p className="text-sm text-amber-700 mt-1">{method.when_to_use}</p>
                         </div>
-                        <div className="p-3 bg-indigo-50 rounded-lg">
-                          <p className="text-sm font-medium text-indigo-800 flex items-center gap-2">
+                        <div className="p-3 bg-purple-50 rounded-lg">
+                          <p className="text-sm font-medium text-purple-800 flex items-center gap-2">
                             <Lightbulb className="w-4 h-4" />
                             In earnrm:
                           </p>
@@ -541,14 +541,14 @@ const SupportPage = () => {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-indigo-50 border-indigo-100">
+                  <Card className="bg-purple-50 border-purple-100">
                     <CardContent className="p-6">
                       <h3 className="font-semibold text-indigo-900 mb-2">Need Urgent Help?</h3>
                       <p className="text-sm text-purple-700 mb-4">
                         For urgent technical issues, email us with "URGENT" in the subject line.
                       </p>
                       <a href="mailto:support@earnrm.com?subject=URGENT:">
-                        <Button variant="outline" className="border-indigo-300 text-purple-700 hover:bg-indigo-100">
+                        <Button variant="outline" className="border-indigo-300 text-purple-700 hover:bg-purple-100">
                           <Mail className="w-4 h-4 mr-2" />
                           Send Urgent Request
                         </Button>

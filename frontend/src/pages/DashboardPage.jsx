@@ -72,7 +72,7 @@ const DashboardPage = () => {
       title: 'Total Leads',
       value: stats?.total_leads || 0,
       icon: <Users className="w-5 h-5" />,
-      color: 'bg-indigo-100 text-indigo-600',
+      color: 'bg-purple-100 text-earnrm-purple',
       link: '/leads'
     },
     {
@@ -117,7 +117,7 @@ const DashboardPage = () => {
               </Button>
             </Link>
             <Link to="/deals">
-              <Button className="bg-indigo-600 hover:bg-indigo-700" data-testid="create-deal-btn">
+              <Button className="bg-earnrm-purple hover:bg-purple-700" data-testid="create-deal-btn">
                 <Plus className="w-4 h-4 mr-2" />
                 Create Deal
               </Button>
@@ -176,8 +176,8 @@ const DashboardPage = () => {
                       data-testid={`recent-lead-${index}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                          <span className="text-indigo-600 font-medium">
+                        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                          <span className="text-earnrm-purple font-medium">
                             {lead.first_name?.[0]}{lead.last_name?.[0]}
                           </span>
                         </div>
@@ -246,7 +246,7 @@ const DashboardPage = () => {
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full ${
                         task.status === 'done' ? 'bg-emerald-100 text-emerald-700' :
-                        task.status === 'in_progress' ? 'bg-indigo-100 text-indigo-700' :
+                        task.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
                         'bg-slate-100 text-slate-600'
                       }`}>
                         {task.status.replace('_', ' ')}
@@ -271,11 +271,11 @@ const DashboardPage = () => {
 
         {/* Quick Actions for new users */}
         {!user?.organization_id && (
-          <Card className="bg-gradient-to-r from-indigo-50 to-white border-indigo-100" data-testid="setup-card">
+          <Card className="bg-gradient-to-r from-purple-50 to-white border-purple-100" data-testid="setup-card">
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-indigo-600" />
+                <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-earnrm-purple" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-slate-900">Complete your setup</h3>
@@ -284,7 +284,7 @@ const DashboardPage = () => {
                   </p>
                 </div>
                 <Link to="/settings">
-                  <Button className="bg-indigo-600 hover:bg-indigo-700" data-testid="setup-org-btn">
+                  <Button className="bg-earnrm-purple hover:bg-purple-700" data-testid="setup-org-btn">
                     Set Up Organization
                   </Button>
                 </Link>

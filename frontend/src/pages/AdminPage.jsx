@@ -214,7 +214,7 @@ const AdminPage = () => {
   }
 
   const statCards = [
-    { title: 'Total Users', value: stats?.total_users || 0, icon: <Users className="w-5 h-5" />, color: 'bg-indigo-100 text-earnrm-purple' },
+    { title: 'Total Users', value: stats?.total_users || 0, icon: <Users className="w-5 h-5" />, color: 'bg-purple-100 text-earnrm-purple' },
     { title: 'Organizations', value: stats?.total_organizations || 0, icon: <Building className="w-5 h-5" />, color: 'bg-emerald-100 text-emerald-600' },
     { title: 'Revenue', value: `€${(stats?.total_revenue || 0).toLocaleString()}`, icon: <DollarSign className="w-5 h-5" />, color: 'bg-rose-100 text-rose-600' },
     { title: 'Affiliates', value: stats?.total_affiliates || 0, icon: <UserPlus className="w-5 h-5" />, color: 'bg-purple-100 text-purple-600' },
@@ -606,7 +606,7 @@ const AdminPage = () => {
               </CardHeader>
               <CardContent>
                 {/* Commission Structure Info */}
-                <div className="mb-6 p-4 bg-indigo-50 rounded-lg">
+                <div className="mb-6 p-4 bg-purple-50 rounded-lg">
                   <h4 className="font-semibold text-indigo-900 mb-2">Three-Tier Commission Structure</h4>
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div className="text-center p-2 bg-white rounded">
