@@ -122,6 +122,18 @@ const SettingsPage = () => {
     }
   };
 
+  const fetchPendingInvites = async () => {
+    try {
+      const response = await axios.get(`${API}/organizations/invites`, {
+        headers,
+        withCredentials: true
+      });
+      setPendingInvites(response.data.invites || []);
+    } catch (error) {
+      console.error('Failed to fetch invites');
+    }
+  };
+
   const fetchAffiliateStatus = async () => {
     try {
       const response = await axios.get(`${API}/affiliate/me`, {
