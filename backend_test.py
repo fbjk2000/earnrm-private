@@ -162,7 +162,304 @@ class CRMTester:
         self.organization_id = data['organization_id']
         return True
 
-    # ==================== NEW FEATURES TESTS ====================
+    # ==================== CRM FUNCTIONALITY TESTS ====================
+    
+    def test_lead_creation(self, user_type="super_admin"):
+        """Test lead creation for different user types"""
+        self.switch_to_user(user_type)
+        timestamp = datetime.now().strftime('%H%M%S')
+        
+        lead_data = {
+            "first_name": f"John{timestamp}",
+            "last_name": f"Doe{timestamp}",
+            "email": f"john.doe{timestamp}@example.com",
+            "phone": "+1234567890",
+            "company": f"Test Company {timestamp}",
+            "job_title": "CEO",
+            "linkedin_url": "https://linkedin.com/in/johndoe",
+            "source": "manual",
+            "notes": f"Test lead created by {user_type}"
+        }
+        
+        success, response = self.run_test(
+            f"Lead Creation ({user_type})",
+            "POST",
+            "api/leads",
+            200,
+            data=lead_data
+        )
+        if success:
+            lead_id = response.get('lead_id')
+            print(f"   Created lead: {lead_id}")
+            print(f"   Organization: {response.get('organization_id')}")
+            
+            # Store lead data for later tests
+            if user_type == "super_admin":
+                self.super_admin_data['lead_id'] = lead_id
+            else:
+                self.test_user_data['lead_id'] = lead_id
+            return lead_id
+        return None
+
+    def test_lead_listing(self, user_type="super_admin"):
+        """Test lead listing - should only see own organization's leads"""
+        self.switch_to_user(user_type)
+        
+        success, response = self.run_test(
+            f"Lead Listing ({user_type})",
+            "GET",
+            "api/leads",
+            200
+        )
+        if success:
+            leads = response if isinstance(response, list) else []
+            print(f"   Found {len(leads)} leads")
+            if leads:
+                # Check all leads belong to current organization
+                org_ids = set(lead.get('organization_id') for lead in leads)
+                print(f"   Organization IDs in results: {org_ids}")
+                if len(org_ids) == 1 and list(org_ids)[0] == self.organization_id:
+                    print(f"   ✅ Data isolation confirmed - only own org's leads")
+                else:
+                    print(f"   ❌ Data isolation issue - seeing other org's leads")
+            return leads
+        return []
+
+    def test_lead_update(self, user_type="super_admin"):
+        """Test lead update"""
+        self.switch_to_user(user_type)
+        
+        # Get lead ID for this user
+        lead_id = None
+        if user_type == "super_admin":
+            lead_id = self.super_admin_data.get('lead_id')
+        else:
+            lead_id = self.test_user_data.get('lead_id')
+            
+        if not lead_id:
+            print(f"   No lead ID available for {user_type}")
+            return False
+            
+        update_data = {
+            "status": "contacted",
+            "notes": f"Updated by {user_type} at {datetime.now().isoformat()}"
+        }
+        
+        success, response = self.run_test(
+            f"Lead Update ({user_type})",
+            "PUT",
+            f"api/leads/{lead_id}",
+            200,
+            data=update_data
+        )
+        if success:
+            print(f"   Updated lead status: {response.get('status')}")
+            return True
+        return False
+
+    def test_deal_creation(self, user_type="super_admin"):
+        """Test deal creation"""
+        self.switch_to_user(user_type)
+        timestamp = datetime.now().strftime('%H%M%S')
+        
+        deal_data = {
+            "name": f"Test Deal {timestamp}",
+            "value": 5000.0,
+            "currency": "EUR",
+            "stage": "lead",
+            "probability": 20,
+            "notes": f"Test deal created by {user_type}",
+            "task_title": f"Initial contact for deal {timestamp}",
+            "task_owner_id": self.user_info.get('user_id'),
+            "task_description": "Follow up with prospect"
+        }
+        
+        success, response = self.run_test(
+            f"Deal Creation ({user_type})",
+            "POST",
+            "api/deals",
+            200,
+            data=deal_data
+        )
+        if success:
+            deal_id = response.get('deal_id')
+            print(f"   Created deal: {deal_id}")
+            print(f"   Created task: {response.get('created_task_id')}")
+            
+            # Store deal data
+            if user_type == "super_admin":
+                self.super_admin_data['deal_id'] = deal_id
+            else:
+                self.test_user_data['deal_id'] = deal_id
+            return deal_id
+        return None
+
+    def test_deal_listing(self, user_type="super_admin"):
+        """Test deal listing - should only see own organization's deals"""
+        self.switch_to_user(user_type)
+        
+        success, response = self.run_test(
+            f"Deal Listing ({user_type})",
+            "GET",
+            "api/deals",
+            200
+        )
+        if success:
+            deals = response if isinstance(response, list) else []
+            print(f"   Found {len(deals)} deals")
+            if deals:
+                # Check data isolation
+                org_ids = set(deal.get('organization_id') for deal in deals)
+                print(f"   Organization IDs in results: {org_ids}")
+                if len(org_ids) == 1 and list(org_ids)[0] == self.organization_id:
+                    print(f"   ✅ Data isolation confirmed - only own org's deals")
+                else:
+                    print(f"   ❌ Data isolation issue - seeing other org's deals")
+            return deals
+        return []
+
+    def test_task_creation(self, user_type="super_admin"):
+        """Test task creation"""
+        self.switch_to_user(user_type)
+        timestamp = datetime.now().strftime('%H%M%S')
+        
+        task_data = {
+            "title": f"Test Task {timestamp}",
+            "description": f"Test task created by {user_type}",
+            "status": "todo",
+            "priority": "medium",
+            "assigned_to": self.user_info.get('user_id')
+        }
+        
+        success, response = self.run_test(
+            f"Task Creation ({user_type})",
+            "POST",
+            "api/tasks",
+            200,
+            data=task_data
+        )
+        if success:
+            task_id = response.get('task_id')
+            print(f"   Created task: {task_id}")
+            
+            # Store task data
+            if user_type == "super_admin":
+                self.super_admin_data['task_id'] = task_id
+            else:
+                self.test_user_data['task_id'] = task_id
+            return task_id
+        return None
+
+    def test_task_listing(self, user_type="super_admin"):
+        """Test task listing - should only see own organization's tasks"""
+        self.switch_to_user(user_type)
+        
+        success, response = self.run_test(
+            f"Task Listing ({user_type})",
+            "GET",
+            "api/tasks",
+            200
+        )
+        if success:
+            tasks = response if isinstance(response, list) else []
+            print(f"   Found {len(tasks)} tasks")
+            if tasks:
+                # Check data isolation
+                org_ids = set(task.get('organization_id') for task in tasks)
+                print(f"   Organization IDs in results: {org_ids}")
+                if len(org_ids) == 1 and list(org_ids)[0] == self.organization_id:
+                    print(f"   ✅ Data isolation confirmed - only own org's tasks")
+                else:
+                    print(f"   ❌ Data isolation issue - seeing other org's tasks")
+            return tasks
+        return []
+
+    def test_company_creation(self, user_type="super_admin"):
+        """Test company creation"""
+        self.switch_to_user(user_type)
+        timestamp = datetime.now().strftime('%H%M%S')
+        
+        company_data = {
+            "name": f"Test Company {timestamp}",
+            "industry": "Technology",
+            "website": f"https://testcompany{timestamp}.com",
+            "size": "50-100",
+            "description": f"Test company created by {user_type}"
+        }
+        
+        success, response = self.run_test(
+            f"Company Creation ({user_type})",
+            "POST",
+            "api/companies",
+            200,
+            data=company_data
+        )
+        if success:
+            company_id = response.get('company_id')
+            print(f"   Created company: {company_id}")
+            
+            # Store company data
+            if user_type == "super_admin":
+                self.super_admin_data['company_id'] = company_id
+            else:
+                self.test_user_data['company_id'] = company_id
+            return company_id
+        return None
+
+    def test_organization_settings_access(self, user_type="super_admin"):
+        """Test organization settings access"""
+        self.switch_to_user(user_type)
+        
+        success, response = self.run_test(
+            f"Organization Settings Access ({user_type})",
+            "GET",
+            "api/organizations/settings",
+            200
+        )
+        if success:
+            print(f"   Organization: {response.get('name')}")
+            print(f"   Deal stages: {len(response.get('deal_stages', []))}")
+            print(f"   Task stages: {len(response.get('task_stages', []))}")
+            return True
+        return False
+
+    def test_data_isolation_cross_org_access(self):
+        """Test that users cannot access other organization's data"""
+        print("\n🔒 Testing Data Isolation - Cross-Organization Access")
+        
+        # Try to access super admin's lead with test user token
+        self.switch_to_user("test_user")
+        super_admin_lead_id = self.super_admin_data.get('lead_id')
+        
+        if super_admin_lead_id:
+            success, response = self.run_test(
+                "Cross-Org Lead Access (Should Fail)",
+                "GET",
+                f"api/leads/{super_admin_lead_id}",
+                404  # Should return 404 or 403
+            )
+            if success:
+                print(f"   ✅ Data isolation working - cannot access other org's lead")
+            else:
+                print(f"   ❌ Data isolation breach - accessed other org's lead")
+        
+        # Try to access test user's lead with super admin token
+        self.switch_to_user("super_admin")
+        test_user_lead_id = self.test_user_data.get('lead_id')
+        
+        if test_user_lead_id:
+            success, response = self.run_test(
+                "Cross-Org Lead Access as Super Admin",
+                "GET",
+                f"api/leads/{test_user_lead_id}",
+                404  # Super admin should also not see other org's data unless explicitly allowed
+            )
+            if success:
+                print(f"   ✅ Data isolation working - super admin cannot access other org's lead")
+            else:
+                print(f"   ❌ Data isolation issue - super admin accessed other org's lead")
+        
+        return True
     
     def test_organization_settings_get(self):
         """Test GET /api/organizations/settings - returns org deal_stages, task_stages, affiliate_enabled"""
