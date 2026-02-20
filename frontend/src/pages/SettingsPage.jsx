@@ -79,6 +79,7 @@ const SettingsPage = () => {
     if (organization) {
       fetchOrgSettings();
       fetchMembers();
+      fetchPendingInvites();
     }
   }, [organization]);
 
