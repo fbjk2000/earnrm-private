@@ -558,6 +558,10 @@ const DealsPage = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => navigate(`/chat?type=deal&id=${deal.deal_id}`)}>
+                                    <MessageSquare className="w-4 h-4 mr-2" />
+                                    Discuss Deal
+                                  </DropdownMenuItem>
                                   {stages.map((s) => (
                                     <DropdownMenuItem
                                       key={s.id}
