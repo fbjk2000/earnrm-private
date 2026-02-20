@@ -399,6 +399,16 @@ const LeadsPage = () => {
                             leadId={lead.lead_id} 
                             leadName={`${lead.first_name} ${lead.last_name}`}
                           />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => navigate(`/chat?type=lead&id=${lead.lead_id}`)}
+                            title="Discuss this lead"
+                            data-testid={`discuss-lead-${lead.lead_id}`}
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                          </Button>
                         </div>
 
                         <Select
