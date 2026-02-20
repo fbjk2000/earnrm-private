@@ -239,6 +239,7 @@ export const AIEmailComposer = ({ leadId, leadName, onClose }) => {
             AI Email Composer
             {leadName && <Badge variant="outline">{leadName}</Badge>}
           </DialogTitle>
+          <DialogDescription>Generate personalized sales emails with AI assistance</DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 pt-4">
