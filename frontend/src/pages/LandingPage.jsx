@@ -203,14 +203,16 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-8">
-              <div className="inline-flex items-center px-3 py-1 rounded-full bg-purple-50 text-[#A100FF] text-sm font-medium">
-                <Zap className="w-4 h-4 mr-2" />
-                AI-Powered CRM for Modern Teams
-              </div>
+              {/* Full Logo with Tagline */}
+              <img 
+                src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/vhcjdzuc_earnrm_logo_horizontal_light_tagline_purpleword.png" 
+                alt="earnrm - Your CRM that pAIs you back" 
+                className="h-16 lg:h-20"
+              />
               
-              <h1 className="text-5xl lg:text-6xl font-bold text-earnrm-black tracking-tight leading-tight" data-testid="hero-title">
+              <h1 className="text-5xl lg:text-6xl font-bold text-[#111111] tracking-tight leading-tight" data-testid="hero-title">
                 Your CRM that
-                <span className="text-[#A100FF]"> p<span className="font-black">AI</span>s</span> you back
+                <span> p<span className="text-[#A100FF] font-black">AI</span>s</span> you back
               </h1>
               
               <p className="text-lg text-slate-600 max-w-lg leading-relaxed" data-testid="hero-description">
@@ -238,10 +240,12 @@ const LandingPage = () => {
               </div>
 
               <div className="flex items-center gap-6 pt-4">
-                <div className="flex -space-x-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white" />
-                  ))}
+                <div className="flex -space-x-3">
+                  <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=faces" alt="User" className="w-10 h-10 rounded-full border-2 border-white object-cover" />
+                  <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=faces" alt="User" className="w-10 h-10 rounded-full border-2 border-white object-cover" />
+                  <img src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=80&h=80&fit=crop&crop=faces" alt="User" className="w-10 h-10 rounded-full border-2 border-white object-cover" />
+                  <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=faces" alt="User" className="w-10 h-10 rounded-full border-2 border-white object-cover" />
+                  <div className="w-10 h-10 rounded-full border-2 border-white bg-[#A100FF] flex items-center justify-center text-white text-xs font-bold">+500</div>
                 </div>
                 <div>
                   <div className="flex items-center">
