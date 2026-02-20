@@ -291,7 +291,7 @@ class TestSubscriptionCheckout:
                 "plan_id": "monthly",
                 "user_count": 2,
                 "use_crypto": False,
-                "origin_url": "https://earnrm-ai-quickwins.preview.emergentagent.com"
+                "origin_url": "https://earnrm-preview.preview.emergentagent.com"
             },
             headers=auth_headers
         )
@@ -322,7 +322,7 @@ class TestSubscriptionCheckout:
                 "plan_id": "annual",
                 "user_count": 1,
                 "use_crypto": False,
-                "origin_url": "https://earnrm-ai-quickwins.preview.emergentagent.com"
+                "origin_url": "https://earnrm-preview.preview.emergentagent.com"
             },
             headers=auth_headers
         )
@@ -343,7 +343,7 @@ class TestSubscriptionCheckout:
                 "plan_id": "monthly",
                 "user_count": 1,
                 "use_crypto": True,
-                "origin_url": "https://earnrm-ai-quickwins.preview.emergentagent.com"
+                "origin_url": "https://earnrm-preview.preview.emergentagent.com"
             },
             headers=auth_headers
         )
@@ -484,7 +484,7 @@ class TestDiscountCodeIntegration:
                 "user_count": 1,
                 "discount_code": code_name,
                 "use_crypto": False,
-                "origin_url": "https://earnrm-ai-quickwins.preview.emergentagent.com"
+                "origin_url": "https://earnrm-preview.preview.emergentagent.com"
             },
             headers=auth_headers
         )

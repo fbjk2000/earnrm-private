@@ -31,7 +31,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiUrl": "https://earnrm-ai-quickwins.preview.emergentagent.com/api"
+      "apiUrl": "https://earnrm-preview.preview.emergentagent.com/api"
     }
   }
 }

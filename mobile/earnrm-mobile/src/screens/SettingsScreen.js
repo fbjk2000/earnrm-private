@@ -26,11 +26,11 @@ const SettingsScreen = () => {
   };
 
   const openSupport = () => {
-    Linking.openURL('https://earnrm-ai-quickwins.preview.emergentagent.com/support');
+    Linking.openURL('https://earnrm-preview.preview.emergentagent.com/support');
   };
 
   const openWebApp = () => {
-    Linking.openURL('https://earnrm-ai-quickwins.preview.emergentagent.com');
+    Linking.openURL('https://earnrm-preview.preview.emergentagent.com');
   };
 
   return (

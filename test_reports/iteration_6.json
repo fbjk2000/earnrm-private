@@ -75,8 +75,8 @@
   },
   
   "environment_status": {
-    "backend_url": "https://earnrm-ai-quickwins.preview.emergentagent.com/api",
-    "frontend_url": "https://earnrm-ai-quickwins.preview.emergentagent.com",
+    "backend_url": "https://earnrm-preview.preview.emergentagent.com/api",
+    "frontend_url": "https://earnrm-preview.preview.emergentagent.com",
     "database": "Connected (MongoDB with 1 user, 1 organization)",
     "integrations": {
       "kit_com": "Partially working (account info accessible, subscribers require secret key)",
