@@ -392,36 +392,44 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* Free Plan */}
-            <Card className="border-slate-200" data-testid="pricing-free">
+            <Card className="border-slate-200 rounded-2xl hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 bg-white" data-testid="pricing-free">
               <CardContent className="p-8">
                 <h3 className="text-xl font-semibold text-slate-900 mb-2">Starter</h3>
-                <p className="text-slate-600 mb-6">Perfect for small teams getting started</p>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold text-slate-900">€0</span>
-                  <span className="text-slate-600">/month</span>
+                <p className="text-slate-500 mb-6">Perfect for small teams getting started</p>
+                <div className="mb-8">
+                  <span className="text-5xl font-bold text-slate-900">€0</span>
+                  <span className="text-slate-500">/month</span>
                 </div>
-                <ul className="space-y-3 mb-8">
+                <ul className="space-y-4 mb-8">
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
+                    <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+                      <Check className="w-3 h-3 text-[#A100FF]" />
+                    </div>
                     Up to 3 users
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
+                    <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+                      <Check className="w-3 h-3 text-[#A100FF]" />
+                    </div>
                     500 leads
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
+                    <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+                      <Check className="w-3 h-3 text-[#A100FF]" />
+                    </div>
                     Basic AI scoring
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
+                    <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+                      <Check className="w-3 h-3 text-[#A100FF]" />
+                    </div>
                     Email support
                   </li>
                 </ul>
                 <Link to="/signup">
-                  <Button variant="outline" className="w-full border-[#A100FF] text-[#A100FF] hover:bg-purple-50" data-testid="pricing-free-btn">
+                  <Button variant="outline" className="w-full h-12 rounded-xl border-2 border-slate-200 hover:border-[#A100FF] hover:text-[#A100FF] font-semibold transition-all" data-testid="pricing-free-btn">
                     Get Started
                   </Button>
                 </Link>
@@ -429,43 +437,53 @@ const LandingPage = () => {
             </Card>
 
             {/* Pro Plan - Monthly */}
-            <Card className="border-2 border-[#A100FF] relative" data-testid="pricing-pro">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="bg-[#A100FF] text-white px-3 py-1 rounded-full text-sm font-medium">
+            <Card className="border-2 border-[#A100FF] relative rounded-2xl shadow-xl shadow-purple-500/10 bg-gradient-to-b from-white to-purple-50/30" data-testid="pricing-pro">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                <span className="bg-gradient-to-r from-[#A100FF] to-purple-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold shadow-lg shadow-purple-500/30">
                   Most Popular
                 </span>
               </div>
-              <CardContent className="p-8">
+              <CardContent className="p-8 pt-10">
                 <h3 className="text-xl font-semibold text-slate-900 mb-2">Pro</h3>
-                <p className="text-slate-600 mb-6">For growing teams that need more power</p>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold text-slate-900">€15</span>
-                  <span className="text-slate-600">/user/month</span>
+                <p className="text-slate-500 mb-6">For growing teams that need more power</p>
+                <div className="mb-8">
+                  <span className="text-5xl font-bold text-slate-900">€15</span>
+                  <span className="text-slate-500">/user/month</span>
                 </div>
-                <ul className="space-y-3 mb-8">
+                <ul className="space-y-4 mb-8">
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
+                    <div className="w-5 h-5 rounded-full bg-[#A100FF] flex items-center justify-center mr-3">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
                     Unlimited users
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
+                    <div className="w-5 h-5 rounded-full bg-[#A100FF] flex items-center justify-center mr-3">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
                     Unlimited leads
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
+                    <div className="w-5 h-5 rounded-full bg-[#A100FF] flex items-center justify-center mr-3">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
                     Advanced AI features
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
+                    <div className="w-5 h-5 rounded-full bg-[#A100FF] flex items-center justify-center mr-3">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
                     LinkedIn integration
                   </li>
                   <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
+                    <div className="w-5 h-5 rounded-full bg-[#A100FF] flex items-center justify-center mr-3">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
                     Priority support
                   </li>
                 </ul>
                 <Link to="/signup">
-                  <Button className="w-full bg-[#A100FF] hover:bg-purple-700" data-testid="pricing-pro-btn">
+                  <Button className="w-full h-12 rounded-xl bg-[#A100FF] hover:bg-purple-600 font-semibold shadow-lg shadow-purple-500/25 transition-all hover:shadow-xl hover:shadow-purple-500/30" data-testid="pricing-pro-btn">
                     Start Free Trial
                   </Button>
                 </Link>
