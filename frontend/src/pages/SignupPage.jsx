@@ -1,24 +1,52 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../App';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth, API } from '../App';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
-import { ArrowLeft, Mail, Lock, User, Building, Eye, EyeOff } from 'lucide-react';
+import axios from 'axios';
+import { ArrowLeft, Mail, Lock, User, Building, Eye, EyeOff, Users } from 'lucide-react';
 
 const SignupPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { register } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [inviteInfo, setInviteInfo] = useState(null);
+  const [inviteCode, setInviteCode] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     organization_name: ''
   });
+
+  // Check for invite code in URL
+  useEffect(() => {
+    const code = searchParams.get('invite');
+    if (code) {
+      setInviteCode(code);
+      validateInvite(code);
+    }
+  }, [searchParams]);
+
+  const validateInvite = async (code) => {
+    try {
+      const response = await axios.get(`${API}/invites/validate/${code}`);
+      setInviteInfo(response.data);
+      // Pre-fill email if it's an email-specific invite
+      if (response.data.email) {
+        setFormData(prev => ({ ...prev, email: response.data.email }));
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Invalid or expired invitation');
+      setInviteCode(null);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,7 +59,12 @@ const SignupPage = () => {
     setLoading(true);
 
     try {
-      await register(formData);
+      const registerData = { ...formData };
+      if (inviteCode) {
+        registerData.invite_code = inviteCode;
+        delete registerData.organization_name; // Don't create new org when joining
+      }
+      await register(registerData);
       toast.success('Account created successfully!');
       navigate('/dashboard');
     } catch (error) {
