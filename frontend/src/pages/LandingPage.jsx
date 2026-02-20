@@ -201,18 +201,18 @@ const LandingPage = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
+      <section className="pt-28 pb-16 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
               {/* Full Logo with Tagline */}
               <img 
                 src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/vhcjdzuc_earnrm_logo_horizontal_light_tagline_purpleword.png" 
                 alt="earnrm - Your CRM that pAIs you back" 
-                className="h-16 lg:h-20"
+                className="h-14 lg:h-16"
               />
               
-              <h1 className="text-5xl lg:text-6xl font-bold text-[#111111] tracking-tight leading-tight" data-testid="hero-title">
+              <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold text-[#111111] tracking-tight leading-tight" data-testid="hero-title">
                 Your CRM that
                 <span> p<span className="text-[#A100FF] font-black">AI</span>s</span> you back
               </h1>
@@ -222,7 +222,7 @@ const LandingPage = () => {
                 AI-powered insights, and team collaboration — without the complexity.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 pt-2">
                 <Link to="/signup">
                   <Button size="lg" className="bg-[#A100FF] hover:bg-purple-700 h-12 px-8" data-testid="hero-cta-primary">
                     Start Free Trial
