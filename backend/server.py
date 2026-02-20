@@ -1766,20 +1766,119 @@ async def score_lead(lead_id: str, current_user: dict = Depends(get_current_user
 async def draft_email(
     lead_id: Optional[str] = None,
     purpose: str = "introduction",
+    tone: str = "professional",
+    custom_context: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
+    """AI-powered email drafting with personalization"""
     lead_context = ""
+    lead_name = "there"
+    company_name = "your company"
+    
     if lead_id:
         lead = await db.leads.find_one(
             {"lead_id": lead_id, "organization_id": current_user.get("organization_id")},
             {"_id": 0}
         )
         if lead:
+            lead_name = lead.get('first_name', 'there')
+            company_name = lead.get('company', 'your company')
             lead_context = f"""
             Recipient: {lead.get('first_name', '')} {lead.get('last_name', '')}
             Company: {lead.get('company', 'their company')}
             Job Title: {lead.get('job_title', '')}
+            LinkedIn: {lead.get('linkedin_url', '')}
+            Previous interactions: {lead.get('notes', 'None yet')}
+            Lead Status: {lead.get('status', 'new')}
             """
+    
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        
+        tone_instructions = {
+            "professional": "Write in a professional, business-like tone.",
+            "friendly": "Write in a warm, friendly but professional tone.",
+            "casual": "Write in a casual, conversational tone while remaining professional.",
+            "formal": "Write in a very formal, executive-level tone."
+        }
+        
+        purpose_templates = {
+            "introduction": "Introduce yourself and your company, focusing on how you can help them.",
+            "follow_up": "Follow up on a previous conversation or meeting.",
+            "proposal": "Present a business proposal or offer.",
+            "check_in": "Check in and see how they're doing, offer assistance.",
+            "meeting_request": "Request a meeting or call to discuss opportunities.",
+            "thank_you": "Thank them for their time or business."
+        }
+        
+        system_msg = f"""You are an expert B2B sales email writer for earnrm CRM.
+{tone_instructions.get(tone, tone_instructions['professional'])}
+Write concise, engaging emails that get responses. Keep emails under 150 words.
+Always include a clear call-to-action. Personalize based on the recipient's context."""
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"email_draft_{uuid.uuid4().hex[:8]}",
+            system_message=system_msg
+        ).with_model("openai", "gpt-5.2")
+        
+        prompt = f"""{purpose_templates.get(purpose, purpose_templates['introduction'])}
+
+Lead Context:{lead_context}
+
+Sender: {current_user.get('name', 'Sales Team')} from earnrm
+{f"Additional context: {custom_context}" if custom_context else ""}
+
+Write the email now. Start with a compelling subject line on the first line, then the email body."""
+        
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        # Parse subject from response
+        lines = response.strip().split('\n')
+        subject = lines[0].replace('Subject:', '').replace('Subject Line:', '').strip()
+        if subject.startswith('"') and subject.endswith('"'):
+            subject = subject[1:-1]
+        content = '\n'.join(lines[1:]).strip()
+        
+        return {
+            "subject": subject,
+            "content": content,
+            "lead_name": lead_name,
+            "company_name": company_name,
+            "purpose": purpose,
+            "tone": tone
+        }
+    except Exception as e:
+        logger.error(f"AI email draft error: {e}")
+        raise HTTPException(status_code=500, detail=f"Email drafting failed: {str(e)}")
+
+
+@api_router.post("/ai/lead-summary/{lead_id}")
+async def generate_lead_summary(lead_id: str, current_user: dict = Depends(get_current_user)):
+    """Generate an AI-powered summary of a lead's activity and profile"""
+    
+    # Get lead data
+    lead = await db.leads.find_one(
+        {"lead_id": lead_id, "organization_id": current_user.get("organization_id")},
+        {"_id": 0}
+    )
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    # Get related deals
+    deals = await db.deals.find(
+        {"lead_id": lead_id, "organization_id": current_user.get("organization_id")},
+        {"_id": 0}
+    ).to_list(100)
+    
+    # Get related tasks
+    tasks = await db.tasks.find(
+        {"related_lead_id": lead_id, "organization_id": current_user.get("organization_id")},
+        {"_id": 0}
+    ).to_list(100)
     
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -1787,19 +1886,216 @@ async def draft_email(
         api_key = os.environ.get("EMERGENT_LLM_KEY")
         chat = LlmChat(
             api_key=api_key,
-            session_id=f"email_draft_{uuid.uuid4().hex[:8]}",
-            system_message="You are a professional email writer. Write concise, engaging B2B emails. Keep them under 150 words."
+            session_id=f"lead_summary_{uuid.uuid4().hex[:8]}",
+            system_message="""You are a CRM analytics assistant. Provide concise, actionable summaries.
+Focus on: engagement level, deal potential, recommended next steps, and key insights.
+Format your response with clear sections using markdown."""
         ).with_model("openai", "gpt-5.2")
         
-        prompt = f"Write a professional {purpose} email.{lead_context}\nMake it personalized and compelling."
+        context = f"""
+LEAD PROFILE:
+- Name: {lead.get('first_name', '')} {lead.get('last_name', '')}
+- Email: {lead.get('email', 'N/A')}
+- Company: {lead.get('company', 'N/A')}
+- Job Title: {lead.get('job_title', 'N/A')}
+- Status: {lead.get('status', 'new')}
+- Source: {lead.get('source', 'Unknown')}
+- AI Score: {lead.get('ai_score', 'Not scored')}
+- Created: {lead.get('created_at', 'Unknown')}
+- Tags: {', '.join(lead.get('tags', [])) or 'None'}
+- Notes: {lead.get('notes', 'No notes')}
+
+DEALS ({len(deals)} total):
+{chr(10).join([f"- {d.get('name')}: €{d.get('value', 0):,.0f} ({d.get('stage')})" for d in deals]) or 'No deals yet'}
+
+TASKS ({len(tasks)} total):
+{chr(10).join([f"- {t.get('title')} ({t.get('status')})" for t in tasks[:5]]) or 'No tasks yet'}
+
+Provide a comprehensive summary with:
+1. **Overview** - Quick profile summary
+2. **Engagement Assessment** - How engaged is this lead?
+3. **Deal Potential** - Revenue opportunity
+4. **Recommended Actions** - Top 3 next steps
+5. **Risk Factors** - Any concerns to address
+"""
         
-        user_message = UserMessage(text=prompt)
+        user_message = UserMessage(text=context)
         response = await chat.send_message(user_message)
         
-        return {"subject": f"{purpose.title()} from earnrm", "content": response}
+        return {
+            "lead_id": lead_id,
+            "lead_name": f"{lead.get('first_name', '')} {lead.get('last_name', '')}",
+            "summary": response,
+            "deals_count": len(deals),
+            "tasks_count": len(tasks),
+            "total_deal_value": sum(d.get('value', 0) for d in deals),
+            "generated_at": datetime.now(timezone.utc).isoformat()
+        }
     except Exception as e:
-        logger.error(f"AI email draft error: {e}")
-        raise HTTPException(status_code=500, detail="Email drafting failed")
+        logger.error(f"AI lead summary error: {e}")
+        raise HTTPException(status_code=500, detail=f"Summary generation failed: {str(e)}")
+
+
+@api_router.post("/ai/smart-search")
+async def smart_search(
+    query: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Natural language search across CRM data"""
+    org_id = current_user.get("organization_id")
+    if not org_id:
+        raise HTTPException(status_code=400, detail="No organization")
+    
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        
+        # First, use AI to understand the search intent
+        intent_chat = LlmChat(
+            api_key=api_key,
+            session_id=f"search_intent_{uuid.uuid4().hex[:8]}",
+            system_message="""You are a search query analyzer for a CRM system.
+Analyze the user's natural language query and extract:
+1. entity_type: one of [leads, deals, tasks, companies, all]
+2. filters: any specific criteria (status, value range, date, name, company, etc.)
+3. keywords: important search terms
+
+Respond ONLY with valid JSON in this format:
+{"entity_type": "leads", "filters": {"status": "qualified"}, "keywords": ["enterprise", "tech"]}"""
+        ).with_model("openai", "gpt-5.2")
+        
+        intent_response = await intent_chat.send_message(UserMessage(text=f"Query: {query}"))
+        
+        # Parse the intent
+        import json
+        try:
+            # Clean the response - remove markdown code blocks if present
+            clean_response = intent_response.strip()
+            if clean_response.startswith('```'):
+                clean_response = clean_response.split('\n', 1)[1]
+            if clean_response.endswith('```'):
+                clean_response = clean_response.rsplit('\n', 1)[0]
+            clean_response = clean_response.replace('```json', '').replace('```', '').strip()
+            intent = json.loads(clean_response)
+        except:
+            intent = {"entity_type": "all", "filters": {}, "keywords": query.split()}
+        
+        results = {
+            "query": query,
+            "intent": intent,
+            "leads": [],
+            "deals": [],
+            "tasks": [],
+            "companies": []
+        }
+        
+        keywords = intent.get("keywords", query.split())
+        entity_type = intent.get("entity_type", "all")
+        
+        # Build regex pattern for keyword search
+        keyword_pattern = "|".join([re.escape(k) for k in keywords]) if keywords else query
+        
+        # Search leads
+        if entity_type in ["leads", "all"]:
+            lead_query = {
+                "organization_id": org_id,
+                "$or": [
+                    {"first_name": {"$regex": keyword_pattern, "$options": "i"}},
+                    {"last_name": {"$regex": keyword_pattern, "$options": "i"}},
+                    {"email": {"$regex": keyword_pattern, "$options": "i"}},
+                    {"company": {"$regex": keyword_pattern, "$options": "i"}},
+                    {"notes": {"$regex": keyword_pattern, "$options": "i"}},
+                    {"job_title": {"$regex": keyword_pattern, "$options": "i"}}
+                ]
+            }
+            # Add status filter if specified
+            if intent.get("filters", {}).get("status"):
+                lead_query["status"] = intent["filters"]["status"]
+            
+            leads = await db.leads.find(lead_query, {"_id": 0}).limit(10).to_list(10)
+            results["leads"] = leads
+        
+        # Search deals
+        if entity_type in ["deals", "all"]:
+            deal_query = {
+                "organization_id": org_id,
+                "$or": [
+                    {"name": {"$regex": keyword_pattern, "$options": "i"}},
+                    {"notes": {"$regex": keyword_pattern, "$options": "i"}}
+                ]
+            }
+            if intent.get("filters", {}).get("stage"):
+                deal_query["stage"] = intent["filters"]["stage"]
+            
+            deals = await db.deals.find(deal_query, {"_id": 0}).limit(10).to_list(10)
+            results["deals"] = deals
+        
+        # Search tasks
+        if entity_type in ["tasks", "all"]:
+            task_query = {
+                "organization_id": org_id,
+                "$or": [
+                    {"title": {"$regex": keyword_pattern, "$options": "i"}},
+                    {"description": {"$regex": keyword_pattern, "$options": "i"}}
+                ]
+            }
+            if intent.get("filters", {}).get("status"):
+                task_query["status"] = intent["filters"]["status"]
+            
+            tasks = await db.tasks.find(task_query, {"_id": 0}).limit(10).to_list(10)
+            results["tasks"] = tasks
+        
+        # Search companies
+        if entity_type in ["companies", "all"]:
+            company_query = {
+                "organization_id": org_id,
+                "$or": [
+                    {"name": {"$regex": keyword_pattern, "$options": "i"}},
+                    {"industry": {"$regex": keyword_pattern, "$options": "i"}},
+                    {"notes": {"$regex": keyword_pattern, "$options": "i"}}
+                ]
+            }
+            companies = await db.companies.find(company_query, {"_id": 0}).limit(10).to_list(10)
+            results["companies"] = companies
+        
+        # Generate AI summary of results
+        total_results = len(results["leads"]) + len(results["deals"]) + len(results["tasks"]) + len(results["companies"])
+        
+        if total_results > 0:
+            summary_chat = LlmChat(
+                api_key=api_key,
+                session_id=f"search_summary_{uuid.uuid4().hex[:8]}",
+                system_message="Provide a brief, helpful summary of search results. Be concise (2-3 sentences max)."
+            ).with_model("openai", "gpt-5.2")
+            
+            summary_prompt = f"""Search query: "{query}"
+Found: {len(results['leads'])} leads, {len(results['deals'])} deals, {len(results['tasks'])} tasks, {len(results['companies'])} companies.
+Top results: {[l.get('first_name', '') + ' ' + l.get('last_name', '') for l in results['leads'][:3]]}
+Summarize what was found."""
+            
+            summary = await summary_chat.send_message(UserMessage(text=summary_prompt))
+            results["ai_summary"] = summary
+        else:
+            results["ai_summary"] = f"No results found for '{query}'. Try broader search terms or check spelling."
+        
+        results["total_count"] = total_results
+        return results
+        
+    except Exception as e:
+        logger.error(f"Smart search error: {e}")
+        # Fallback to basic search
+        return {
+            "query": query,
+            "error": str(e),
+            "leads": [],
+            "deals": [],
+            "tasks": [],
+            "companies": [],
+            "ai_summary": "AI search unavailable. Please try a basic search.",
+            "total_count": 0
+        }
+
 
 # ==================== PAYMENT ROUTES ====================
 
