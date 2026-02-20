@@ -346,11 +346,6 @@ const SettingsPage = () => {
     }
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard!');
-  };
-
   const addDealStage = () => {
     const newStage = {
       id: `stage_${Date.now()}`,
