@@ -4543,6 +4543,187 @@ Provide your analysis."""
         logger.error(f"Call analysis error: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
+# ==================== CALL SCHEDULING ====================
+
+class ScheduleCallRequest(BaseModel):
+    lead_id: str
+    scheduled_at: str  # ISO datetime string
+    notes: Optional[str] = None
+    reminder_minutes: int = 15  # minutes before call to send reminder
+
+class UpdateScheduledCallRequest(BaseModel):
+    scheduled_at: Optional[str] = None
+    notes: Optional[str] = None
+    reminder_minutes: Optional[int] = None
+    status: Optional[str] = None  # scheduled, completed, cancelled
+
+@api_router.post("/calls/schedule")
+async def schedule_call(data: ScheduleCallRequest, current_user: dict = Depends(get_current_user)):
+    """Schedule a call with a lead"""
+    lead = await db.leads.find_one(
+        {"lead_id": data.lead_id, "organization_id": current_user.get("organization_id")},
+        {"_id": 0}
+    )
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    schedule_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+
+    try:
+        scheduled_dt = datetime.fromisoformat(data.scheduled_at.replace('Z', '+00:00'))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use ISO 8601.")
+
+    if scheduled_dt <= now:
+        raise HTTPException(status_code=400, detail="Scheduled time must be in the future")
+
+    reminder_at = (scheduled_dt - timedelta(minutes=data.reminder_minutes)).isoformat()
+
+    doc = {
+        "schedule_id": schedule_id,
+        "organization_id": current_user.get("organization_id"),
+        "lead_id": data.lead_id,
+        "lead_name": f"{lead.get('first_name','')} {lead.get('last_name','')}".strip(),
+        "lead_phone": lead.get("phone", ""),
+        "lead_company": lead.get("company", ""),
+        "scheduled_at": scheduled_dt.isoformat(),
+        "reminder_at": reminder_at,
+        "reminder_minutes": data.reminder_minutes,
+        "reminder_sent": False,
+        "notes": data.notes,
+        "status": "scheduled",
+        "created_by": current_user.get("user_id"),
+        "created_by_name": current_user.get("name"),
+        "created_at": now.isoformat()
+    }
+    await db.scheduled_calls.insert_one(doc)
+
+    return {
+        "schedule_id": schedule_id,
+        "scheduled_at": scheduled_dt.isoformat(),
+        "lead_name": doc["lead_name"],
+        "message": "Call scheduled successfully"
+    }
+
+@api_router.get("/calls/scheduled")
+async def get_scheduled_calls(
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all scheduled calls for the organization"""
+    org_id = current_user.get("organization_id")
+    query = {"organization_id": org_id}
+    if status:
+        query["status"] = status
+    else:
+        query["status"] = {"$in": ["scheduled", "completed"]}
+
+    scheduled = await db.scheduled_calls.find(query, {"_id": 0}).sort("scheduled_at", 1).to_list(200)
+    return scheduled
+
+@api_router.get("/calls/scheduled/upcoming")
+async def get_upcoming_calls(current_user: dict = Depends(get_current_user)):
+    """Get upcoming scheduled calls (next 7 days)"""
+    org_id = current_user.get("organization_id")
+    now = datetime.now(timezone.utc)
+    week_later = (now + timedelta(days=7)).isoformat()
+
+    upcoming = await db.scheduled_calls.find(
+        {
+            "organization_id": org_id,
+            "status": "scheduled",
+            "scheduled_at": {"$gte": now.isoformat(), "$lte": week_later}
+        },
+        {"_id": 0}
+    ).sort("scheduled_at", 1).to_list(50)
+    return upcoming
+
+@api_router.put("/calls/scheduled/{schedule_id}")
+async def update_scheduled_call(
+    schedule_id: str,
+    data: UpdateScheduledCallRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a scheduled call"""
+    existing = await db.scheduled_calls.find_one(
+        {"schedule_id": schedule_id, "organization_id": current_user.get("organization_id")}
+    )
+    if not existing:
+        raise HTTPException(status_code=404, detail="Scheduled call not found")
+
+    updates = {}
+    if data.scheduled_at:
+        try:
+            scheduled_dt = datetime.fromisoformat(data.scheduled_at.replace('Z', '+00:00'))
+            updates["scheduled_at"] = scheduled_dt.isoformat()
+            mins = data.reminder_minutes if data.reminder_minutes else existing.get("reminder_minutes", 15)
+            updates["reminder_at"] = (scheduled_dt - timedelta(minutes=mins)).isoformat()
+            updates["reminder_sent"] = False
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
+    if data.notes is not None:
+        updates["notes"] = data.notes
+    if data.reminder_minutes is not None:
+        updates["reminder_minutes"] = data.reminder_minutes
+    if data.status:
+        updates["status"] = data.status
+
+    if updates:
+        await db.scheduled_calls.update_one({"schedule_id": schedule_id}, {"$set": updates})
+
+    updated = await db.scheduled_calls.find_one({"schedule_id": schedule_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/calls/scheduled/{schedule_id}")
+async def cancel_scheduled_call(schedule_id: str, current_user: dict = Depends(get_current_user)):
+    """Cancel a scheduled call"""
+    result = await db.scheduled_calls.update_one(
+        {"schedule_id": schedule_id, "organization_id": current_user.get("organization_id"), "status": "scheduled"},
+        {"$set": {"status": "cancelled"}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Scheduled call not found or already cancelled")
+    return {"message": "Call cancelled"}
+
+@api_router.post("/calls/scheduled/check-reminders")
+async def check_reminders(current_user: dict = Depends(get_current_user)):
+    """Check and send reminders for upcoming calls (called periodically from frontend)"""
+    org_id = current_user.get("organization_id")
+    now = datetime.now(timezone.utc).isoformat()
+
+    due_reminders = await db.scheduled_calls.find(
+        {
+            "organization_id": org_id,
+            "status": "scheduled",
+            "reminder_sent": False,
+            "reminder_at": {"$lte": now}
+        },
+        {"_id": 0}
+    ).to_list(20)
+
+    notifications_created = 0
+    for sc in due_reminders:
+        notif = {
+            "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+            "user_id": sc["created_by"],
+            "organization_id": org_id,
+            "type": "call_reminder",
+            "title": f"Upcoming call with {sc['lead_name']}",
+            "content": f"Scheduled in {sc['reminder_minutes']} minutes" + (f" - {sc['notes']}" if sc.get('notes') else ""),
+            "link": "/calls",
+            "is_read": False,
+            "created_at": now
+        }
+        await db.notifications.insert_one(notif)
+        await db.scheduled_calls.update_one(
+            {"schedule_id": sc["schedule_id"]},
+            {"$set": {"reminder_sent": True}}
+        )
+        notifications_created += 1
+
+    return {"reminders_sent": notifications_created}
+
 # ==================== BASIC ROUTES ====================
 
 @api_router.get("/")
