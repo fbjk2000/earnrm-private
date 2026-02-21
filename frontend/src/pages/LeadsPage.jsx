@@ -495,7 +495,19 @@ const LeadsPage = () => {
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={() => { openLeadDetail(lead); setEditMode(true); }}>
+                              <Edit2 className="w-4 h-4 mr-2" />
+                              Edit Lead
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { openLeadDetail(lead); handleEnrichLead(lead.lead_id); }}>
+                              <Wand2 className="w-4 h-4 mr-2" />
+                              AI Enrich
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleScoreLead(lead.lead_id)}>
+                              <Zap className="w-4 h-4 mr-2" />
+                              AI Score
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => navigate(`/chat?type=lead&id=${lead.lead_id}`)}>
                               <MessageSquare className="w-4 h-4 mr-2" />
                               Discuss Lead
@@ -506,10 +518,6 @@ const LeadsPage = () => {
                                 Call Lead
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem onClick={() => handleScoreLead(lead.lead_id)}>
-                              <Zap className="w-4 h-4 mr-2" />
-                              AI Score
-                            </DropdownMenuItem>
                             {lead.linkedin_url && (
                               <DropdownMenuItem asChild>
                                 <a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer">
