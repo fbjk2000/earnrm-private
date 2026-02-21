@@ -138,8 +138,12 @@ const AuthCallback = () => {
             { session_id: sessionId },
             { withCredentials: true }
           );
-          setUser(response.data);
-          navigate('/dashboard', { replace: true, state: { user: response.data } });
+          const { token: newToken, ...userData } = response.data;
+          if (newToken) {
+            localStorage.setItem('token', newToken);
+          }
+          setUser(userData);
+          navigate('/dashboard', { replace: true, state: { user: userData } });
         } catch (error) {
           console.error('Session processing error:', error);
           navigate('/login', { replace: true });
