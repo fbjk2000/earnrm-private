@@ -514,6 +514,61 @@ const SettingsPage = () => {
                         </div>
                       </div>
 
+                      {/* Embed HTML Code */}
+                      <div className="border border-slate-200 rounded-lg p-4 space-y-2">
+                        <p className="text-sm font-medium text-slate-800">Embed Code for Your Website / CMS</p>
+                        <p className="text-xs text-slate-500">Copy and paste this HTML into your website to promote earnrm and earn commissions.</p>
+                        <div className="relative">
+                          <pre className="bg-slate-900 text-green-400 text-xs p-3 rounded-lg overflow-x-auto max-h-40" data-testid="affiliate-embed-code">{`<a href="${affiliateStatus.referral_link}" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none;">
+  <div style="background:linear-gradient(135deg,#A100FF,#7B00CC);border-radius:12px;padding:24px 32px;text-align:center;max-width:400px;font-family:Inter,sans-serif;">
+    <p style="color:#fff;font-size:18px;font-weight:700;margin:0 0 8px;">Try earnrm - Your CRM that pAIs you back</p>
+    <p style="color:rgba(255,255,255,0.8);font-size:14px;margin:0 0 16px;">AI-powered lead management, deal pipeline & team collaboration</p>
+    <span style="background:#fff;color:#A100FF;padding:10px 24px;border-radius:8px;font-weight:600;font-size:14px;">Start Free Trial</span>
+  </div>
+</a>`}</pre>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="absolute top-2 right-2 h-7 text-xs"
+                            data-testid="copy-embed-btn"
+                            onClick={() => copyToClipboard(`<a href="${affiliateStatus.referral_link}" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none;"><div style="background:linear-gradient(135deg,#A100FF,#7B00CC);border-radius:12px;padding:24px 32px;text-align:center;max-width:400px;font-family:Inter,sans-serif;"><p style="color:#fff;font-size:18px;font-weight:700;margin:0 0 8px;">Try earnrm - Your CRM that pAIs you back</p><p style="color:rgba(255,255,255,0.8);font-size:14px;margin:0 0 16px;">AI-powered lead management, deal pipeline & team collaboration</p><span style="background:#fff;color:#A100FF;padding:10px 24px;border-radius:8px;font-weight:600;font-size:14px;">Start Free Trial</span></div></a>`)}
+                          >
+                            <Copy className="w-3 h-3 mr-1" /> Copy
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Social Media Assets */}
+                      <div className="border border-slate-200 rounded-lg p-4 space-y-3">
+                        <p className="text-sm font-medium text-slate-800">Social Media Assets</p>
+                        <p className="text-xs text-slate-500">Download these images to promote earnrm on your social channels. Pair them with your referral link!</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { label: 'Banner (1536x1024)', desc: 'Facebook, LinkedIn, X', url: 'https://static.prod-images.emergentagent.com/jobs/e7e50724-a043-4fd3-87b9-ed080078094d/images/d4c7d179cc49d6bcdd5bdeba2bd3c0ee15d214451c0e4ac91a8035ff9554f03b.png' },
+                            { label: 'Story (1024x1536)', desc: 'Instagram, TikTok', url: 'https://static.prod-images.emergentagent.com/jobs/e7e50724-a043-4fd3-87b9-ed080078094d/images/787c03120f149891b257071153f2eb541a6f5057f2cc6d8c73a78a8d7720db63.png' },
+                            { label: 'Square (1024x1024)', desc: 'Instagram, LinkedIn', url: 'https://static.prod-images.emergentagent.com/jobs/e7e50724-a043-4fd3-87b9-ed080078094d/images/21cf5a85c9e37c38bbb86ca92cb16d4d2f280e64b08783bff72de6dc2ce7650b.png' },
+                          ].map((asset, i) => (
+                            <div key={i} className="border border-slate-100 rounded-lg overflow-hidden">
+                              <img src={asset.url} alt={asset.label} className="w-full h-28 object-cover bg-slate-100" />
+                              <div className="p-2">
+                                <p className="text-xs font-medium text-slate-800 truncate">{asset.label}</p>
+                                <p className="text-[10px] text-slate-500">{asset.desc}</p>
+                                <a
+                                  href={asset.url}
+                                  download
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-1.5 flex items-center justify-center gap-1 text-xs text-[#A100FF] font-medium hover:underline"
+                                  data-testid={`download-asset-${i}`}
+                                >
+                                  <Download className="w-3 h-3" /> Download
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
                       {affiliateStatus.referrals?.length > 0 && (
                         <div>
                           <p className="text-sm font-medium text-slate-700 mb-2">Recent Referrals</p>
