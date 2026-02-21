@@ -290,6 +290,7 @@ const SupportPage = () => {
           </div>
         </div>
       </header>
+      )}
 
       {/* Hero */}
       <section className="bg-gradient-to-r from-earnrm-purple to-purple-600 py-16 px-6">
