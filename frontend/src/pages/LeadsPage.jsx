@@ -136,22 +136,26 @@ const LeadsPage = () => {
   };
 
   const handleScoreLead = async (leadId) => {
+    setScoring(leadId);
     try {
-      const response = await axios.post(`${API}/ai/score-lead/${leadId}`, {}, {
-        headers,
-        withCredentials: true
-      });
+      const response = await axios.post(`${API}/ai/score-lead/${leadId}`, {}, { headers });
       toast.success(`Lead scored: ${response.data.ai_score}/100`);
       fetchLeads();
+      if (selectedLead?.lead_id === leadId) {
+        setSelectedLead(prev => ({ ...prev, ai_score: response.data.ai_score }));
+      }
     } catch (error) {
       toast.error('Failed to score lead');
+    } finally {
+      setScoring(null);
     }
   };
 
   const handleDeleteLead = async (leadId) => {
     try {
-      await axios.delete(`${API}/leads/${leadId}`, { headers, withCredentials: true });
+      await axios.delete(`${API}/leads/${leadId}`, { headers });
       toast.success('Lead deleted');
+      setSelectedLead(null);
       fetchLeads();
     } catch (error) {
       toast.error('Failed to delete lead');
@@ -160,11 +164,50 @@ const LeadsPage = () => {
 
   const handleStatusChange = async (leadId, status) => {
     try {
-      await axios.put(`${API}/leads/${leadId}`, { status }, { headers, withCredentials: true });
+      await axios.put(`${API}/leads/${leadId}`, { status }, { headers });
       toast.success('Lead status updated');
       fetchLeads();
     } catch (error) {
       toast.error('Failed to update status');
+    }
+  };
+
+  const openLeadDetail = (lead) => {
+    setSelectedLead(lead);
+    setEditData({ ...lead });
+    setEditMode(false);
+  };
+
+  const handleSaveLead = async () => {
+    if (!selectedLead) return;
+    setSaving(true);
+    try {
+      const { lead_id, organization_id, created_by, created_at, _id, ...updates } = editData;
+      const res = await axios.put(`${API}/leads/${selectedLead.lead_id}`, updates, { headers });
+      toast.success('Lead updated');
+      setSelectedLead(res.data);
+      setEditData(res.data);
+      setEditMode(false);
+      fetchLeads();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to update');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEnrichLead = async (leadId) => {
+    setEnriching(true);
+    try {
+      const res = await axios.post(`${API}/ai/enrich-lead/${leadId}`, {}, { headers });
+      toast.success('Lead enriched with AI data');
+      setSelectedLead(res.data.lead);
+      setEditData(res.data.lead);
+      fetchLeads();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Enrichment failed');
+    } finally {
+      setEnriching(false);
     }
   };
 
