@@ -7,24 +7,16 @@ earnrm is an AI-powered CRM with the slogan "Your CRM that pAIs you back". Featu
 - **Primary Color**: #A100FF (Earnrm Purple)
 - **Black**: #111111
 - **Dark Background**: #0B0B0B
-- **Gray**: #444444
 - **Font**: Inter (primary), Lato (fallback)
-- **Slogan**: "Your CRM that pAIs you back" (AI highlighted in purple)
+- **Slogan**: "Your CRM that pAIs you back"
 
 ## Logo Assets
 - Horizontal logo: https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/u9efkh3m_earnrm_logo_horizontal_light_notag_purpleword.png
-- With tagline: https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/vhcjdzuc_earnrm_logo_horizontal_light_tagline_purpleword.png
 
 ## Access Information
-
-### Super Admin Access
 - **Email**: florian@unyted.world
 - **Password**: DavidConstantin18
-- **Role**: Super Admin (full system access)
-
-### Backend API
-- **Base URL**: /api
-- **Health Check**: /api/ returns "earnrm CRM API"
+- **Role**: Super Admin
 
 ## Technical Stack
 - Frontend: React, TailwindCSS, Shadcn UI
@@ -34,55 +26,43 @@ earnrm is an AI-powered CRM with the slogan "Your CRM that pAIs you back". Featu
 - Payments: Stripe
 - Email: Resend
 - AI: OpenAI GPT-5.2 via Emergent LLM Key
-- Calling: Twilio (configured via env vars)
+- Calling: Twilio (credentials added, phone number pending)
 
 ## What's Been Implemented
-- [x] Full CRM functionality (Leads, Deals, Tasks, Companies, Campaigns)
-- [x] AI-powered lead scoring and email drafting
-- [x] Smart Search, AI Email Drafting, Lead Summary Generation
+- [x] Full CRM (Leads, Deals, Tasks, Companies, Campaigns)
+- [x] AI-powered lead scoring, email drafting, smart search, lead summary
 - [x] Multi-user organizations with role management
-- [x] Customizable deal pipeline stages per organization
-- [x] Affiliate self-enrollment system
-- [x] Support page with FAQ and contact form
-- [x] Complete rebrand to earnrm (Feb 2026)
-- [x] Real-time Team Chat with channels, mentions, reactions
-- [x] Contextual Chat (Lead/Deal discussion channels)
+- [x] Customizable deal pipeline stages
+- [x] Affiliate system, Support page, Rebrand to earnrm
+- [x] Real-time Team Chat with contextual channels (Lead/Deal)
 - [x] Team Invitations (Link, Email, CSV)
-- [x] **PWA Mobile App (Feb 20, 2026)**:
-  - manifest.json with app metadata, icons (192x192, 512x512)
-  - Service worker for offline caching
-  - Install prompt capture (beforeinstallprompt)
-  - Landing page updated with PWA install section
-  - Works on iOS, Android, and desktop
-- [x] **Outbound Calling & AI Analysis (Feb 20, 2026)**:
-  - Twilio integration for outbound calls with recording
-  - Calls page with stats dashboard (Total, Completed, Avg Duration, AI Analyzed)
-  - New Call dialog with lead selector and opening message
-  - Call history with search and filtering
-  - Call detail view with recording player
-  - AI call analysis (summary, score, strengths, improvements, next steps)
-  - Twilio webhooks for call status and recording status updates
-  - "Call Lead" option in Leads page dropdown
-  - Graceful handling when Twilio not configured (503 with helpful message)
+- [x] PWA Mobile App (manifest, service worker, install prompt)
+- [x] Outbound Calling (Twilio integration, call recording, AI call analysis)
+- [x] **Call Scheduling (Feb 21, 2026)**:
+  - Schedule calls with leads at specific dates/times
+  - Calendar date picker with time slot selection
+  - Configurable reminders (5m, 15m, 30m, 1h, 1 day before)
+  - Notes/talking points for each scheduled call
+  - Upcoming Calls banner with Today/Tomorrow labels
+  - Tabbed view: Call History / Scheduled
+  - Edit, complete, and cancel scheduled calls
+  - Automated reminder notifications via existing notification system
+  - Stats card showing scheduled count
 
 ## Integrations
-- Resend (Email - domain: earnrm.com pending verification)
-- Kit.com (Email Marketing)
-- Stripe (Payments)
-- Emergent LLM Key (AI features - GPT-5.2)
-- Twilio (Outbound Calling - requires user credentials)
+- Resend (Email), Kit.com (Email Marketing), Stripe (Payments)
+- Emergent LLM Key (AI - GPT-5.2)
+- Twilio (Calling - SID+Auth configured, phone number pending)
 
 ## P0 - Requires User Action
-- Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_FROM) need to be configured
-- DNS/Domain routing for earnrm.com (user confirmed resolved)
-- Resend email domain verification
+- Twilio phone number (TWILIO_PHONE_FROM) needed to enable live calling
 
-## P1 - Upcoming Features
-- Call recording and analytics with AI-based feedback (UI built, needs Twilio keys to test)
-- Outbound call service full workflow testing
+## P1 - Upcoming
+- End-to-end call flow testing once Twilio phone number is provided
+- Call recording transcription with AI feedback
 
 ## P2 - Future/Backlog
-- AI-Powered Lead Enrichment (LinkedIn data)
-- Conversation Intelligence (call recordings transcription)
+- AI-Powered Lead Enrichment
+- Conversation Intelligence (call transcription)
 - Deal Forecast AI
 - AI Chatbot for website
