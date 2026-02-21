@@ -65,6 +65,14 @@ const LeadsPage = () => {
 
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
+  // Lead detail/edit state
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [scoring, setScoring] = useState(null);
+
   useEffect(() => {
     fetchLeads();
   }, [statusFilter]);
