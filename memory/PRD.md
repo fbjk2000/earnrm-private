@@ -13,17 +13,19 @@ earnrm is an AI-powered CRM. "Your CRM that pAIs you back".
 
 ## Implemented Features
 - [x] Full CRM (Leads, Deals, Tasks, Companies, Campaigns)
-- [x] AI features (lead scoring, email drafting, smart search, lead summary, call analysis)
+- [x] AI features: lead scoring, email drafting, smart search, lead summary, call analysis, **lead enrichment**
+- [x] Lead detail/edit dialog (all fields visible + editable after click)
 - [x] Multi-user orgs, role management, customizable pipelines
-- [x] Affiliate program with HTML embed code for CMS + 3 social media assets
+- [x] Affiliate program with HTML embed code + 3 social media assets
 - [x] Support page (DashboardLayout for logged-in users)
 - [x] Real-time Team Chat with contextual channels (Lead/Deal)
 - [x] Team Invitations (Link, Email, CSV)
 - [x] PWA Mobile App (Settings > Mobile App tab + Landing page)
 - [x] Outbound Calling (Twilio), Call Recording, AI Call Analysis
 - [x] Call Scheduling (calendar, reminders, upcoming banner)
+- [x] Google OAuth returns JWT token (no double login)
 - [x] Session persistence (7-day JWT, resilient to network errors)
-- [x] Stripe cancel_url redirects to /settings (no logout on payment cancel)
+- [x] Stripe cancel_url redirects to /settings (no logout)
 
 ## P0 - Requires User Action
 - Twilio phone number (TWILIO_PHONE_FROM) needed for live calling
@@ -32,7 +34,6 @@ earnrm is an AI-powered CRM. "Your CRM that pAIs you back".
 - E2E call flow testing with Twilio phone number
 
 ## P2 - Future/Backlog
-- AI-Powered Lead Enrichment
 - Conversation Intelligence (call transcription)
 - Deal Forecast AI
 - AI Chatbot for website
