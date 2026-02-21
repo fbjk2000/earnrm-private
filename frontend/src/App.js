@@ -93,9 +93,12 @@ const AuthProvider = ({ children }) => {
       setUser(response.data);
       setToken(storedToken);
     } catch (e) {
-      localStorage.removeItem('token');
-      setToken(null);
-      setUser(null);
+      // Only clear token on auth errors (401), not network issues
+      if (e.response && e.response.status === 401) {
+        localStorage.removeItem('token');
+        setToken(null);
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
