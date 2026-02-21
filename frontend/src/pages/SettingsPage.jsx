@@ -1142,6 +1142,60 @@ const SettingsPage = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Mobile App Tab */}
+          <TabsContent value="app">
+            <Card>
+              <CardHeader>
+                <CardTitle>Install earnrm on your device</CardTitle>
+                <CardDescription>Get the full CRM experience as an app on your phone, tablet, or desktop</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center gap-4 p-4 bg-purple-50 rounded-lg border border-purple-100">
+                  <img src="/icon-192.png" alt="earnrm" className="w-16 h-16 rounded-2xl shadow-md" />
+                  <div>
+                    <h3 className="font-bold text-slate-900">earnrm PWA</h3>
+                    <p className="text-sm text-slate-500">Works on iOS, Android & Desktop</p>
+                  </div>
+                  <Button
+                    className="ml-auto bg-[#A100FF] hover:bg-purple-700"
+                    data-testid="pwa-install-settings-btn"
+                    onClick={() => {
+                      if (window.deferredPWAPrompt) {
+                        window.deferredPWAPrompt.prompt();
+                      } else {
+                        toast.success('Use your browser menu to install: Menu → Install App (or Add to Home Screen)');
+                      }
+                    }}
+                  >
+                    Install App
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  <h4 className="font-medium text-slate-800">How to install</h4>
+                  <div className="grid gap-3 text-sm">
+                    <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                      <span className="font-semibold text-[#A100FF] shrink-0">Chrome / Edge</span>
+                      <span className="text-slate-600">Click the install icon in the address bar, or go to Menu → Install app</span>
+                    </div>
+                    <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                      <span className="font-semibold text-[#A100FF] shrink-0">Safari (iOS)</span>
+                      <span className="text-slate-600">Tap the Share button → Add to Home Screen</span>
+                    </div>
+                    <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                      <span className="font-semibold text-[#A100FF] shrink-0">Android</span>
+                      <span className="text-slate-600">Tap the "Add to Home Screen" banner, or Menu → Install app</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                  <p className="text-sm text-emerald-800">
+                    <strong>Already installed?</strong> The app will automatically update when new features are available. You can manage your installed app in your device settings.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
