@@ -193,7 +193,13 @@ const ContactsPage = () => {
         )}
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="pt-0">
+            {!loading && filtered.length > 0 && (
+              <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-3 bg-slate-50 rounded-t-lg">
+                <input type="checkbox" checked={selectedIds.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} className="w-4 h-4 accent-[#A100FF]" data-testid="select-all-contacts" />
+                <span className="text-xs text-slate-500">Select all {filtered.length} contacts{searchQuery ? ' (filtered)' : ''}</span>
+              </div>
+            )}
             {loading ? (
               <div className="p-8 text-center"><div className="w-8 h-8 border-2 border-[#A100FF] border-t-transparent rounded-full animate-spin mx-auto" /></div>
             ) : filtered.length === 0 ? (
