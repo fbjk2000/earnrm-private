@@ -139,7 +139,7 @@ const LeadsPage = () => {
   const handleScoreLead = async (leadId) => {
     setScoring(leadId);
     try {
-      const response = await axios.post(`${API}/ai/score-lead/${leadId}`, {}, { headers });
+      const response = await axios.post(`${API}/ai/score-lead/${leadId}`, {}, axiosConfig);
       toast.success(`Lead scored: ${response.data.ai_score}/100`);
       fetchLeads();
       if (selectedLead?.lead_id === leadId) {
@@ -154,7 +154,7 @@ const LeadsPage = () => {
 
   const handleDeleteLead = async (leadId) => {
     try {
-      await axios.delete(`${API}/leads/${leadId}`, { headers });
+      await axios.delete(`${API}/leads/${leadId}`, axiosConfig);
       toast.success('Lead deleted');
       setSelectedLead(null);
       fetchLeads();
@@ -165,7 +165,7 @@ const LeadsPage = () => {
 
   const handleStatusChange = async (leadId, status) => {
     try {
-      await axios.put(`${API}/leads/${leadId}`, { status }, { headers });
+      await axios.put(`${API}/leads/${leadId}`, { status }, axiosConfig);
       toast.success('Lead status updated');
       fetchLeads();
     } catch (error) {
@@ -184,7 +184,7 @@ const LeadsPage = () => {
     setSaving(true);
     try {
       const { lead_id, organization_id, created_by, created_at, _id, ...updates } = editData;
-      const res = await axios.put(`${API}/leads/${selectedLead.lead_id}`, updates, { headers });
+      const res = await axios.put(`${API}/leads/${selectedLead.lead_id}`, updates, axiosConfig);
       toast.success('Lead updated');
       setSelectedLead(res.data);
       setEditData(res.data);
@@ -200,7 +200,7 @@ const LeadsPage = () => {
   const handleEnrichLead = async (leadId) => {
     setEnriching(true);
     try {
-      const res = await axios.post(`${API}/ai/enrich-lead/${leadId}`, {}, { headers });
+      const res = await axios.post(`${API}/ai/enrich-lead/${leadId}`, {}, axiosConfig);
       toast.success('Lead enriched with AI data');
       setSelectedLead(res.data.lead);
       setEditData(res.data.lead);
