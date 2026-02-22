@@ -35,7 +35,10 @@ import {
   Target,
   CheckSquare,
   Building,
-  ExternalLink
+  ExternalLink,
+  ChevronDown,
+  ChevronRight,
+  Archive
 } from 'lucide-react';
 
 const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '👀'];
