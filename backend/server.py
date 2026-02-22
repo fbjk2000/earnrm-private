@@ -4469,6 +4469,145 @@ async def delete_contact(contact_id: str, current_user: dict = Depends(get_curre
         raise HTTPException(status_code=404, detail="Contact not found")
     return {"message": "Contact deleted"}
 
+@api_router.post("/contacts/import-csv")
+async def import_contacts_csv(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    """Import contacts from CSV"""
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="Join an organization first")
+    
+    content = await file.read()
+    text = content.decode('utf-8-sig')
+    reader = csv.DictReader(io.StringIO(text))
+    
+    now = datetime.now(timezone.utc)
+    count = 0
+    for row in reader:
+        r = {k.strip().lower().replace(' ', '_'): v.strip() for k, v in row.items() if v and v.strip()}
+        if not r.get('first_name') and not r.get('name') and not r.get('email'):
+            continue
+        
+        first_name = r.get('first_name', '')
+        last_name = r.get('last_name', '')
+        if not first_name and r.get('name'):
+            parts = r['name'].split(' ', 1)
+            first_name = parts[0]
+            last_name = parts[1] if len(parts) > 1 else ''
+        
+        doc = {
+            "contact_id": f"contact_{uuid.uuid4().hex[:12]}",
+            "organization_id": current_user["organization_id"],
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": r.get('email'),
+            "phone": r.get('phone') or r.get('mobile') or r.get('telephone'),
+            "company": r.get('company') or r.get('organization'),
+            "job_title": r.get('job_title') or r.get('title') or r.get('position'),
+            "linkedin_url": r.get('linkedin_url') or r.get('linkedin'),
+            "website": r.get('website') or r.get('url'),
+            "location": r.get('location') or r.get('city') or r.get('address'),
+            "industry": r.get('industry'),
+            "notes": r.get('notes'),
+            "source": "csv_import",
+            "decision_maker": False,
+            "created_by": current_user["user_id"],
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat()
+        }
+        await db.contacts.insert_one(doc)
+        count += 1
+    
+    return {"count": count, "message": f"Imported {count} contacts"}
+
+@api_router.post("/bulk/enrich")
+async def bulk_enrich(entity_type: str, entity_ids: List[str], current_user: dict = Depends(get_current_user)):
+    """Bulk AI enrich leads or contacts"""
+    org_id = current_user.get("organization_id")
+    collection = db.leads if entity_type == 'lead' else db.contacts
+    id_field = 'lead_id' if entity_type == 'lead' else 'contact_id'
+    
+    enriched = 0
+    for eid in entity_ids[:20]:  # Limit to 20
+        entity = await collection.find_one({id_field: eid, "organization_id": org_id}, {"_id": 0})
+        if not entity:
+            continue
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            api_key = os.environ.get("EMERGENT_LLM_KEY")
+            chat = LlmChat(api_key=api_key, session_id=f"bulk_enrich_{eid}",
+                system_message="You are a B2B enrichment AI. Return ONLY valid JSON with: company_description, industry, company_size, website, job_title, location, technologies (array), interests (array), recommended_approach. Use null if unknown."
+            ).with_model("openai", "gpt-5.2")
+            
+            info = f"Name: {entity.get('first_name','')} {entity.get('last_name','')}, Email: {entity.get('email','')}, Company: {entity.get('company','')}, Title: {entity.get('job_title','')}"
+            resp = await chat.send_message(UserMessage(text=f"Enrich: {info}"))
+            
+            import json
+            try:
+                enrichment = json.loads(resp.strip().strip('```json').strip('```'))
+            except:
+                continue
+            
+            updates = {"updated_at": datetime.now(timezone.utc).isoformat()}
+            for ai_f, db_f in {"job_title":"job_title","website":"website","location":"location","industry":"industry","company_size":"company_size","company_description":"company_description"}.items():
+                if enrichment.get(ai_f) and not entity.get(db_f):
+                    updates[db_f] = enrichment[ai_f]
+            updates["enrichment"] = {"technologies": enrichment.get("technologies",[]), "interests": enrichment.get("interests",[]), "recommended_approach": enrichment.get("recommended_approach",""), "enriched_at": datetime.now(timezone.utc).isoformat()}
+            
+            await collection.update_one({id_field: eid}, {"$set": updates})
+            enriched += 1
+        except Exception as e:
+            logger.error(f"Bulk enrich error for {eid}: {e}")
+    
+    return {"enriched": enriched, "total": len(entity_ids)}
+
+@api_router.post("/bulk/delete")
+async def bulk_delete(entity_type: str, entity_ids: List[str], current_user: dict = Depends(get_current_user)):
+    """Bulk delete leads, contacts, or companies"""
+    org_id = current_user.get("organization_id")
+    collections = {"lead": (db.leads, "lead_id"), "contact": (db.contacts, "contact_id"), "company": (db.companies, "company_id")}
+    if entity_type not in collections:
+        raise HTTPException(status_code=400, detail="Invalid entity type")
+    
+    coll, id_field = collections[entity_type]
+    result = await coll.delete_many({id_field: {"$in": entity_ids}, "organization_id": org_id})
+    return {"deleted": result.deleted_count}
+
+@api_router.post("/bulk/update")
+async def bulk_update(entity_type: str, entity_ids: List[str], updates: dict, current_user: dict = Depends(get_current_user)):
+    """Bulk update leads, contacts, or companies"""
+    org_id = current_user.get("organization_id")
+    collections = {"lead": (db.leads, "lead_id"), "contact": (db.contacts, "contact_id"), "company": (db.companies, "company_id")}
+    if entity_type not in collections:
+        raise HTTPException(status_code=400, detail="Invalid entity type")
+    
+    coll, id_field = collections[entity_type]
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await coll.update_many({id_field: {"$in": entity_ids}, "organization_id": org_id}, {"$set": updates})
+    return {"updated": result.modified_count}
+
+@api_router.post("/bulk/add-to-campaign")
+async def bulk_add_to_campaign(campaign_id: str, entity_type: str, entity_ids: List[str], current_user: dict = Depends(get_current_user)):
+    """Add leads or contacts to a campaign"""
+    org_id = current_user.get("organization_id")
+    campaign = await db.campaigns.find_one({"campaign_id": campaign_id, "organization_id": org_id})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    coll = db.leads if entity_type == 'lead' else db.contacts
+    id_field = 'lead_id' if entity_type == 'lead' else 'contact_id'
+    email_field = 'email'
+    
+    entities = await coll.find({id_field: {"$in": entity_ids}, "organization_id": org_id}, {"_id": 0}).to_list(500)
+    emails = [e[email_field] for e in entities if e.get(email_field)]
+    
+    existing = campaign.get("recipients", [])
+    new_emails = [e for e in emails if e not in existing]
+    
+    await db.campaigns.update_one(
+        {"campaign_id": campaign_id},
+        {"$addToSet": {"recipients": {"$each": new_emails}}}
+    )
+    return {"added": len(new_emails), "total_recipients": len(existing) + len(new_emails)}
+
 @api_router.post("/leads/{lead_id}/convert-to-contact")
 async def convert_lead_to_contact(lead_id: str, deal_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     """Convert a qualified lead to a contact"""
