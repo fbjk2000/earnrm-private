@@ -115,6 +115,29 @@ const AdminPage = () => {
     } catch { toast.error('Failed to update'); }
   };
 
+  const fetchExplorerCollections = async () => {
+    try {
+      const res = await axios.get(`${API}/admin/data-explorer`, { headers, withCredentials: true });
+      setExplorerCollections(res.data.collections || {});
+    } catch {}
+  };
+
+  const fetchExplorerData = async (coll, page = 0, search = '') => {
+    try {
+      const params = new URLSearchParams({ skip: page * 50, limit: 50 });
+      if (search) params.append('search', search);
+      const res = await axios.get(`${API}/admin/data-explorer/${coll}?${params}`, { headers, withCredentials: true });
+      setExplorerData(res.data);
+    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to load'); }
+  };
+
+  const handleExploreCollection = (coll) => {
+    setExplorerCollection(coll);
+    setExplorerPage(0);
+    setExplorerSearch('');
+    fetchExplorerData(coll, 0, '');
+  };
+
   const handleUpdateSettings = async (settingKey, value) => {
     try {
       await axios.put(`${API}/admin/settings`, { [settingKey]: value }, { headers, withCredentials: true });
