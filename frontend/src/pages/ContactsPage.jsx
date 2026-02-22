@@ -28,6 +28,8 @@ const ContactsPage = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [newContact, setNewContact] = useState({ first_name: '', last_name: '', email: '', phone: '', company: '', job_title: '' });
   const [selectedIds, setSelectedIds] = useState([]);
+  const [visibleCols, setVisibleCols] = useState({ company: true, email: true, phone: false, job_title: false, decision_maker: true });
+  const [showColSettings, setShowColSettings] = useState(false);
   const [selectedContact, setSelectedContact] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
