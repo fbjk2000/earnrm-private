@@ -580,15 +580,22 @@ const ChatPage = () => {
                     )}
                   </div>
                   {/* Link to entity for contextual channels */}
-                  {activeChannel.channel_type && activeChannel.channel_type !== 'general' && getEntityLink() && (
-                    <Link
-                      to={getEntityLink()}
-                      className="flex items-center gap-1 text-sm text-slate-600 hover:text-[#A100FF] transition-colors"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      View {activeChannel.channel_type}
-                    </Link>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {activeChannel.channel_type && activeChannel.channel_type !== 'general' && getEntityLink() && (
+                      <Link
+                        to={getEntityLink()}
+                        className="flex items-center gap-1 text-sm text-slate-600 hover:text-[#A100FF] transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        View {activeChannel.channel_type}
+                      </Link>
+                    )}
+                    {activeChannel.channel_id !== 'general' && (user?.role === 'admin' || user?.role === 'owner' || user?.role === 'super_admin' || user?.email === 'florian@unyted.world') && (
+                      <Button variant="ghost" size="sm" className="text-slate-400 hover:text-red-500" onClick={() => archiveChannel(activeChannel.channel_id)} data-testid="archive-channel-btn">
+                        <Archive className="w-4 h-4 mr-1" /> Archive
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 
                 {/* Context entity info card */}
