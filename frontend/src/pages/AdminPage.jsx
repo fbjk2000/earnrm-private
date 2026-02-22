@@ -36,6 +36,7 @@ import {
 
 const AdminPage = () => {
   const { token, user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin' || user?.role === 'deputy_admin' || user?.email === 'florian@unyted.world';
   const [stats, setStats] = useState(null);
   const [organizations, setOrganizations] = useState([]);
   const [platformSettings, setPlatformSettings] = useState(null);
