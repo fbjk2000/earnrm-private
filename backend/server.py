@@ -4595,8 +4595,11 @@ async def bulk_delete(request: BulkDeleteRequest, current_user: dict = Depends(g
     return {"deleted": result.deleted_count}
 
 @api_router.post("/bulk/update")
-async def bulk_update(entity_type: str, entity_ids: List[str], updates: dict, current_user: dict = Depends(get_current_user)):
+async def bulk_update(request: BulkUpdateRequest, current_user: dict = Depends(get_current_user)):
     """Bulk update leads, contacts, or companies"""
+    entity_type = request.entity_type
+    entity_ids = request.entity_ids
+    updates = request.updates
     org_id = current_user.get("organization_id")
     collections = {"lead": (db.leads, "lead_id"), "contact": (db.contacts, "contact_id"), "company": (db.companies, "company_id")}
     if entity_type not in collections:
