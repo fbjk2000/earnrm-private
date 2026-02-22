@@ -78,6 +78,14 @@ const LeadsPage = () => {
   const [scoring, setScoring] = useState(null);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [convertLead, setConvertLead] = useState(null);
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState([]);
+  // Column visibility
+  const [visibleCols, setVisibleCols] = useState({ company: true, email: true, phone: false, job_title: false, source: false, ai_score: true });
+  const [showColSettings, setShowColSettings] = useState(false);
+  // Email composer (outside dialog to avoid nesting)
+  const [emailLeadId, setEmailLeadId] = useState(null);
+  const [emailLeadName, setEmailLeadName] = useState('');
   const [convertDealId, setConvertDealId] = useState('none');
   const [converting, setConverting] = useState(false);
   const [deals, setDeals] = useState([]);
