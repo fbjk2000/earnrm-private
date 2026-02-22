@@ -391,6 +391,56 @@ const AdminPage = () => {
             </Card>
           </TabsContent>
 
+          {/* Support Requests Tab */}
+          <TabsContent value="support">
+            <Card>
+              <CardHeader>
+                <CardTitle>Support Requests</CardTitle>
+                <CardDescription>Manage and monitor incoming support requests</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {supportRequests.length === 0 ? (
+                  <p className="text-center text-slate-500 py-8">No support requests yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {supportRequests.map((req, i) => (
+                      <div key={req.request_id || i} className="border border-slate-200 rounded-lg p-4" data-testid={`support-req-${i}`}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-medium text-slate-900">{req.name || 'Anonymous'}</p>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                req.status === 'resolved' ? 'bg-emerald-100 text-emerald-700' :
+                                req.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                                'bg-amber-100 text-amber-700'
+                              }`}>{req.status || 'new'}</span>
+                            </div>
+                            <p className="text-sm text-slate-500">{req.email}</p>
+                            {req.subject && <p className="text-sm font-medium text-slate-700 mt-1">{req.subject}</p>}
+                            <p className="text-sm text-slate-600 mt-1">{req.message}</p>
+                            <p className="text-xs text-slate-400 mt-2">{req.created_at ? new Date(req.created_at).toLocaleString() : ''}</p>
+                          </div>
+                          <div className="flex gap-1 ml-3">
+                            <Select value={req.status || 'new'} onValueChange={(v) => handleUpdateSupportStatus(req.request_id, v)}>
+                              <SelectTrigger className="w-[120px] h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="new">New</SelectItem>
+                                <SelectItem value="in_progress">In Progress</SelectItem>
+                                <SelectItem value="resolved">Resolved</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Discount Codes Tab */}
           <TabsContent value="discounts">
             <Card>
