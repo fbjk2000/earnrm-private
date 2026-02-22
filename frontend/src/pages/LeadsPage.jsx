@@ -829,7 +829,9 @@ const LeadsPage = () => {
                       </Button>
                     )}
                     {selectedLead.email && (
-                      <AIEmailComposer leadId={selectedLead.lead_id} leadName={`${selectedLead.first_name} ${selectedLead.last_name}`} />
+                      <Button size="sm" variant="outline" onClick={() => { setEmailLeadId(selectedLead.lead_id); setEmailLeadName(`${selectedLead.first_name} ${selectedLead.last_name}`); setSelectedLead(null); }} data-testid="draft-email-detail-btn">
+                        <Mail className="w-3.5 h-3.5 mr-1" /> Draft Email
+                      </Button>
                     )}
                   </div>
                 </div>
