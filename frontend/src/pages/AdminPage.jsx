@@ -807,6 +807,85 @@ const AdminPage = () => {
             </Card>
           </TabsContent>
 
+          {/* Data Explorer Tab */}
+          <TabsContent value="explorer">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Layers className="w-5 h-5" />
+                  Data Explorer
+                </CardTitle>
+                <CardDescription>Browse all backend data collections (Super Admin only)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!explorerCollection ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {Object.entries(explorerCollections).map(([name, count]) => (
+                      <button key={name} onClick={() => handleExploreCollection(name)} className="p-4 border border-slate-200 rounded-lg hover:bg-purple-50 hover:border-[#A100FF] transition-colors text-left" data-testid={`explorer-${name}`}>
+                        <p className="font-medium text-slate-900 text-sm">{name}</p>
+                        <p className="text-xs text-slate-500 mt-1">{count} records</p>
+                      </button>
+                    ))}
+                    {Object.keys(explorerCollections).length === 0 && (
+                      <p className="text-slate-500 col-span-full text-center py-8">Loading collections...</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Button variant="outline" size="sm" onClick={() => { setExplorerCollection(''); setExplorerData(null); }}>
+                        <X className="w-3.5 h-3.5 mr-1" /> Back
+                      </Button>
+                      <span className="font-semibold text-slate-900">{explorerCollection}</span>
+                      <span className="text-sm text-slate-500">({explorerData?.total || 0} records)</span>
+                      <div className="flex-1" />
+                      <Input
+                        placeholder="Search..."
+                        value={explorerSearch}
+                        onChange={(e) => setExplorerSearch(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { setExplorerPage(0); fetchExplorerData(explorerCollection, 0, explorerSearch); }}}
+                        className="w-48 h-8 text-sm"
+                        data-testid="explorer-search"
+                      />
+                      <Button size="sm" onClick={() => { setExplorerPage(0); fetchExplorerData(explorerCollection, 0, explorerSearch); }}>Search</Button>
+                    </div>
+                    {explorerData?.data?.length > 0 ? (
+                      <div className="overflow-x-auto border rounded-lg">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-slate-50">
+                              {explorerData.fields.slice(0, 8).map(f => (
+                                <th key={f} className="text-left py-2 px-3 font-medium text-slate-600 border-b whitespace-nowrap">{f}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {explorerData.data.map((row, i) => (
+                              <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                                {explorerData.fields.slice(0, 8).map(f => (
+                                  <td key={f} className="py-2 px-3 text-slate-700 max-w-[200px] truncate whitespace-nowrap">
+                                    {typeof row[f] === 'object' ? JSON.stringify(row[f])?.slice(0, 50) : String(row[f] ?? '—')}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-center text-slate-500 py-8">No records found</p>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <Button size="sm" variant="outline" disabled={explorerPage === 0} onClick={() => { const p = explorerPage - 1; setExplorerPage(p); fetchExplorerData(explorerCollection, p, explorerSearch); }}>Previous</Button>
+                      <span className="text-xs text-slate-500">Page {explorerPage + 1} of {Math.ceil((explorerData?.total || 1) / 50)}</span>
+                      <Button size="sm" variant="outline" disabled={(explorerPage + 1) * 50 >= (explorerData?.total || 0)} onClick={() => { const p = explorerPage + 1; setExplorerPage(p); fetchExplorerData(explorerCollection, p, explorerSearch); }}>Next</Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Settings Tab */}
           <TabsContent value="settings">
             <Card>
