@@ -216,8 +216,10 @@ const ContactsPage = () => {
                         <div>
                           <p className="font-medium text-slate-900">{c.first_name} {c.last_name}</p>
                           <div className="flex items-center gap-3 text-sm text-slate-500 mt-0.5">
-                            {c.company && <span className="flex items-center gap-1"><Building className="w-3 h-3" />{c.company}</span>}
-                            {c.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{c.email}</span>}
+                            {visibleCols.company && c.company && <span className="flex items-center gap-1"><Building className="w-3 h-3" />{c.company}</span>}
+                            {visibleCols.email && c.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{c.email}</span>}
+                            {visibleCols.phone && c.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{c.phone}</span>}
+                            {visibleCols.job_title && c.job_title && <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{c.job_title}</span>}
                           </div>
                         </div>
                       </div>
