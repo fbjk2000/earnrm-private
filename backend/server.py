@@ -4366,6 +4366,163 @@ async def mark_all_notifications_read(current_user: dict = Depends(get_current_u
     )
     return {"message": "All notifications marked as read"}
 
+# ==================== CHAT ARCHIVE ====================
+
+@api_router.put("/chat/channels/{channel_id}/archive")
+async def archive_channel(channel_id: str, current_user: dict = Depends(get_current_user)):
+    """Archive a chat channel (admin/owner only)"""
+    role = current_user.get("role", "member")
+    if role not in ["admin", "owner", "super_admin"] and current_user.get("email") != SUPER_ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Only admins can archive channels")
+    
+    result = await db.chat_channels.update_one(
+        {"channel_id": channel_id, "organization_id": current_user.get("organization_id")},
+        {"$set": {"archived": True, "archived_at": datetime.now(timezone.utc).isoformat(), "archived_by": current_user["user_id"]}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    return {"message": "Channel archived"}
+
+# ==================== CONTACTS ====================
+
+class ContactCreate(BaseModel):
+    first_name: str
+    last_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    job_title: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    website: Optional[str] = None
+    location: Optional[str] = None
+    industry: Optional[str] = None
+    company_size: Optional[str] = None
+    source: str = "lead_conversion"
+    notes: Optional[str] = None
+    # Sales-specific fields
+    decision_maker: bool = False
+    budget: Optional[str] = None
+    timeline: Optional[str] = None
+    pain_points: Optional[str] = None
+    preferred_contact_method: Optional[str] = None
+    # Linked entities
+    lead_id: Optional[str] = None
+    deal_id: Optional[str] = None
+
+@api_router.get("/contacts")
+async def get_contacts(current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        return []
+    contacts = await db.contacts.find(
+        {"organization_id": current_user["organization_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(1000)
+    return contacts
+
+@api_router.post("/contacts")
+async def create_contact(data: ContactCreate, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        raise HTTPException(status_code=400, detail="Join an organization first")
+    
+    contact_id = f"contact_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    doc = {
+        "contact_id": contact_id,
+        "organization_id": current_user["organization_id"],
+        **data.model_dump(),
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    }
+    await db.contacts.insert_one(doc)
+    doc.pop('_id', None)
+    return doc
+
+@api_router.get("/contacts/{contact_id}")
+async def get_contact(contact_id: str, current_user: dict = Depends(get_current_user)):
+    contact = await db.contacts.find_one(
+        {"contact_id": contact_id, "organization_id": current_user.get("organization_id")},
+        {"_id": 0}
+    )
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return contact
+
+@api_router.put("/contacts/{contact_id}")
+async def update_contact(contact_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.contacts.update_one(
+        {"contact_id": contact_id, "organization_id": current_user.get("organization_id")},
+        {"$set": updates}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return await get_contact(contact_id, current_user)
+
+@api_router.delete("/contacts/{contact_id}")
+async def delete_contact(contact_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.contacts.delete_one(
+        {"contact_id": contact_id, "organization_id": current_user.get("organization_id")}
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return {"message": "Contact deleted"}
+
+@api_router.post("/leads/{lead_id}/convert-to-contact")
+async def convert_lead_to_contact(lead_id: str, deal_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Convert a qualified lead to a contact"""
+    lead = await db.leads.find_one(
+        {"lead_id": lead_id, "organization_id": current_user.get("organization_id")},
+        {"_id": 0}
+    )
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    contact_id = f"contact_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    contact_doc = {
+        "contact_id": contact_id,
+        "organization_id": current_user["organization_id"],
+        "first_name": lead.get("first_name", ""),
+        "last_name": lead.get("last_name", ""),
+        "email": lead.get("email"),
+        "phone": lead.get("phone"),
+        "company": lead.get("company"),
+        "job_title": lead.get("job_title"),
+        "linkedin_url": lead.get("linkedin_url"),
+        "website": lead.get("website"),
+        "location": lead.get("location"),
+        "industry": lead.get("industry"),
+        "company_size": lead.get("company_size"),
+        "company_description": lead.get("company_description"),
+        "source": "lead_conversion",
+        "notes": lead.get("notes"),
+        "decision_maker": False,
+        "budget": None,
+        "timeline": None,
+        "pain_points": None,
+        "preferred_contact_method": None,
+        "lead_id": lead_id,
+        "deal_id": deal_id,
+        "enrichment": lead.get("enrichment"),
+        "ai_score": lead.get("ai_score"),
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    }
+    await db.contacts.insert_one(contact_doc)
+    contact_doc.pop('_id', None)
+    
+    # Update lead status to converted
+    await db.leads.update_one(
+        {"lead_id": lead_id},
+        {"$set": {"status": "converted", "converted_contact_id": contact_id, "updated_at": now.isoformat()}}
+    )
+    
+    return contact_doc
+
 # ==================== CALLS & RECORDINGS ====================
 
 # Twilio Configuration
