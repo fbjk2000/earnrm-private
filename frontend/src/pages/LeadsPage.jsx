@@ -514,6 +514,12 @@ const LeadsPage = () => {
         {/* Leads List */}
         <Card data-testid="leads-list">
           <CardContent className="p-0">
+            {!loading && filteredLeads.length > 0 && (
+              <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-3 bg-slate-50">
+                <input type="checkbox" checked={selectedIds.length === filteredLeads.length && filteredLeads.length > 0} onChange={() => setSelectedIds(selectedIds.length === filteredLeads.length ? [] : filteredLeads.map(l => l.lead_id))} className="w-4 h-4 accent-[#A100FF]" data-testid="select-all-leads" />
+                <span className="text-xs text-slate-500">Select all {filteredLeads.length} leads{searchQuery || statusFilter !== 'all' ? ' (filtered)' : ''}</span>
+              </div>
+            )}
             {loading ? (
               <div className="p-8 text-center">
                 <div className="w-8 h-8 border-2 border-[#A100FF] border-t-transparent rounded-full animate-spin mx-auto" />
