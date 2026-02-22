@@ -2812,7 +2812,7 @@ async def admin_update_user_role(user_id: str, role: str, current_user: dict = D
     if current_user.get("role") != "super_admin" and current_user.get("email") != SUPER_ADMIN_EMAIL:
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    valid_roles = ["member", "admin", "owner", "super_admin"]
+    valid_roles = ["member", "admin", "owner", "deputy_admin", "support", "super_admin"]
     if role not in valid_roles:
         raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {valid_roles}")
     
