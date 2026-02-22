@@ -306,6 +306,8 @@ const AdminPage = () => {
                                   <SelectItem value="member">Member</SelectItem>
                                   <SelectItem value="admin">Admin</SelectItem>
                                   <SelectItem value="owner">Owner</SelectItem>
+                                  <SelectItem value="deputy_admin">Deputy Admin</SelectItem>
+                                  <SelectItem value="support">Support</SelectItem>
                                   <SelectItem value="super_admin">Super Admin</SelectItem>
                                 </SelectContent>
                               </Select>
