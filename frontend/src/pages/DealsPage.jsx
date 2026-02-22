@@ -229,6 +229,14 @@ const DealsPage = () => {
 
   const hasActiveFilters = filterStage || filterTag || filterOwner;
 
+  const handleDeleteDeal = async (dealId) => {
+    try {
+      await axios.delete(`${API}/deals/${dealId}`, { headers, withCredentials: true });
+      toast.success('Deal deleted');
+      fetchDeals();
+    } catch { toast.error('Failed to delete deal'); }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6" data-testid="deals-page">
