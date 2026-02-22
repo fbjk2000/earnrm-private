@@ -64,6 +64,7 @@ const LeadsPage = () => {
   });
 
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const axiosConfig = { headers, withCredentials: true };
 
   // Lead detail/edit state
   const [selectedLead, setSelectedLead] = useState(null);
