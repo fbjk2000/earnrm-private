@@ -215,10 +215,10 @@ const LandingPage = () => {
               <img 
                 src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/8movyjrt_earnrm_wordmark_purple.svg" 
                 alt="earnrm" 
-                className="h-12 lg:h-14"
+                className="h-16 lg:h-20 xl:h-24"
               />
               
-              <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold text-[#111111] tracking-tight leading-[1.1]" data-testid="hero-title">
+              <h1 className="text-3xl lg:text-4xl xl:text-5xl font-bold text-[#111111] tracking-tight leading-[1.1]" data-testid="hero-title">
                 Your CRM that
                 <br />
                 <span>p<span className="text-[#A100FF]">AI</span>s</span> you back
