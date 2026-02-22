@@ -238,7 +238,16 @@ const DealsPage = () => {
             <h1 className="text-2xl font-bold text-slate-900" data-testid="deals-title">Deals Pipeline</h1>
             <p className="text-slate-600 mt-1">Track your deals through the sales pipeline</p>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <div className="flex items-center gap-2">
+            <div className="flex border border-slate-200 rounded-lg overflow-hidden">
+              <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm flex items-center gap-1 ${viewMode === 'kanban' ? 'bg-[#A100FF] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`} data-testid="kanban-view-btn">
+                <LayoutGrid className="w-3.5 h-3.5" /> Kanban
+              </button>
+              <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 text-sm flex items-center gap-1 ${viewMode === 'list' ? 'bg-[#A100FF] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`} data-testid="list-view-btn">
+                <List className="w-3.5 h-3.5" /> List
+              </button>
+            </div>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-[#A100FF] hover:bg-purple-700" data-testid="add-deal-btn">
                 <Plus className="w-4 h-4 mr-2" />
