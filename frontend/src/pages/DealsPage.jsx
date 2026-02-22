@@ -563,11 +563,71 @@ const DealsPage = () => {
           </div>
         </Card>
 
+        {/* Bulk actions */}
+        {selectedDealIds.length > 0 && (
+          <div className="flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-lg p-3">
+            <span className="text-sm font-medium text-purple-800">{selectedDealIds.length} selected</span>
+            <Button size="sm" variant="outline" className="text-red-600 border-red-200" onClick={async () => {
+              try { await axios.post(`${API}/bulk/delete`, { entity_type: 'deal', entity_ids: selectedDealIds }, { headers, withCredentials: true }); toast.success('Deals deleted'); setSelectedDealIds([]); fetchDeals(); } catch { toast.error('Failed'); }
+            }} data-testid="bulk-delete-deals"><Trash2 className="w-3.5 h-3.5 mr-1" /> Delete</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedDealIds([])}>Clear</Button>
+          </div>
+        )}
+
         {/* Pipeline Board */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-8 h-8 border-2 border-[#A100FF] border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : viewMode === 'list' ? (
+          /* List View */
+          <Card>
+            <CardContent className="p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-slate-50">
+                    <th className="py-3 px-4 text-left w-10"><input type="checkbox" checked={selectedDealIds.length === deals.length && deals.length > 0} onChange={() => setSelectedDealIds(selectedDealIds.length === deals.length ? [] : deals.map(d => d.deal_id))} className="accent-[#A100FF]" /></th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-slate-500">Deal</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-slate-500">Value</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-slate-500">Stage</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-slate-500">Probability</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-slate-500">Tags</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-slate-500">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deals.map((deal) => (
+                    <tr key={deal.deal_id} className="border-b border-slate-100 hover:bg-slate-50" data-testid={`deal-list-row-${deal.deal_id}`}>
+                      <td className="py-3 px-4"><input type="checkbox" checked={selectedDealIds.includes(deal.deal_id)} onChange={() => setSelectedDealIds(prev => prev.includes(deal.deal_id) ? prev.filter(x => x !== deal.deal_id) : [...prev, deal.deal_id])} className="accent-[#A100FF]" /></td>
+                      <td className="py-3 px-4">
+                        <p className="font-medium text-slate-900">{deal.name}</p>
+                        {deal.notes && <p className="text-xs text-slate-500 truncate max-w-[200px]">{deal.notes}</p>}
+                      </td>
+                      <td className="py-3 px-4 font-medium">€{deal.value?.toLocaleString()}</td>
+                      <td className="py-3 px-4">
+                        <Select value={deal.stage} onValueChange={(v) => handleStageChange(deal.deal_id, v)}>
+                          <SelectTrigger className="w-[120px] h-7 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>{stages.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </td>
+                      <td className="py-3 px-4 text-xs">{deal.probability}%</td>
+                      <td className="py-3 px-4"><div className="flex gap-1">{deal.tags?.map(t => <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>)}</div></td>
+                      <td className="py-3 px-4">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="w-3 h-3" /></Button></DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/chat?type=deal&id=${deal.deal_id}`)}><MessageSquare className="w-3 h-3 mr-2" />Discuss</DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteDeal(deal.deal_id)}>Delete</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {deals.length === 0 && <p className="text-center text-slate-500 py-8">No deals</p>}
+            </CardContent>
+          </Card>
         ) : (
           <div className="overflow-x-auto pb-4">
             <div className="flex gap-4 min-w-max">
