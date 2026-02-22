@@ -215,6 +215,19 @@ const AdminPage = () => {
     }
   };
 
+  if (!isSuperAdmin) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-24 text-center">
+          <div>
+            <p className="text-xl font-bold text-slate-900 mb-2">Access Denied</p>
+            <p className="text-slate-500">Only Super Admins and Deputies can access this page.</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (loading) {
     return (
       <DashboardLayout>
