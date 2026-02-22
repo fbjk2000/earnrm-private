@@ -612,6 +612,9 @@ async def login(credentials: UserLogin, response: Response):
     if not user or not verify_password(credentials.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
+    # Track last login
+    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"last_login": datetime.now(timezone.utc).isoformat()}})
+    
     token = create_jwt_token(user["user_id"], user["email"], user.get("organization_id"))
     
     return {
