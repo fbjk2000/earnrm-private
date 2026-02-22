@@ -63,6 +63,12 @@ const AdminPage = () => {
     commission_rate_tier3: 5
   });
   const [supportRequests, setSupportRequests] = useState([]);
+  // Data Explorer state
+  const [explorerCollections, setExplorerCollections] = useState({});
+  const [explorerCollection, setExplorerCollection] = useState('');
+  const [explorerData, setExplorerData] = useState(null);
+  const [explorerSearch, setExplorerSearch] = useState('');
+  const [explorerPage, setExplorerPage] = useState(0);
 
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
