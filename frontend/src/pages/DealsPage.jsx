@@ -27,6 +27,8 @@ const DealsPage = () => {
   const [existingTags, setExistingTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('kanban');
+  const [selectedDealIds, setSelectedDealIds] = useState([]);
   
   // Filter states
   const [filterStage, setFilterStage] = useState('');
