@@ -224,7 +224,9 @@ class TestChatChannels:
         )
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
+        # API returns {channels: [...]} object
+        assert "channels" in data
+        assert isinstance(data["channels"], list)
 
 
 class TestDashboard:
@@ -268,7 +270,10 @@ class TestAdmin:
         )
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
+        # API returns {users: [...], count: N} object
+        assert "users" in data
+        assert isinstance(data["users"], list)
+        assert "count" in data
     
     def test_get_admin_organizations(self, auth_token):
         """Test GET /api/admin/organizations returns org list"""
