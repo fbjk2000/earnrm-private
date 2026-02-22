@@ -42,13 +42,18 @@ const DealsPage = () => {
     expected_close_date: '',
     tags: [],
     notes: '',
-    // Mandatory task fields
+    lead_id: '',
+    contact_id: '',
+    company_id: '',
     task_title: '',
     task_owner_id: '',
     task_description: '',
     task_due_date: ''
   });
   const [tagInput, setTagInput] = useState('');
+  const [availableLeads, setAvailableLeads] = useState([]);
+  const [availableContacts, setAvailableContacts] = useState([]);
+  const [availableCompanies, setAvailableCompanies] = useState([]);
 
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
