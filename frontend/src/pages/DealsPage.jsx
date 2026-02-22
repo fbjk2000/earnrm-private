@@ -70,7 +70,21 @@ const DealsPage = () => {
     fetchDeals();
     fetchMembers();
     fetchTags();
+    fetchLinkedEntities();
   }, [filterStage, filterTag, filterOwner]);
+
+  const fetchLinkedEntities = async () => {
+    try {
+      const [leadsRes, contactsRes, companiesRes] = await Promise.all([
+        axios.get(`${API}/leads`, { headers, withCredentials: true }),
+        axios.get(`${API}/contacts`, { headers, withCredentials: true }),
+        axios.get(`${API}/companies`, { headers, withCredentials: true })
+      ]);
+      setAvailableLeads(leadsRes.data || []);
+      setAvailableContacts(contactsRes.data || []);
+      setAvailableCompanies(companiesRes.data || []);
+    } catch {}
+  };
 
   const fetchDeals = async () => {
     try {
