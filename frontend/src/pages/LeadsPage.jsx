@@ -31,7 +31,9 @@ import {
   X,
   Wand2,
   Briefcase,
-  Tag
+  Tag,
+  Users,
+  UserPlus
 } from 'lucide-react';
 import {
   DropdownMenu,
