@@ -314,6 +314,7 @@ const AdminPage = () => {
             <TabsTrigger value="support" data-testid="admin-support-tab">Support</TabsTrigger>
             <TabsTrigger value="discounts">Discount Codes</TabsTrigger>
             <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
+            <TabsTrigger value="explorer" data-testid="admin-explorer-tab" onClick={() => { if (!Object.keys(explorerCollections).length) fetchExplorerCollections(); }}>Data Explorer</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
