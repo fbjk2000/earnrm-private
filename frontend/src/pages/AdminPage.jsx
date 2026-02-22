@@ -257,6 +257,7 @@ const AdminPage = () => {
           <TabsList data-testid="admin-tabs">
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="organizations">Organizations</TabsTrigger>
+            <TabsTrigger value="support" data-testid="admin-support-tab">Support</TabsTrigger>
             <TabsTrigger value="discounts">Discount Codes</TabsTrigger>
             <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
