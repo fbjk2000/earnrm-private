@@ -529,31 +529,34 @@ const LeadsPage = () => {
                     key={lead.lead_id}
                     className="p-4 hover:bg-slate-50 transition-colors cursor-pointer"
                     data-testid={`lead-row-${index}`}
-                    onClick={() => openLeadDetail(lead)}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" checked={selectedIds.includes(lead.lead_id)} onChange={() => toggleSelect(lead.lead_id)} onClick={(e) => e.stopPropagation()} className="w-4 h-4 accent-[#A100FF]" />
+                        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center cursor-pointer" onClick={() => openLeadDetail(lead)}>
                           <span className="text-[#A100FF] font-medium">
                             {lead.first_name?.[0]}{lead.last_name?.[0]}
                           </span>
                         </div>
-                        <div>
+                        <div className="cursor-pointer" onClick={() => openLeadDetail(lead)}>
                           <p className="font-medium text-slate-900">
                             {lead.first_name} {lead.last_name}
                           </p>
                           <div className="flex items-center gap-4 text-sm text-slate-500 mt-1">
-                            {lead.company && (
-                              <span className="flex items-center gap-1">
-                                <Building className="w-3 h-3" />
-                                {lead.company}
-                              </span>
+                            {visibleCols.company && lead.company && (
+                              <span className="flex items-center gap-1"><Building className="w-3 h-3" />{lead.company}</span>
                             )}
-                            {lead.email && (
-                              <span className="flex items-center gap-1">
-                                <Mail className="w-3 h-3" />
-                                {lead.email}
-                              </span>
+                            {visibleCols.email && lead.email && (
+                              <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{lead.email}</span>
+                            )}
+                            {visibleCols.phone && lead.phone && (
+                              <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{lead.phone}</span>
+                            )}
+                            {visibleCols.job_title && lead.job_title && (
+                              <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{lead.job_title}</span>
+                            )}
+                            {visibleCols.source && lead.source && (
+                              <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{lead.source}</span>
                             )}
                           </div>
                         </div>
