@@ -320,15 +320,29 @@ const ContactsPage = () => {
                       {selectedContact.enrichment.recommended_approach && <p className="text-sm text-slate-700">{selectedContact.enrichment.recommended_approach}</p>}
                     </div>
                   )}
-                  <div className="flex gap-2">
-                    {selectedContact.deal_id && (
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/deals?detail=${selectedContact.deal_id}`)}>
-                        <Target className="w-3.5 h-3.5 mr-1" /> View Deal
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                    <Button size="sm" variant="outline" onClick={() => { setSelectedContact(null); navigate(`/deals?contact=${selectedContact.contact_id}`); }}>
+                      <Target className="w-3.5 h-3.5 mr-1" /> Add Deal
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setSelectedContact(null); navigate(`/tasks?contact=${selectedContact.contact_id}`); }}>
+                      <Clock className="w-3.5 h-3.5 mr-1" /> Add Task
+                    </Button>
+                    {selectedContact.email && (
+                      <Button size="sm" variant="outline" onClick={() => { setSelectedContact(null); navigate(`/campaigns`); }}>
+                        <Mail className="w-3.5 h-3.5 mr-1" /> Add to Campaign
                       </Button>
                     )}
+                    <Button size="sm" variant="outline" onClick={() => navigate(`/chat?type=lead&id=${selectedContact.lead_id || selectedContact.contact_id}`)}>
+                      <MessageSquare className="w-3.5 h-3.5 mr-1" /> Discuss
+                    </Button>
                     {selectedContact.phone && (
                       <Button size="sm" variant="outline" onClick={() => navigate('/calls')}>
                         <Phone className="w-3.5 h-3.5 mr-1" /> Call
+                      </Button>
+                    )}
+                    {selectedContact.deal_id && (
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/deals?detail=${selectedContact.deal_id}`)}>
+                        <Target className="w-3.5 h-3.5 mr-1" /> View Deal
                       </Button>
                     )}
                   </div>
