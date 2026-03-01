@@ -30,7 +30,7 @@ const DashboardLayout = ({ children }) => {
 
   const isAdmin = user?.role === 'super_admin' || user?.role === 'deputy_admin' || user?.email === 'florian@unyted.world';
 
-  let navItems = [
+  const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     { path: '/leads', label: 'Leads', icon: <Users className="w-5 h-5" /> },
     { path: '/contacts', label: 'Contacts', icon: <Users className="w-5 h-5" /> },
@@ -44,11 +44,8 @@ const DashboardLayout = ({ children }) => {
     { divider: true },
     { path: '/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
     { path: '/support', label: 'Support', icon: <HelpCircle className="w-5 h-5" /> },
+    { path: '/admin', label: 'Admin', icon: <Shield className="w-5 h-5" />, adminOnly: true },
   ];
-
-  if (isAdmin) {
-    navItems.push({ path: '/admin', label: 'Admin', icon: <Shield className="w-5 h-5" /> });
-  }
 
   const handleLogout = async () => {
     await logout();
