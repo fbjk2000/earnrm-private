@@ -106,7 +106,7 @@ const DashboardLayout = ({ children }) => {
           {/* Navigation */}
           <ScrollArea className="flex-1 py-4">
             <nav className="px-3 space-y-1">
-              {navItems.map((item, index) =>
+              {navItems.filter(item => !item.adminOnly || isAdmin).map((item, index) =>
                 item.divider ? (
                   <div key={index} className="my-4 border-t border-slate-100" />
                 ) : (
