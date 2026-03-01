@@ -42,9 +42,9 @@ const DashboardLayout = ({ children }) => {
     { path: '/chat', label: 'Team Chat', icon: <MessageSquare className="w-5 h-5" /> },
     { path: '/calls', label: 'Calls', icon: <Phone className="w-5 h-5" /> },
     { divider: true },
+    { path: '/admin', label: 'Admin', icon: <Shield className="w-5 h-5" />, adminOnly: true },
     { path: '/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
     { path: '/support', label: 'Support', icon: <HelpCircle className="w-5 h-5" /> },
-    { path: '/admin', label: 'Admin', icon: <Shield className="w-5 h-5" />, adminOnly: true },
   ];
 
   const handleLogout = async () => {
