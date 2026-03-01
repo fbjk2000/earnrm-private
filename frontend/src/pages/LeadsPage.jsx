@@ -33,7 +33,9 @@ import {
   Briefcase,
   Tag,
   Users,
-  UserPlus
+  UserPlus,
+  Target,
+  CheckSquare
 } from 'lucide-react';
 import {
   DropdownMenu,
