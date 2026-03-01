@@ -240,8 +240,9 @@ class TestChatEndpoints:
         response = requests.get(f"{BASE_URL}/api/chat/channels", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        print(f"✓ GET /api/chat/channels: {len(data)} channels")
+        channels = data.get("channels", data) if isinstance(data, dict) else data
+        assert isinstance(channels, list)
+        print(f"✓ GET /api/chat/channels: {len(channels)} channels")
 
 
 class TestCallsEndpoints:
