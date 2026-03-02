@@ -573,6 +573,7 @@ async def register(user_data: UserCreate, response: Response):
     elif user_data.organization_name:
         organization_id = f"org_{uuid.uuid4().hex[:12]}"
         user_role = "owner"
+        email_domain = user_data.email.split("@")[1].lower() if "@" in user_data.email else None
         org_doc = {
             "organization_id": organization_id,
             "name": user_data.organization_name,
@@ -580,9 +581,26 @@ async def register(user_data: UserCreate, response: Response):
             "plan": "free",
             "user_count": 1,
             "max_free_users": 3,
+            "max_users": 3,
+            "email_domain": email_domain,
             "created_at": now.isoformat()
         }
         await db.organizations.insert_one(org_doc)
+    else:
+        # Auto-join org by email domain
+        email_domain = user_data.email.split("@")[1].lower() if "@" in user_data.email else None
+        if email_domain and email_domain not in ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com"]:
+            matching_org = await db.organizations.find_one({"email_domain": email_domain}, {"_id": 0})
+            if matching_org:
+                max_users = matching_org.get("max_users", matching_org.get("max_free_users", 3))
+                current_count = matching_org.get("user_count", 1)
+                if current_count < max_users:
+                    organization_id = matching_org["organization_id"]
+                    user_role = "member"
+                    await db.organizations.update_one(
+                        {"organization_id": organization_id},
+                        {"$inc": {"user_count": 1}}
+                    )
     
     user_doc = {
         "user_id": user_id,
@@ -2850,6 +2868,41 @@ async def admin_update_user_role(user_id: str, role: str, current_user: dict = D
     
     return {"message": f"User role updated to {role}"}
 
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, current_user: dict = Depends(require_super_admin)):
+    """Delete a user (super admin only)"""
+    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.get("email") == SUPER_ADMIN_EMAIL:
+        raise HTTPException(status_code=400, detail="Cannot delete the super admin")
+    await db.users.delete_one({"user_id": user_id})
+    await db.user_sessions.delete_many({"user_id": user_id})
+    return {"message": "User deleted"}
+
+@api_router.delete("/admin/organizations/{org_id}")
+async def admin_delete_organization(org_id: str, current_user: dict = Depends(require_super_admin)):
+    """Delete an organization and unlink all its users"""
+    org = await db.organizations.find_one({"organization_id": org_id}, {"_id": 0})
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    await db.organizations.delete_one({"organization_id": org_id})
+    await db.users.update_many({"organization_id": org_id}, {"$set": {"organization_id": None, "role": "member"}})
+    return {"message": "Organization deleted"}
+
+@api_router.put("/admin/organizations/{org_id}")
+async def admin_update_organization(org_id: str, updates: dict, current_user: dict = Depends(require_super_admin)):
+    """Edit organization details and license limits"""
+    allowed = {"name", "plan", "max_users", "max_free_users", "email_domain"}
+    filtered = {k: v for k, v in updates.items() if k in allowed}
+    if not filtered:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    result = await db.organizations.update_one({"organization_id": org_id}, {"$set": filtered})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    updated = await db.organizations.find_one({"organization_id": org_id}, {"_id": 0})
+    return updated
+
 # ==================== SUPER ADMIN SETUP ====================
 
 @api_router.post("/admin/setup-super-admin")
@@ -3596,8 +3649,10 @@ async def get_pipeline_report(current_user: dict = Depends(get_current_user)):
         stage_deals = [d for d in deals if d.get("stage") == stage["id"]]
         stage_value = sum(d.get("value", 0) for d in stage_deals)
         stage_weighted = sum(d.get("value", 0) * (d.get("probability", 0) / 100) for d in stage_deals)
-        total_value += stage_value
-        weighted_value += stage_weighted
+        # Lost deals don't count towards pipeline totals
+        if stage["id"] != "lost":
+            total_value += stage_value
+            weighted_value += stage_weighted
         
         stage_summaries.append({
             "id": stage["id"],
@@ -5377,6 +5432,219 @@ Provide your analysis."""
     except Exception as e:
         logger.error(f"Call analysis error: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+# ==================== API KEYS ====================
+
+import secrets
+
+@api_router.post("/api-keys")
+async def create_api_key(name: str = "Default", current_user: dict = Depends(get_current_user)):
+    """Generate an API key for programmatic access"""
+    key = f"earnrm_{secrets.token_hex(24)}"
+    doc = {
+        "key_id": f"key_{uuid.uuid4().hex[:12]}",
+        "key_hash": hash_password(key),
+        "key_prefix": key[:16] + "...",
+        "name": name,
+        "organization_id": current_user.get("organization_id"),
+        "user_id": current_user["user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "last_used": None,
+        "is_active": True
+    }
+    await db.api_keys.insert_one(doc)
+    doc.pop('_id', None)
+    return {"key": key, "key_id": doc["key_id"], "name": name, "message": "Save this key - it won't be shown again"}
+
+@api_router.get("/api-keys")
+async def list_api_keys(current_user: dict = Depends(get_current_user)):
+    """List all API keys for the user"""
+    keys = await db.api_keys.find(
+        {"user_id": current_user["user_id"], "is_active": True},
+        {"_id": 0, "key_hash": 0}
+    ).to_list(50)
+    return keys
+
+@api_router.delete("/api-keys/{key_id}")
+async def revoke_api_key(key_id: str, current_user: dict = Depends(get_current_user)):
+    """Revoke an API key"""
+    result = await db.api_keys.update_one(
+        {"key_id": key_id, "user_id": current_user["user_id"]},
+        {"$set": {"is_active": False}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="API key not found")
+    return {"message": "API key revoked"}
+
+# API key auth middleware for external integrations
+async def get_api_key_user(request: Request):
+    """Authenticate via API key (for n8n, Notion, etc.)"""
+    auth = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not auth or not auth.startswith("earnrm_"):
+        raise HTTPException(status_code=401, detail="Valid API key required")
+    
+    keys = await db.api_keys.find({"is_active": True}, {"_id": 0}).to_list(100)
+    for k in keys:
+        if verify_password(auth, k.get("key_hash", "")):
+            await db.api_keys.update_one({"key_id": k["key_id"]}, {"$set": {"last_used": datetime.now(timezone.utc).isoformat()}})
+            user = await db.users.find_one({"user_id": k["user_id"]}, {"_id": 0})
+            if user:
+                return user
+    raise HTTPException(status_code=401, detail="Invalid API key")
+
+# ==================== EXTERNAL API (n8n, Notion, etc.) ====================
+
+@api_router.get("/v1/leads")
+async def api_get_leads(limit: int = 100, status: Optional[str] = None, user: dict = Depends(get_api_key_user)):
+    """External API: Get leads"""
+    query = {"organization_id": user.get("organization_id")}
+    if status:
+        query["status"] = status
+    leads = await db.leads.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return {"data": leads, "count": len(leads)}
+
+@api_router.post("/v1/leads")
+async def api_create_lead(lead: LeadCreate, user: dict = Depends(get_api_key_user)):
+    """External API: Create a lead"""
+    lead_id = f"lead_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    doc = {"lead_id": lead_id, "organization_id": user["organization_id"], **lead.model_dump(), "status": "new", "ai_score": None, "assigned_to": None, "created_by": user["user_id"], "created_at": now.isoformat(), "updated_at": now.isoformat()}
+    await db.leads.insert_one(doc)
+    doc.pop('_id', None)
+    # Fire webhook
+    await fire_webhooks(user["organization_id"], "lead.created", doc)
+    return doc
+
+@api_router.get("/v1/contacts")
+async def api_get_contacts(limit: int = 100, user: dict = Depends(get_api_key_user)):
+    """External API: Get contacts"""
+    contacts = await db.contacts.find({"organization_id": user.get("organization_id")}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return {"data": contacts, "count": len(contacts)}
+
+@api_router.get("/v1/deals")
+async def api_get_deals(limit: int = 100, stage: Optional[str] = None, user: dict = Depends(get_api_key_user)):
+    """External API: Get deals"""
+    query = {"organization_id": user.get("organization_id")}
+    if stage:
+        query["stage"] = stage
+    deals = await db.deals.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return {"data": deals, "count": len(deals)}
+
+@api_router.get("/v1/companies")
+async def api_get_companies(limit: int = 100, user: dict = Depends(get_api_key_user)):
+    """External API: Get companies"""
+    companies = await db.companies.find({"organization_id": user.get("organization_id")}, {"_id": 0}).limit(limit).to_list(limit)
+    return {"data": companies, "count": len(companies)}
+
+@api_router.get("/v1/tasks")
+async def api_get_tasks(limit: int = 100, status: Optional[str] = None, user: dict = Depends(get_api_key_user)):
+    """External API: Get tasks"""
+    query = {"organization_id": user.get("organization_id")}
+    if status:
+        query["status"] = status
+    tasks = await db.tasks.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return {"data": tasks, "count": len(tasks)}
+
+# ==================== WEBHOOKS ====================
+
+async def fire_webhooks(org_id: str, event: str, data: dict):
+    """Fire registered webhooks for an event"""
+    hooks = await db.webhooks.find({"organization_id": org_id, "is_active": True, "events": event}, {"_id": 0}).to_list(20)
+    for hook in hooks:
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                await client.post(hook["url"], json={"event": event, "data": data, "timestamp": datetime.now(timezone.utc).isoformat()})
+        except Exception as e:
+            logger.error(f"Webhook fire error: {e}")
+
+@api_router.post("/webhooks")
+async def create_webhook(url: str, events: List[str], name: str = "Default", current_user: dict = Depends(get_current_user)):
+    """Register a webhook URL for events (for n8n, Zapier, etc.)"""
+    valid_events = ["lead.created", "lead.updated", "deal.created", "deal.stage_changed", "contact.created", "task.created"]
+    for e in events:
+        if e not in valid_events:
+            raise HTTPException(status_code=400, detail=f"Invalid event: {e}. Valid: {valid_events}")
+    
+    doc = {
+        "webhook_id": f"wh_{uuid.uuid4().hex[:12]}",
+        "organization_id": current_user.get("organization_id"),
+        "user_id": current_user["user_id"],
+        "name": name,
+        "url": url,
+        "events": events,
+        "is_active": True,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.webhooks.insert_one(doc)
+    doc.pop('_id', None)
+    return doc
+
+@api_router.get("/webhooks")
+async def list_webhooks(current_user: dict = Depends(get_current_user)):
+    """List registered webhooks"""
+    hooks = await db.webhooks.find({"organization_id": current_user.get("organization_id")}, {"_id": 0}).to_list(50)
+    return hooks
+
+@api_router.delete("/webhooks/{webhook_id}")
+async def delete_webhook(webhook_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a webhook"""
+    result = await db.webhooks.delete_one({"webhook_id": webhook_id, "organization_id": current_user.get("organization_id")})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+    return {"message": "Webhook deleted"}
+
+# Notion sync endpoint
+@api_router.post("/v1/notion/sync")
+async def notion_sync(entity_type: str = "leads", user: dict = Depends(get_api_key_user)):
+    """Get data formatted for Notion database sync"""
+    org_id = user.get("organization_id")
+    collections = {"leads": db.leads, "contacts": db.contacts, "deals": db.deals, "companies": db.companies}
+    if entity_type not in collections:
+        raise HTTPException(status_code=400, detail="Invalid entity type")
+    
+    data = await collections[entity_type].find({"organization_id": org_id}, {"_id": 0}).sort("created_at", -1).limit(500).to_list(500)
+    
+    # Format for Notion
+    notion_pages = []
+    for item in data:
+        props = {}
+        for k, v in item.items():
+            if isinstance(v, str):
+                props[k] = {"rich_text": [{"text": {"content": v[:2000]}}]}
+            elif isinstance(v, (int, float)):
+                props[k] = {"number": v}
+            elif isinstance(v, bool):
+                props[k] = {"checkbox": v}
+        notion_pages.append({"properties": props})
+    
+    return {"entity_type": entity_type, "count": len(notion_pages), "pages": notion_pages}
+
+# API docs endpoint
+@api_router.get("/v1/docs")
+async def api_docs():
+    """API documentation for external integrations"""
+    return {
+        "name": "earnrm External API",
+        "version": "1.0",
+        "auth": "Include header 'X-API-Key: earnrm_xxx' or 'Authorization: Bearer earnrm_xxx'",
+        "endpoints": {
+            "GET /api/v1/leads": {"params": "limit, status", "desc": "List leads"},
+            "POST /api/v1/leads": {"body": "first_name, last_name, email, phone, company", "desc": "Create lead"},
+            "GET /api/v1/contacts": {"params": "limit", "desc": "List contacts"},
+            "GET /api/v1/deals": {"params": "limit, stage", "desc": "List deals"},
+            "GET /api/v1/companies": {"params": "limit", "desc": "List companies"},
+            "GET /api/v1/tasks": {"params": "limit, status", "desc": "List tasks"},
+            "POST /api/v1/notion/sync": {"params": "entity_type", "desc": "Get Notion-formatted data"},
+        },
+        "webhooks": {
+            "events": ["lead.created", "lead.updated", "deal.created", "deal.stage_changed", "contact.created", "task.created"],
+            "setup": "POST /api/webhooks with url, events[], name"
+        },
+        "n8n": {
+            "trigger": "Use HTTP Request node with GET /api/v1/leads (or other endpoints). Set X-API-Key header.",
+            "webhook": "Register a webhook at POST /api/webhooks, use n8n Webhook Trigger node URL"
+        }
+    }
 
 # ==================== BASIC ROUTES ====================
 

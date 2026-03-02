@@ -339,6 +339,7 @@ const AdminPage = () => {
                           <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Organization</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Last Login</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Joined</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -376,6 +377,14 @@ const AdminPage = () => {
                             <td className="py-3 px-4 text-xs text-slate-500">
                               {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
                             </td>
+                            <td className="py-3 px-4">
+                              {u.email !== 'florian@unyted.world' && (
+                                <Button variant="ghost" size="sm" className="text-red-500 h-7" onClick={async () => {
+                                  if (!window.confirm(`Delete user ${u.name}?`)) return;
+                                  try { await axios.delete(`${API}/admin/users/${u.user_id}`, { headers, withCredentials: true }); toast.success('User deleted'); fetchAllData(); } catch { toast.error('Failed'); }
+                                }} data-testid={`delete-user-${index}`}><Trash2 className="w-3.5 h-3.5" /></Button>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -405,6 +414,7 @@ const AdminPage = () => {
                           <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Plan</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Users</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Created</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -413,6 +423,7 @@ const AdminPage = () => {
                             <td className="py-3 px-4">
                               <p className="font-medium text-slate-900">{org.name}</p>
                               <p className="text-xs text-slate-500">{org.organization_id}</p>
+                              {org.email_domain && <p className="text-xs text-purple-600">@{org.email_domain}</p>}
                             </td>
                             <td className="py-3 px-4">
                               <span className={`text-xs px-2 py-1 rounded-full capitalize ${
@@ -421,9 +432,15 @@ const AdminPage = () => {
                                 {org.plan}
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-slate-600">{org.user_count}</td>
+                            <td className="py-3 px-4 text-slate-600">{org.user_count}/{org.max_users || org.max_free_users || 3}</td>
                             <td className="py-3 px-4 text-sm text-slate-500">
                               {new Date(org.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="py-3 px-4">
+                              <Button variant="ghost" size="sm" className="text-red-500 h-7" onClick={async () => {
+                                if (!window.confirm(`Delete org ${org.name}? All users will be unlinked.`)) return;
+                                try { await axios.delete(`${API}/admin/organizations/${org.organization_id}`, { headers, withCredentials: true }); toast.success('Organization deleted'); fetchAllData(); } catch { toast.error('Failed'); }
+                              }} data-testid={`delete-org-${index}`}><Trash2 className="w-3.5 h-3.5" /></Button>
                             </td>
                           </tr>
                         ))}

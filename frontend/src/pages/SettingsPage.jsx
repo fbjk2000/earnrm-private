@@ -38,7 +38,8 @@ import {
   Send,
   Upload,
   UserPlus,
-  X
+  X,
+  Key
 } from 'lucide-react';
 
 const SettingsPage = () => {
@@ -53,6 +54,12 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [newOrgName, setNewOrgName] = useState('');
   const [creatingOrg, setCreatingOrg] = useState(false);
+  const [apiKeys, setApiKeys] = useState([]);
+  const [webhooks, setWebhooks] = useState([]);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [generatedKey, setGeneratedKey] = useState('');
+  const [newWebhookUrl, setNewWebhookUrl] = useState('');
+  const [newWebhookName, setNewWebhookName] = useState('');
   const [editingStages, setEditingStages] = useState(false);
   const [dealStages, setDealStages] = useState([]);
   const [isPipelineDialogOpen, setIsPipelineDialogOpen] = useState(false);
@@ -73,6 +80,7 @@ const SettingsPage = () => {
     fetchOrganization();
     fetchInvoices();
     fetchAffiliateStatus();
+    fetchApiKeysAndWebhooks();
   }, []);
 
   useEffect(() => {
@@ -137,14 +145,22 @@ const SettingsPage = () => {
 
   const fetchAffiliateStatus = async () => {
     try {
-      const response = await axios.get(`${API}/affiliate/me`, {
-        headers,
-        withCredentials: true
-      });
+      const response = await axios.get(`${API}/affiliate/me`, { headers, withCredentials: true });
       setAffiliateStatus(response.data);
     } catch (error) {
       console.error('Failed to fetch affiliate status');
     }
+  };
+
+  const fetchApiKeysAndWebhooks = async () => {
+    try {
+      const [keysRes, whRes] = await Promise.all([
+        axios.get(`${API}/api-keys`, { headers, withCredentials: true }).catch(() => null),
+        axios.get(`${API}/webhooks`, { headers, withCredentials: true }).catch(() => null)
+      ]);
+      if (keysRes) setApiKeys(keysRes.data);
+      if (whRes) setWebhooks(whRes.data);
+    } catch {}
   };
 
   const fetchInvoices = async () => {
@@ -414,6 +430,7 @@ const SettingsPage = () => {
             <TabsTrigger value="team">Team & Invites</TabsTrigger>
             <TabsTrigger value="billing">Billing & Invoices</TabsTrigger>
             <TabsTrigger value="integrations">Integrations</TabsTrigger>
+            <TabsTrigger value="api" data-testid="settings-api-tab">API & Webhooks</TabsTrigger>
             <TabsTrigger value="app" data-testid="settings-app-tab">Mobile App</TabsTrigger>
           </TabsList>
 
@@ -1196,6 +1213,118 @@ const SettingsPage = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* API & Webhooks Tab */}
+          <TabsContent value="api">
+            <div className="space-y-6">
+              {/* API Keys */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2"><Key className="w-5 h-5" /> API Keys</CardTitle>
+                  <CardDescription>Generate API keys for n8n, Notion, or custom integrations</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input placeholder="Key name (e.g., n8n Production)" value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} className="max-w-xs" data-testid="api-key-name" />
+                    <Button className="bg-[#A100FF] hover:bg-purple-700" onClick={async () => {
+                      try {
+                        const res = await axios.post(`${API}/api-keys?name=${encodeURIComponent(newKeyName || 'Default')}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                        setGeneratedKey(res.data.key);
+                        setNewKeyName('');
+                        const keysRes = await axios.get(`${API}/api-keys`, { headers: { Authorization: `Bearer ${token}` } });
+                        setApiKeys(keysRes.data);
+                        toast.success('API key created');
+                      } catch { toast.error('Failed to create key'); }
+                    }} data-testid="create-api-key">Generate Key</Button>
+                  </div>
+                  {generatedKey && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                      <p className="text-xs text-emerald-700 font-medium mb-1">Your new API key (copy now — won't be shown again):</p>
+                      <code className="text-sm bg-white p-2 rounded block break-all border" data-testid="generated-key">{generatedKey}</code>
+                      <Button size="sm" variant="outline" className="mt-2" onClick={() => { navigator.clipboard.writeText(generatedKey); toast.success('Copied!'); }}>Copy</Button>
+                    </div>
+                  )}
+                  {apiKeys.length > 0 && (
+                    <div className="space-y-2">
+                      {apiKeys.map(k => (
+                        <div key={k.key_id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium text-sm">{k.name}</p>
+                            <p className="text-xs text-slate-500">{k.key_prefix} | Last used: {k.last_used ? new Date(k.last_used).toLocaleDateString() : 'Never'}</p>
+                          </div>
+                          <Button size="sm" variant="ghost" className="text-red-500" onClick={async () => {
+                            await axios.delete(`${API}/api-keys/${k.key_id}`, { headers: { Authorization: `Bearer ${token}` } });
+                            setApiKeys(prev => prev.filter(x => x.key_id !== k.key_id));
+                            toast.success('Key revoked');
+                          }}><Trash2 className="w-4 h-4" /></Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Webhooks */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">Webhooks</CardTitle>
+                  <CardDescription>Receive real-time notifications when events happen (for n8n, Zapier, etc.)</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input placeholder="Webhook URL" value={newWebhookUrl} onChange={(e) => setNewWebhookUrl(e.target.value)} className="flex-1" data-testid="webhook-url" />
+                    <Input placeholder="Name" value={newWebhookName} onChange={(e) => setNewWebhookName(e.target.value)} className="w-32" />
+                    <Button variant="outline" onClick={async () => {
+                      if (!newWebhookUrl) return;
+                      try {
+                        await axios.post(`${API}/webhooks?url=${encodeURIComponent(newWebhookUrl)}&name=${encodeURIComponent(newWebhookName || 'Default')}&events=lead.created&events=deal.stage_changed&events=contact.created`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                        setNewWebhookUrl(''); setNewWebhookName('');
+                        const res = await axios.get(`${API}/webhooks`, { headers: { Authorization: `Bearer ${token}` } });
+                        setWebhooks(res.data);
+                        toast.success('Webhook registered');
+                      } catch (err) { toast.error(err.response?.data?.detail || 'Failed'); }
+                    }} data-testid="add-webhook">Add</Button>
+                  </div>
+                  <p className="text-xs text-slate-500">Events: lead.created, lead.updated, deal.created, deal.stage_changed, contact.created, task.created</p>
+                  {webhooks.map(wh => (
+                    <div key={wh.webhook_id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium text-sm">{wh.name}</p>
+                        <p className="text-xs text-slate-500 truncate max-w-md">{wh.url}</p>
+                        <div className="flex gap-1 mt-1">{wh.events?.map(e => <Badge key={e} variant="secondary" className="text-xs">{e}</Badge>)}</div>
+                      </div>
+                      <Button size="sm" variant="ghost" className="text-red-500" onClick={async () => {
+                        await axios.delete(`${API}/webhooks/${wh.webhook_id}`, { headers: { Authorization: `Bearer ${token}` } });
+                        setWebhooks(prev => prev.filter(x => x.webhook_id !== wh.webhook_id));
+                        toast.success('Webhook deleted');
+                      }}><Trash2 className="w-4 h-4" /></Button>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* API Docs */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Quick Start Guide</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-slate-900 text-green-400 p-4 rounded-lg text-xs font-mono space-y-2">
+                    <p># n8n.io - Use HTTP Request node</p>
+                    <p>GET {API}/v1/leads</p>
+                    <p>Header: X-API-Key: earnrm_your_key_here</p>
+                    <p></p>
+                    <p># Notion - Sync data via API</p>
+                    <p>POST {API}/v1/notion/sync?entity_type=leads</p>
+                    <p>Header: X-API-Key: earnrm_your_key_here</p>
+                    <p></p>
+                    <p># Webhooks - Register for events</p>
+                    <p>POST {API}/webhooks?url=https://your-n8n.com/webhook/xxx&events=lead.created</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Mobile App Tab */}
