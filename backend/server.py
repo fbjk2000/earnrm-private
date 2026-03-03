@@ -1707,6 +1707,22 @@ async def update_deal(deal_id: str, updates: dict, current_user: dict = Depends(
     deal = await db.deals.find_one({"deal_id": deal_id}, {"_id": 0})
     return deal
 
+@api_router.delete("/deals/{deal_id}")
+async def delete_deal(deal_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a deal"""
+    deal = await db.deals.find_one({"deal_id": deal_id, "organization_id": current_user.get("organization_id")}, {"_id": 0})
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    
+    user_role = current_user.get("role", "member")
+    is_admin = user_role in ["admin", "owner", "super_admin", "deputy_admin"]
+    is_owner = deal.get("assigned_to") == current_user["user_id"] or deal.get("created_by") == current_user["user_id"]
+    if not is_admin and not is_owner:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    
+    await db.deals.delete_one({"deal_id": deal_id})
+    return {"message": "Deal deleted"}
+
 # ==================== TASKS ROUTES ====================
 
 @api_router.get("/tasks")
@@ -2766,7 +2782,7 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     total_tasks = await db.tasks.count_documents({"organization_id": org_id})
     
     pipeline = [
-        {"$match": {"organization_id": org_id}},
+        {"$match": {"organization_id": org_id, "stage": {"$ne": "lost"}}},
         {"$group": {"_id": None, "total": {"$sum": "$value"}}}
     ]
     deal_value_result = await db.deals.aggregate(pipeline).to_list(1)

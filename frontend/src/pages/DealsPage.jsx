@@ -11,13 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { Plus, MoreVertical, Euro, Calendar, Percent, Tag, Filter, X, Users, MessageSquare, LayoutGrid, List, Trash2 } from 'lucide-react';
+import { Plus, MoreVertical, Euro, Calendar, Percent, Tag, Filter, X, Users, MessageSquare, LayoutGrid, List, Trash2, GripVertical } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '../components/ui/dropdown-menu';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const DealsPage = () => {
   const { token, user } = useAuth();
@@ -234,7 +235,19 @@ const DealsPage = () => {
       await axios.delete(`${API}/deals/${dealId}`, { headers, withCredentials: true });
       toast.success('Deal deleted');
       fetchDeals();
-    } catch { toast.error('Failed to delete deal'); }
+    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to delete deal'); }
+  };
+
+  const onDragEnd = async (result) => {
+    if (!result.destination) return;
+    const dealId = result.draggableId;
+    const newStage = result.destination.droppableId;
+    const oldStage = result.source.droppableId;
+    if (newStage === oldStage) return;
+    
+    // Optimistic update
+    setDeals(prev => prev.map(d => d.deal_id === dealId ? { ...d, stage: newStage } : d));
+    await handleStageChange(dealId, newStage);
   };
 
   return (
@@ -637,106 +650,88 @@ const DealsPage = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="overflow-x-auto pb-4">
-            <div className="flex gap-4 min-w-max">
-              {stages.map((stage) => (
-                <div key={stage.id} className="w-72 flex-shrink-0" data-testid={`stage-${stage.id}`}>
-                  <Card className={`border-t-4 ${stage.color}`}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-semibold">{stage.name}</CardTitle>
-                        <span className="text-xs bg-slate-100 px-2 py-1 rounded-full">
-                          {getStageDeals(stage.id).length}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-slate-900">
-                          €{getStageValue(stage.id).toLocaleString()}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Weighted: €{getWeightedValue(stage.id).toLocaleString(undefined, {maximumFractionDigits: 0})}
-                        </p>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
-                      {getStageDeals(stage.id).map((deal) => (
-                        <Card
-                          key={deal.deal_id}
-                          className="bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                          data-testid={`deal-card-${deal.deal_id}`}
-                        >
-                          <CardContent className="p-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-slate-900 text-sm truncate">{deal.name}</p>
-                                <p className="text-lg font-bold text-[#A100FF] mt-1">
-                                  €{(deal.value || 0).toLocaleString()}
-                                </p>
-                                
-                                {/* Probability badge */}
-                                <div className="flex items-center gap-2 mt-2">
-                                  <Badge variant={deal.probability >= 70 ? "default" : deal.probability >= 40 ? "secondary" : "outline"} className="text-xs">
-                                    {deal.probability || 0}% prob
-                                  </Badge>
-                                </div>
-                                
-                                {/* Expected close date */}
-                                {deal.expected_close_date && (
-                                  <div className="flex items-center gap-1 mt-2 text-xs text-slate-500">
-                                    <Calendar className="w-3 h-3" />
-                                    {new Date(deal.expected_close_date).toLocaleDateString()}
-                                  </div>
-                                )}
-                                
-                                {/* Tags */}
-                                {deal.tags && deal.tags.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-2">
-                                    {deal.tags.map((tag, idx) => (
-                                      <Badge key={idx} variant="outline" className="text-xs">
-                                        {tag}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreVertical className="w-4 h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => navigate(`/chat?type=deal&id=${deal.deal_id}`)}>
-                                    <MessageSquare className="w-4 h-4 mr-2" />
-                                    Discuss Deal
-                                  </DropdownMenuItem>
-                                  {stages.map((s) => (
-                                    <DropdownMenuItem
-                                      key={s.id}
-                                      onClick={() => handleStageChange(deal.deal_id, s.id)}
-                                      disabled={s.id === deal.stage}
-                                    >
-                                      Move to {s.name}
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="overflow-x-auto pb-4 -mx-6 px-6" style={{ scrollbarWidth: 'thin' }}>
+              <div className="flex gap-4" style={{ minWidth: `${stages.length * 288}px` }}>
+                {stages.map((stage) => (
+                  <Droppable droppableId={stage.id} key={stage.id}>
+                    {(provided, snapshot) => (
+                      <div className="w-72 flex-shrink-0" data-testid={`stage-${stage.id}`}>
+                        <Card className={`border-t-4 ${stage.color} ${snapshot.isDraggingOver ? 'ring-2 ring-[#A100FF]/30' : ''}`}>
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-sm font-semibold">{stage.name}</CardTitle>
+                              <span className="text-xs bg-slate-100 px-2 py-1 rounded-full">{getStageDeals(stage.id).length}</span>
                             </div>
-                            {deal.notes && (
-                              <p className="text-xs text-slate-500 mt-2 line-clamp-2">{deal.notes}</p>
+                            <div>
+                              <p className="text-lg font-bold text-slate-900">€{getStageValue(stage.id).toLocaleString()}</p>
+                              <p className="text-xs text-slate-500">Weighted: €{getWeightedValue(stage.id).toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                            </div>
+                          </CardHeader>
+                          <CardContent
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className="space-y-3 min-h-[100px] max-h-[calc(100vh-320px)] overflow-y-auto"
+                          >
+                            {getStageDeals(stage.id).map((deal, idx) => (
+                              <Draggable key={deal.deal_id} draggableId={deal.deal_id} index={idx}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow ${snapshot.isDragging ? 'shadow-lg ring-2 ring-[#A100FF]/20' : ''}`}
+                                    data-testid={`deal-card-${deal.deal_id}`}
+                                  >
+                                    <div className="p-3">
+                                      <div className="flex items-start gap-2">
+                                        <div {...provided.dragHandleProps} className="mt-1 cursor-grab active:cursor-grabbing">
+                                          <GripVertical className="w-4 h-4 text-slate-300" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-medium text-slate-900 text-sm truncate">{deal.name}</p>
+                                          <p className="text-lg font-bold text-[#A100FF] mt-1">€{(deal.value || 0).toLocaleString()}</p>
+                                          <div className="flex items-center gap-2 mt-1">
+                                            <Badge variant={deal.probability >= 70 ? "default" : deal.probability >= 40 ? "secondary" : "outline"} className="text-xs">{deal.probability || 0}%</Badge>
+                                            {deal.expected_close_date && (
+                                              <span className="flex items-center gap-1 text-xs text-slate-500"><Calendar className="w-3 h-3" />{new Date(deal.expected_close_date).toLocaleDateString()}</span>
+                                            )}
+                                          </div>
+                                          {deal.tags?.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-2">{deal.tags.map((t, i) => <Badge key={i} variant="outline" className="text-xs">{t}</Badge>)}</div>
+                                          )}
+                                          {deal.notes && <p className="text-xs text-slate-500 mt-2 line-clamp-1">{deal.notes}</p>}
+                                        </div>
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0"><MoreVertical className="w-3.5 h-3.5" /></Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => navigate(`/chat?type=deal&id=${deal.deal_id}`)}><MessageSquare className="w-3.5 h-3.5 mr-2" />Discuss</DropdownMenuItem>
+                                            {stages.map(s => (
+                                              <DropdownMenuItem key={s.id} onClick={() => handleStageChange(deal.deal_id, s.id)} disabled={s.id === deal.stage}>Move to {s.name}</DropdownMenuItem>
+                                            ))}
+                                            <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteDeal(deal.deal_id)}><Trash2 className="w-3.5 h-3.5 mr-2" />Delete</DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                            {getStageDeals(stage.id).length === 0 && (
+                              <p className="text-center text-sm text-slate-400 py-4">Drop deals here</p>
                             )}
                           </CardContent>
                         </Card>
-                      ))}
-                      {getStageDeals(stage.id).length === 0 && (
-                        <p className="text-center text-sm text-slate-400 py-4">No deals</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
+                      </div>
+                    )}
+                  </Droppable>
+                ))}
+              </div>
             </div>
-          </div>
+          </DragDropContext>
         )}
       </div>
     </DashboardLayout>

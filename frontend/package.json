@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^5.0.1",
     "@paypal/react-paypal-js": "^8.9.2",
     "@radix-ui/react-accordion": "^1.2.8",
