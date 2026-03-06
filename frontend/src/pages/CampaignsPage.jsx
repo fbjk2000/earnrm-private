@@ -103,11 +103,11 @@ const CampaignsPage = () => {
 
   const handleSendCampaign = async (campaignId) => {
     try {
-      await axios.post(`${API}/campaigns/${campaignId}/send`, {}, { headers, withCredentials: true });
-      toast.success('Campaign sent via Kit.com!');
+      const res = await axios.post(`${API}/campaigns/${campaignId}/send`, {}, { headers, withCredentials: true });
+      toast.success(res.data.message || 'Campaign sent!');
       fetchCampaigns();
     } catch (error) {
-      toast.error('Failed to send campaign');
+      toast.error(error.response?.data?.detail || 'Failed to send campaign');
     }
   };
 
@@ -240,51 +240,32 @@ const CampaignsPage = () => {
         <Tabs defaultValue="campaigns" className="space-y-6">
           <TabsList data-testid="campaigns-tabs">
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-            <TabsTrigger value="kit">Kit.com Integration</TabsTrigger>
+            <TabsTrigger value="kit">Kit.com (Optional)</TabsTrigger>
             <TabsTrigger value="subscribers">Lead Magnet Subscribers</TabsTrigger>
           </TabsList>
 
           {/* Campaigns Tab */}
           <TabsContent value="campaigns" className="space-y-6">
-            {/* Kit.com Connection Banner */}
-            {kitAccount?.status === 'active' ? (
-              <Card className="bg-emerald-50 border-emerald-100" data-testid="kit-connected-banner">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                        <Check className="w-5 h-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-emerald-900">Connected to Kit.com</p>
-                        <p className="text-sm text-emerald-700">{kitAccount.name || 'Account connected'}</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={fetchKitData}
-                      disabled={kitLoading}
-                    >
-                      <RefreshCw className={`w-4 h-4 mr-2 ${kitLoading ? 'animate-spin' : ''}`} />
-                      Sync
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="bg-purple-50 border-purple-100" data-testid="kit-pending-banner">
-                <CardContent className="p-4">
+            {/* Email Integration Banner */}
+            <Card className="bg-emerald-50 border-emerald-100" data-testid="email-connected-banner">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Mail className="w-5 h-5 text-[#A100FF]" />
+                    <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <Check className="w-5 h-5 text-emerald-600" />
+                    </div>
                     <div>
-                      <p className="text-sm font-medium text-indigo-900">Kit.com Integration {kitLoading ? 'Loading...' : 'Active'}</p>
-                      <p className="text-sm text-purple-700">Send campaigns directly to your Kit.com subscribers.</p>
+                      <p className="text-sm font-medium text-emerald-900">Email Sending Ready</p>
+                      <p className="text-sm text-emerald-700">Campaigns sent via Resend (earnrm.com){kitAccount?.status === 'active' ? ' + Kit.com' : ''}</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                  <Button variant="outline" size="sm" onClick={fetchKitData} disabled={kitLoading}>
+                    <RefreshCw className={`w-4 h-4 mr-2 ${kitLoading ? 'animate-spin' : ''}`} />
+                    Sync
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Campaigns List */}
             {loading ? (
@@ -352,7 +333,7 @@ const CampaignsPage = () => {
                               data-testid={`send-campaign-${index}`}
                             >
                               <Send className="w-4 h-4 mr-2" />
-                              Send via Kit
+                              Send Campaign
                             </Button>
                           )}
                         </div>

@@ -2122,7 +2122,7 @@ async def create_kit_broadcast(broadcast: KitBroadcastCreate):
 
 @api_router.post("/campaigns/{campaign_id}/send")
 async def send_campaign_via_kit(campaign_id: str, current_user: dict = Depends(get_current_user)):
-    """Send a campaign as a Kit.com broadcast"""
+    """Send a campaign as a Kit.com broadcast or via Resend email"""
     campaign = await db.campaigns.find_one(
         {"campaign_id": campaign_id, "organization_id": current_user.get("organization_id")},
         {"_id": 0}
@@ -2130,29 +2130,60 @@ async def send_campaign_via_kit(campaign_id: str, current_user: dict = Depends(g
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
     
-    try:
-        async with httpx.AsyncClient() as client:
-            # Create broadcast in Kit.com
-            response = await client.post(
-                f"{KIT_API_BASE}/broadcasts",
-                json={
-                    "api_secret": KIT_API_SECRET,
-                    "subject": campaign["subject"],
-                    "content": campaign["content"]
-                }
-            )
-            
-            if response.status_code in [200, 201]:
-                # Update campaign status
-                await db.campaigns.update_one(
-                    {"campaign_id": campaign_id},
-                    {"$set": {"status": "sent", "sent_at": datetime.now(timezone.utc).isoformat()}}
+    recipients = campaign.get("recipients", [])
+    
+    # Try Kit.com first if API secret is configured
+    if KIT_API_SECRET:
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{KIT_API_BASE}/broadcasts",
+                    json={
+                        "api_secret": KIT_API_SECRET,
+                        "subject": campaign["subject"],
+                        "content": campaign["content"]
+                    }
                 )
-                return {"success": True, "message": "Campaign sent via Kit.com", "broadcast": response.json()}
-            raise HTTPException(status_code=response.status_code, detail="Failed to send via Kit.com")
-    except httpx.RequestError as e:
-        logger.error(f"Kit send campaign error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to connect to Kit.com")
+                if response.status_code in [200, 201]:
+                    await db.campaigns.update_one(
+                        {"campaign_id": campaign_id},
+                        {"$set": {"status": "sent", "sent_at": datetime.now(timezone.utc).isoformat(), "sent_count": len(recipients)}}
+                    )
+                    return {"success": True, "message": "Campaign sent via Kit.com", "broadcast": response.json()}
+                logger.error(f"Kit.com error: {response.status_code} - {response.text}")
+        except Exception as e:
+            logger.error(f"Kit send error: {e}")
+    
+    # Fallback: send via Resend email
+    if RESEND_API_KEY and recipients:
+        sent = 0
+        for email_addr in recipients:
+            try:
+                resend.emails.send({
+                    "from": SENDER_EMAIL,
+                    "to": [email_addr],
+                    "subject": campaign["subject"],
+                    "html": campaign["content"]
+                })
+                sent += 1
+            except Exception as e:
+                logger.error(f"Resend send error for {email_addr}: {e}")
+        
+        await db.campaigns.update_one(
+            {"campaign_id": campaign_id},
+            {"$set": {"status": "sent", "sent_at": datetime.now(timezone.utc).isoformat(), "sent_count": sent}}
+        )
+        if sent > 0:
+            return {"success": True, "message": f"Campaign sent via email to {sent}/{len(recipients)} recipients"}
+        else:
+            raise HTTPException(status_code=400, detail=f"Could not send to any of {len(recipients)} recipients. Email domain (earnrm.com) may need verification in Resend, or add your Kit.com API Secret for Kit.com delivery.")
+    
+    # Neither Kit nor Resend configured properly
+    if not KIT_API_SECRET and not recipients:
+        raise HTTPException(status_code=400, detail="No recipients added to this campaign. Add leads or contacts first.")
+    if not KIT_API_SECRET:
+        raise HTTPException(status_code=400, detail="Kit.com API Secret not configured. Go to your Kit.com account → Settings → API to get your secret key, then add it as KIT_API_SECRET in the backend configuration.")
+    raise HTTPException(status_code=500, detail="Failed to send campaign. Check Kit.com and Resend configuration.")
 
 # ==================== AI ROUTES ====================
 

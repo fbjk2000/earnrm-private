@@ -1175,6 +1175,18 @@ const SettingsPage = () => {
                 <CardDescription>Connect external services</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="p-4 border border-emerald-200 bg-emerald-50/50 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">R</span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900">Resend</p>
+                      <p className="text-sm text-slate-500">Transactional & campaign emails (earnrm.com)</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-emerald-100 text-emerald-700">Verified</Badge>
+                </div>
                 <div className="p-4 border border-slate-200 rounded-lg flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center">
@@ -1185,7 +1197,7 @@ const SettingsPage = () => {
                       <p className="text-sm text-slate-500">Email marketing automation</p>
                     </div>
                   </div>
-                  <Badge className="bg-emerald-100 text-emerald-700">Connected</Badge>
+                  <Badge className="bg-slate-100 text-slate-600">Optional</Badge>
                 </div>
                 <div className="p-4 border border-slate-200 rounded-lg flex items-center justify-between">
                   <div className="flex items-center gap-3">
