@@ -522,6 +522,33 @@ async def require_super_admin(current_user: dict = Depends(get_current_user)) ->
 
 # ==================== AUTH ROUTES ====================
 
+async def ensure_user_org(current_user: dict) -> str:
+    """Ensure user has an organization. Auto-create a personal one if not."""
+    org_id = current_user.get("organization_id")
+    if org_id:
+        return org_id
+    
+    # Auto-create a personal organization
+    now = datetime.now(timezone.utc)
+    user_name = current_user.get("name", "User")
+    email_domain = current_user.get("email", "").split("@")[1] if "@" in current_user.get("email", "") else None
+    org_id = f"org_{uuid.uuid4().hex[:12]}"
+    
+    org_doc = {
+        "organization_id": org_id,
+        "name": f"{user_name}'s Workspace",
+        "owner_id": current_user["user_id"],
+        "plan": "free",
+        "user_count": 1,
+        "max_free_users": 3,
+        "max_users": 3,
+        "email_domain": email_domain if email_domain and email_domain not in ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com"] else None,
+        "created_at": now.isoformat()
+    }
+    await db.organizations.insert_one(org_doc)
+    await db.users.update_one({"user_id": current_user["user_id"]}, {"$set": {"organization_id": org_id, "role": "owner"}})
+    return org_id
+
 @api_router.post("/auth/register")
 async def register(user_data: UserCreate, response: Response):
     existing = await db.users.find_one({"email": user_data.email}, {"_id": 0})
@@ -836,6 +863,7 @@ async def create_organization(name: str, current_user: dict = Depends(get_curren
 @api_router.get("/organizations/current")
 async def get_current_organization(current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
+        await ensure_user_org(current_user)
         return None
     org = await db.organizations.find_one(
         {"organization_id": current_user["organization_id"]},
@@ -870,7 +898,8 @@ class PipelineCreate(BaseModel):
 async def get_organization_settings(current_user: dict = Depends(get_current_user)):
     """Get organization-specific settings (deal stages, task stages, etc.)"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     org = await db.organizations.find_one(
         {"organization_id": current_user["organization_id"]},
@@ -907,7 +936,8 @@ async def update_organization_settings(
 ):
     """Update organization settings (owner/admin only)"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     # Check if user is owner or admin
     if current_user.get("role") not in ["owner", "admin", "super_admin"]:
@@ -934,7 +964,8 @@ async def update_organization_settings(
 async def get_organization_pipelines(current_user: dict = Depends(get_current_user)):
     """Get all pipelines for the organization"""
     if not current_user.get("organization_id"):
-        return {"pipelines": []}
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     org = await db.organizations.find_one(
         {"organization_id": current_user["organization_id"]},
@@ -949,7 +980,8 @@ async def create_pipeline(
 ):
     """Create a new pipeline (owner/admin only)"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     if current_user.get("role") not in ["owner", "admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="Only owners/admins can create pipelines")
@@ -985,7 +1017,8 @@ async def update_pipeline(
 ):
     """Update a pipeline (owner/admin only)"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     if current_user.get("role") not in ["owner", "admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="Only owners/admins can update pipelines")
@@ -1006,7 +1039,8 @@ async def update_pipeline(
 async def delete_pipeline(pipeline_id: str, current_user: dict = Depends(get_current_user)):
     """Delete a pipeline (owner/admin only)"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     if current_user.get("role") not in ["owner", "admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="Only owners/admins can delete pipelines")
@@ -1028,7 +1062,8 @@ async def update_member_role(
 ):
     """Update a team member's role (owner only can transfer ownership)"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     valid_roles = ["member", "admin", "owner"]
     if role not in valid_roles:
@@ -1083,7 +1118,8 @@ async def generate_invite_link(
 ):
     """Generate a shareable invite link for the organization"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     # Only owner/admin can invite
     if current_user.get("role") not in ["owner", "admin", "super_admin"]:
@@ -1131,7 +1167,8 @@ async def send_email_invites(
 ):
     """Send email invitations to join the organization"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     # Only owner/admin can invite
     if current_user.get("role") not in ["owner", "admin", "super_admin"]:
@@ -1241,7 +1278,8 @@ async def import_invites_csv(
 ):
     """Import team members via CSV file (columns: email, name)"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     # Only owner/admin can invite
     if current_user.get("role") not in ["owner", "admin", "super_admin"]:
@@ -1273,7 +1311,8 @@ async def import_invites_csv(
 async def get_pending_invites(current_user: dict = Depends(get_current_user)):
     """Get all pending invitations for the organization"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     now = datetime.now(timezone.utc)
     
@@ -1300,7 +1339,8 @@ async def revoke_invite(
 ):
     """Revoke a pending invitation"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     result = await db.invites.update_one(
         {"invite_id": invite_id, "organization_id": current_user["organization_id"]},
@@ -1350,7 +1390,8 @@ async def validate_invite(invite_code: str):
 async def enroll_as_affiliate(current_user: dict = Depends(get_current_user)):
     """Self-enroll as an affiliate (if organization has affiliate enabled)"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     # Check if org has affiliate enabled
     org = await db.organizations.find_one(
@@ -1434,7 +1475,8 @@ async def get_leads(
     current_user: dict = Depends(get_current_user)
 ):
     if not current_user.get("organization_id"):
-        return []
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     query = {"organization_id": current_user["organization_id"]}
     if status:
@@ -1448,7 +1490,8 @@ async def get_leads(
 @api_router.post("/leads")
 async def create_lead(lead_data: LeadCreate, current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="Join an organization first")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     lead_id = f"lead_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
@@ -1502,7 +1545,8 @@ async def delete_lead(lead_id: str, current_user: dict = Depends(get_current_use
 @api_router.post("/leads/import-csv")
 async def import_leads_csv(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="Join an organization first")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     content = await file.read()
     decoded = content.decode('utf-8')
@@ -1542,7 +1586,8 @@ async def import_leads_csv(file: UploadFile = File(...), current_user: dict = De
 @api_router.get("/companies")
 async def get_companies(current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
-        return []
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     companies = await db.companies.find(
         {"organization_id": current_user["organization_id"]},
@@ -1553,7 +1598,8 @@ async def get_companies(current_user: dict = Depends(get_current_user)):
 @api_router.post("/companies")
 async def create_company(company_data: CompanyCreate, current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="Join an organization first")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     company_id = f"company_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
@@ -1590,7 +1636,8 @@ async def get_deals(
     current_user: dict = Depends(get_current_user)
 ):
     if not current_user.get("organization_id"):
-        return []
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     query = {"organization_id": current_user["organization_id"]}
     if stage:
@@ -1607,7 +1654,8 @@ async def get_deals(
 async def get_deal_tags(current_user: dict = Depends(get_current_user)):
     """Get all unique tags used in deals"""
     if not current_user.get("organization_id"):
-        return {"tags": []}
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     pipeline = [
         {"$match": {"organization_id": current_user["organization_id"]}},
@@ -1621,7 +1669,8 @@ async def get_deal_tags(current_user: dict = Depends(get_current_user)):
 @api_router.post("/deals")
 async def create_deal(deal_data: DealCreate, current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="Join an organization first")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     deal_id = f"deal_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
@@ -1732,7 +1781,8 @@ async def get_tasks(
     current_user: dict = Depends(get_current_user)
 ):
     if not current_user.get("organization_id"):
-        return []
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     query = {"organization_id": current_user["organization_id"]}
     if status:
@@ -1746,7 +1796,8 @@ async def get_tasks(
 @api_router.post("/tasks")
 async def create_task(task_data: TaskCreate, current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="Join an organization first")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     task_id = f"task_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
@@ -1796,7 +1847,8 @@ async def delete_task(task_id: str, current_user: dict = Depends(get_current_use
 @api_router.get("/campaigns")
 async def get_campaigns(current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
-        return []
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     campaigns = await db.campaigns.find(
         {"organization_id": current_user["organization_id"]},
@@ -1807,7 +1859,8 @@ async def get_campaigns(current_user: dict = Depends(get_current_user)):
 @api_router.post("/campaigns")
 async def create_campaign(campaign_data: CampaignCreate, current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="Join an organization first")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     campaign_id = f"campaign_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
@@ -2797,14 +2850,8 @@ async def stripe_webhook(request: Request):
 @api_router.get("/dashboard/stats")
 async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
-        return {
-            "total_leads": 0,
-            "total_deals": 0,
-            "total_tasks": 0,
-            "deal_value": 0,
-            "recent_leads": [],
-            "recent_tasks": []
-        }
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     org_id = current_user["organization_id"]
     
@@ -3659,7 +3706,8 @@ async def get_stages(current_user: dict = Depends(get_current_user)):
 async def get_pipeline_report(current_user: dict = Depends(get_current_user)):
     """Get pipeline report - admins see all, users see only their own deals"""
     if not current_user.get("organization_id"):
-        return {"stages": [], "total_value": 0, "deals": []}
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     org_id = current_user["organization_id"]
     user_role = current_user.get("role", "member")
@@ -4285,7 +4333,8 @@ class ChatChannelCreate(BaseModel):
 async def get_chat_channels(current_user: dict = Depends(get_current_user)):
     """Get all chat channels for the organization"""
     if not current_user.get("organization_id"):
-        return {"channels": []}
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     channels = await db.chat_channels.find(
         {"organization_id": current_user["organization_id"], "archived": {"$ne": True}},
@@ -4322,7 +4371,8 @@ async def create_chat_channel(
 ):
     """Create a new chat channel"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     channel_id = f"channel_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
@@ -4351,7 +4401,8 @@ async def get_or_create_contextual_channel(
 ):
     """Get or create a contextual chat channel for a lead, deal, task, or company"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     valid_types = ["lead", "deal", "task", "company"]
     if context_type not in valid_types:
@@ -4472,7 +4523,8 @@ async def send_chat_message(
 ):
     """Send a message to a channel"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="No organization")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     message_id = f"msg_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
@@ -4712,7 +4764,8 @@ class ContactCreate(BaseModel):
 @api_router.get("/contacts")
 async def get_contacts(current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
-        return []
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     contacts = await db.contacts.find(
         {"organization_id": current_user["organization_id"]},
         {"_id": 0}
@@ -4722,7 +4775,8 @@ async def get_contacts(current_user: dict = Depends(get_current_user)):
 @api_router.post("/contacts")
 async def create_contact(data: ContactCreate, current_user: dict = Depends(get_current_user)):
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="Join an organization first")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     contact_id = f"contact_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
@@ -4773,7 +4827,8 @@ async def delete_contact(contact_id: str, current_user: dict = Depends(get_curre
 async def import_contacts_csv(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     """Import contacts from CSV"""
     if not current_user.get("organization_id"):
-        raise HTTPException(status_code=400, detail="Join an organization first")
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
     
     content = await file.read()
     text = content.decode('utf-8-sig')
