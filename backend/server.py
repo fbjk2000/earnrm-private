@@ -5647,6 +5647,19 @@ async def api_get_tasks(limit: int = 100, status: Optional[str] = None, user: di
     tasks = await db.tasks.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
     return {"data": tasks, "count": len(tasks)}
 
+@api_router.post("/v1/tasks")
+async def api_create_task(task: TaskCreate, user: dict = Depends(get_api_key_user)):
+    """External API: Create a task"""
+    task_id = f"task_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    doc = {"task_id": task_id, "organization_id": user.get("organization_id"), **task.model_dump(), "created_by": user["user_id"], "created_at": now.isoformat(), "updated_at": now.isoformat()}
+    if doc.get("due_date"):
+        doc["due_date"] = doc["due_date"].isoformat()
+    await db.tasks.insert_one(doc)
+    doc.pop('_id', None)
+    await fire_webhooks(user.get("organization_id", ""), "task.created", doc)
+    return doc
+
 # ==================== WEBHOOKS ====================
 
 async def fire_webhooks(org_id: str, event: str, data: dict):
