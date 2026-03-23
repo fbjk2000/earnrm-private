@@ -28,6 +28,7 @@
 - **Tasks** — Kanban board with assignee management, admin visibility, due dates, project linking
 - **Projects** — Group tasks under deals, progress tracking, auto-created project chat channels, team members
 - **Companies** — Target company management with industry, size, and contact tracking
+- **Calendar** — Month/Week views with scheduled calls, task due dates, deal closes, custom events, Google Calendar sync
 - **Campaigns** — Email campaigns via Resend + Kit.com, AI-powered drafting, bulk recipient management
 
 ### AI Features (GPT-5.2)
@@ -42,6 +43,7 @@
 - **Outbound Calling** — Twilio integration for direct calls from the CRM
 - **Inbound Calls** — Auto-greeting, voicemail recording, caller identification
 - **Call Scheduling** — Calendar-based scheduling with configurable reminders
+- **Google Calendar** — OAuth integration, two-way sync, events displayed in calendar view
 - **Team Chat** — Real-time messaging with channels: General, Lead, Deal, Project
 - **Chat Archive** — Admins can archive channels, collapsible sidebar sections
 
@@ -98,6 +100,8 @@ FRONTEND_URL="https://yourdomain.com"
 TWILIO_ACCOUNT_SID="your_twilio_sid"
 TWILIO_AUTH_TOKEN="your_twilio_token"
 TWILIO_PHONE_FROM="+1234567890"
+GOOGLE_CLIENT_ID="your_google_client_id"
+GOOGLE_CLIENT_SECRET="your_google_client_secret"
 ```
 
 **Frontend** (`/frontend/.env`):
@@ -420,6 +424,48 @@ POST /api/ai/draft-email?lead_id=xxx&purpose=introduction&tone=professional
 
 ---
 
+### Calendar
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/calendar/events` | All events (calls, tasks, deals, custom, Google) |
+| POST | `/api/calendar/events` | Create custom event. Params: `title`, `date`, `notes`, `color` |
+| DELETE | `/api/calendar/events/{event_id}` | Delete custom event |
+
+#### Calendar Event Types
+| Type | Source | Color |
+|------|--------|-------|
+| `call` | Scheduled calls | Purple `#A100FF` |
+| `task` | Tasks with due dates | Amber `#f59e0b` (green if done) |
+| `deal` | Deals with close dates | Indigo `#6366f1` |
+| `event` | Custom events | Configurable |
+| `google` | Google Calendar sync | Blue `#4285f4` |
+
+---
+
+### Google Calendar Integration
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/calendar/google/auth-url` | Get Google OAuth consent URL |
+| GET | `/api/auth/google/callback` | OAuth callback (automatic redirect) |
+| GET | `/api/calendar/google/status` | Check if connected |
+| GET | `/api/calendar/google/events` | Fetch Google Calendar events (30 days past, 90 days future) |
+| DELETE | `/api/calendar/google/disconnect` | Disconnect Google Calendar |
+
+#### Setup
+1. Create OAuth 2.0 credentials at [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Enable **Google Calendar API**
+3. Set authorized redirect URI: `https://yourdomain.com/api/auth/google/callback`
+4. Add to backend `.env`:
+```env
+GOOGLE_CLIENT_ID="your_client_id"
+GOOGLE_CLIENT_SECRET="your_client_secret"
+```
+5. Users connect via **Calendar page → Connect Google** or **Settings → Integrations**
+
+---
+
 ### Chat
 
 | Method | Endpoint | Description |
@@ -606,6 +652,18 @@ Returns data formatted for Notion database API.
 ### Resend
 Primary email service. Configure `RESEND_API_KEY` and `SENDER_EMAIL` in backend `.env`.
 
+### Google Calendar
+Two-way calendar sync. Configure in [Google Cloud Console](https://console.cloud.google.com):
+1. Enable **Google Calendar API**
+2. Create **OAuth 2.0 Client ID** (Web application)
+3. Add redirect URI: `https://yourdomain.com/api/auth/google/callback`
+4. Add to backend `.env`:
+```env
+GOOGLE_CLIENT_ID="your_client_id"
+GOOGLE_CLIENT_SECRET="your_client_secret"
+```
+Users connect via **Calendar page → Connect Google** button.
+
 ### Twilio
 Configure `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_FROM` in backend `.env`.
 Set inbound webhook: `https://yourdomain.com/api/webhooks/twilio/inbound`
@@ -677,6 +735,9 @@ DELETE /api/api-keys/{key_id}
 | `payment_transactions` | Stripe transactions |
 | `contact_requests` | Support form submissions |
 | `notifications` | User notifications |
+| `calendar_events` | Custom calendar events |
+| `google_calendar_tokens` | Google OAuth tokens for Calendar sync |
+| `google_calendar_states` | OAuth state verification |
 
 ---
 
