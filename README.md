@@ -240,6 +240,8 @@ GET /api/auth/me
 
 ### Deals
 
+Kanban pipeline with drag-and-drop between stages, plus a list view toggle. Lost deals excluded from pipeline totals.
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/deals` | List deals. Params: `stage`, `tag`, `assigned_to` |
@@ -302,11 +304,13 @@ GET /api/auth/me
 
 ### Tasks
 
+Kanban board with drag-and-drop between columns (To Do, In Progress, Done). Click any task card to view full details or edit.
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/tasks` | List tasks. Params: `status`, `assigned_to` |
 | POST | `/api/tasks` | Create task |
-| PUT | `/api/tasks/{task_id}` | Update task |
+| PUT | `/api/tasks/{task_id}` | Update task (title, description, status, priority, due_date, assigned_to) |
 | DELETE | `/api/tasks/{task_id}` | Delete task |
 
 #### Create Task
