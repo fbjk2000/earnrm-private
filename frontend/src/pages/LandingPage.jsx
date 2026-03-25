@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -8,6 +8,99 @@ import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
+const LaunchEdition = () => {
+  const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '' });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const end = new Date("2026-06-30T22:59:59Z").getTime();
+    const update = () => {
+      const diff = Math.max(0, end - Date.now());
+      setTime({
+        days: Math.floor(diff / 86400000),
+        hours: Math.floor((diff / 3600000) % 24),
+        minutes: Math.floor((diff / 60000) % 60),
+        seconds: Math.floor((diff / 1000) % 60)
+      });
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const pad = (n) => String(n).padStart(2, '0');
+
+  const handleCheckout = async () => {
+    if (!form.email) { toast.error('Please enter your email'); return; }
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API}/checkout/launch-edition`, {
+        origin_url: window.location.origin, name: form.name, email: form.email
+      });
+      window.location.href = res.data.checkout_url;
+    } catch (e) { toast.error(e.response?.data?.detail || 'Checkout failed'); setLoading(false); }
+  };
+
+  return (
+    <section className="py-16 px-6">
+      <div className="max-w-5xl mx-auto">
+        <div className="rounded-3xl overflow-hidden" style={{ background: 'radial-gradient(circle at top right, rgba(99,102,241,0.12), transparent 28%), linear-gradient(180deg, #0f172a 0%, #111827 100%)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 20px 50px rgba(2,6,23,0.22)' }}>
+          <div className="grid md:grid-cols-[1.5fr_0.95fr] gap-8 p-8 md:p-10">
+            {/* Left */}
+            <div>
+              <div className="inline-flex items-center gap-2 bg-white/[0.08] rounded-full px-3 py-1.5 mb-6">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D4A853]" />
+                <span className="text-xs font-bold tracking-wider uppercase text-white/90">Limited time offer</span>
+              </div>
+              <h3 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-1" style={{ fontFamily: "'Syne'" }}>Launch Edition</h3>
+              <p className="text-white text-xl font-bold mb-4">EUR 4,999 <span className="text-white/70 font-medium text-base ml-1">one-time</span></p>
+              <p className="text-white/90 text-base leading-relaxed mb-3">
+                Get the existing earnrm app with <strong>unlimited users</strong> and deploy it on <strong>your own hosting</strong>.
+              </p>
+              <p className="text-white/70 text-sm leading-relaxed mb-5">
+                Save 2 to 3 months of setup and iteration, reduce unnecessary AI credit spend, and launch faster with a proven CRM foundation shaped by real implementation experience.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {['Unlimited users', 'Self-hosted', 'One-time payment', 'Proven CRM foundation'].map(h => (
+                  <span key={h} className="inline-flex items-center px-3 py-2 rounded-full bg-white/[0.07] text-white/90 text-sm font-semibold border border-white/[0.06]">{h}</span>
+                ))}
+              </div>
+            </div>
+            {/* Right */}
+            <div className="flex flex-col justify-center">
+              <p className="text-white/70 text-xs font-bold tracking-wider uppercase text-center mb-3">Offer expires in</p>
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {[['days', time.days], ['hours', time.hours], ['minutes', time.minutes], ['seconds', time.seconds]].map(([label, val]) => (
+                  <div key={label} className="bg-white/[0.07] border border-white/[0.08] rounded-2xl p-3 text-center backdrop-blur-sm">
+                    <span className="block text-white text-2xl font-extrabold tracking-tight">{pad(val)}</span>
+                    <small className="block text-white/60 text-[0.68rem] font-bold tracking-wider uppercase mt-1">{label}</small>
+                  </div>
+                ))}
+              </div>
+              <p className="text-white/70 text-sm text-center mb-4">Ends June 30, 2026 at 23:59 BST</p>
+              {!showForm ? (
+                <button onClick={() => setShowForm(true)} className="w-full min-h-[52px] rounded-xl bg-white text-[#0f172a] font-bold text-base py-3 hover:opacity-95 transition-opacity shadow-lg" data-testid="launch-edition-cta">
+                  Book a Setup Call
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Your name" className="bg-white/10 border-white/10 text-white placeholder:text-white/40" />
+                  <Input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="Your email" required className="bg-white/10 border-white/10 text-white placeholder:text-white/40" />
+                  <button onClick={handleCheckout} disabled={loading} className="w-full min-h-[52px] rounded-xl bg-[#D4A853] text-[#0f172a] font-bold text-base py-3 hover:opacity-95 transition-opacity shadow-lg disabled:opacity-50" data-testid="launch-checkout-btn">
+                    {loading ? 'Redirecting to checkout...' : 'Proceed to Checkout (EUR 4,999)'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const LandingPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLeadMagnet, setShowLeadMagnet] = useState(false);
@@ -15,6 +108,24 @@ const LandingPage = () => {
   const [leadMagnetName, setLeadMagnetName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [downloadReady, setDownloadReady] = useState(false);
+
+  // Handle Launch Edition return from Stripe
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('launch') === 'success') {
+      const sessionId = params.get('session_id');
+      const dealId = params.get('deal_id');
+      if (sessionId && dealId) {
+        axios.get(`${API}/checkout/launch-edition/verify?session_id=${sessionId}&deal_id=${dealId}`)
+          .then(res => {
+            if (res.data.status === 'paid') toast.success('Payment confirmed! We will be in touch about your Launch Edition setup.');
+            else toast.info('Payment is being processed. We will confirm shortly.');
+          })
+          .catch(() => toast.info('We received your order. Confirmation coming soon.'));
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const handleLeadMagnetSubmit = async (e) => {
     e.preventDefault();
@@ -257,6 +368,9 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+
+      {/* Launch Edition */}
+      <LaunchEdition />
 
       {/* Final CTA */}
       <section className="py-24 px-6 bg-[#3B0764]">

@@ -1006,6 +1006,22 @@ Set inbound webhook: `https://yourdomain.com/api/webhooks/twilio/inbound`
 ### Stripe
 Configure `STRIPE_API_KEY` in backend `.env`.
 
+### Launch Edition Checkout
+
+One-time EUR 4,999 purchase. Creates a deal, lead, and Stripe checkout session. On payment success, deal moves to "won" and a delivery task is auto-created.
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/checkout/launch-edition` | Public | Start checkout. Body: `{ "origin_url", "name", "email" }` |
+| GET | `/api/checkout/launch-edition/verify` | Public | Verify payment. Params: `session_id`, `deal_id` |
+
+**Flow:**
+1. Buyer clicks "Book a Setup Call" on landing page
+2. Enters name and email, clicks checkout
+3. Redirected to Stripe for EUR 4,999 payment
+4. Deal created as "negotiation" (open opportunity)
+5. On payment success: deal updated to "won", delivery task created, lead marked qualified
+
 ---
 
 ## API Keys

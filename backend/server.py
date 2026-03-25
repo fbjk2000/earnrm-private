@@ -3106,7 +3106,7 @@ async def create_stripe_checkout(
     if "crypto" in billing_cycle:
         payment_methods = ["card", "crypto"]
         currency = "usd"
-        amount = amount * 1.1  # Convert EUR to USD estimate
+        amount = amount * 1.1
     
     checkout_request = CheckoutSessionRequest(
         amount=round(amount, 2),
@@ -3182,6 +3182,82 @@ async def get_payment_status(session_id: str, current_user: dict = Depends(get_c
         "amount": status.amount_total / 100,
         "currency": status.currency
     }
+
+
+@api_router.post("/checkout/launch-edition")
+async def launch_edition_checkout(request: Request):
+    """Public checkout for Launch Edition (4999 EUR one-time)"""
+    from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+    body = await request.json()
+    origin_url = body.get("origin_url", "")
+    buyer_name = body.get("name", "")
+    buyer_email = body.get("email", "")
+    api_key = os.environ.get("STRIPE_API_KEY")
+    host_url = str(request.base_url).rstrip("/")
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
+    deal_id = f"deal_{uuid.uuid4().hex[:12]}"
+    success_url = f"{origin_url}/?launch=success&session_id={{CHECKOUT_SESSION_ID}}&deal_id={deal_id}"
+    cancel_url = f"{origin_url}/?launch=cancelled&deal_id={deal_id}"
+    checkout_request = CheckoutSessionRequest(
+        amount=4999.00, currency="eur", success_url=success_url, cancel_url=cancel_url,
+        metadata={"product": "launch_edition", "deal_id": deal_id, "buyer_name": buyer_name, "buyer_email": buyer_email},
+        payment_methods=["card"]
+    )
+    session = await stripe_checkout.create_checkout_session(checkout_request)
+    now = datetime.now(timezone.utc)
+    super_admin = await db.users.find_one({"email": SUPER_ADMIN_EMAIL}, {"_id": 0})
+    org_id = super_admin.get("organization_id") if super_admin else None
+    admin_uid = super_admin.get("user_id") if super_admin else None
+    await db.deals.insert_one({
+        "deal_id": deal_id, "organization_id": org_id,
+        "name": f"Launch Edition: {buyer_name or buyer_email or 'Website'}", "value": 4999.0, "currency": "EUR",
+        "stage": "negotiation", "probability": 60, "tags": ["launch-edition", "one-time"],
+        "notes": f"Buyer: {buyer_name} ({buyer_email}). Checkout initiated.",
+        "assigned_to": admin_uid, "created_by": admin_uid, "created_at": now.isoformat(), "updated_at": now.isoformat()
+    })
+    if buyer_email and org_id:
+        name_parts = buyer_name.split(" ", 1) if buyer_name else [buyer_email.split("@")[0], ""]
+        await db.leads.insert_one({
+            "lead_id": f"lead_{uuid.uuid4().hex[:12]}", "organization_id": org_id,
+            "first_name": name_parts[0], "last_name": name_parts[1] if len(name_parts) > 1 else "",
+            "email": buyer_email, "source": "launch_edition", "status": "qualified",
+            "notes": "Initiated Launch Edition checkout (EUR 4,999)", "ai_score": None,
+            "assigned_to": admin_uid, "created_by": admin_uid, "created_at": now.isoformat(), "updated_at": now.isoformat()
+        })
+    await db.payment_transactions.insert_one({
+        "transaction_id": f"txn_{uuid.uuid4().hex[:12]}", "deal_id": deal_id, "session_id": session.session_id,
+        "product": "launch_edition", "amount": 4999.0, "currency": "eur", "status": "pending",
+        "buyer_name": buyer_name, "buyer_email": buyer_email, "created_at": now.isoformat()
+    })
+    return {"checkout_url": session.url, "session_id": session.session_id, "deal_id": deal_id}
+
+@api_router.get("/checkout/launch-edition/verify")
+async def verify_launch_edition(session_id: str, deal_id: str):
+    """Verify Launch Edition payment and update deal to won"""
+    from emergentintegrations.payments.stripe.checkout import StripeCheckout
+    api_key = os.environ.get("STRIPE_API_KEY")
+    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url="")
+    try:
+        status = await stripe_checkout.get_checkout_status(session_id)
+        if status.payment_status == "paid":
+            now = datetime.now(timezone.utc)
+            await db.deals.update_one({"deal_id": deal_id}, {"$set": {"stage": "won", "probability": 100, "updated_at": now.isoformat()}})
+            await db.payment_transactions.update_one({"deal_id": deal_id}, {"$set": {"status": "completed", "payment_status": "paid"}})
+            super_admin = await db.users.find_one({"email": SUPER_ADMIN_EMAIL}, {"_id": 0})
+            admin_uid = super_admin.get("user_id") if super_admin else None
+            org_id = super_admin.get("organization_id") if super_admin else None
+            await db.tasks.insert_one({
+                "task_id": f"task_{uuid.uuid4().hex[:12]}", "organization_id": org_id,
+                "title": f"Deliver Launch Edition: {deal_id}", "description": "Launch Edition purchased. Deliver self-hosted CRM package, setup call, deployment guide, and handover.",
+                "status": "todo", "priority": "high", "assigned_to": admin_uid, "related_deal_id": deal_id,
+                "created_by": admin_uid, "created_at": now.isoformat(), "updated_at": now.isoformat()
+            })
+            return {"status": "paid", "deal_id": deal_id, "message": "Payment confirmed. Delivery task created."}
+        return {"status": status.payment_status, "deal_id": deal_id}
+    except Exception as e:
+        logger.error(f"Launch edition verify error: {e}")
+        return {"status": "error", "detail": str(e)}
 
 @api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
