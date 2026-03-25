@@ -22,6 +22,8 @@ import {
   Phone
 } from 'lucide-react';
 
+const ICONS = { LayoutDashboard, Users, Target, CheckSquare, Building, Mail, Settings, Shield, MessageSquare, Phone, BarChart3, HelpCircle };
+
 const DashboardLayout = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -31,22 +33,23 @@ const DashboardLayout = ({ children }) => {
   const isAdmin = user?.role === 'super_admin' || user?.role === 'deputy_admin' || user?.email === 'florian@unyted.world';
 
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
-    { path: '/leads', label: 'Leads', icon: <Users className="w-5 h-5" /> },
-    { path: '/contacts', label: 'Contacts', icon: <Users className="w-5 h-5" /> },
-    { path: '/deals', label: 'Deals', icon: <Target className="w-5 h-5" /> },
-    { path: '/tasks', label: 'Tasks', icon: <CheckSquare className="w-5 h-5" /> },
-    { path: '/projects', label: 'Projects', icon: <CheckSquare className="w-5 h-5" /> },
-    { path: '/pipeline', label: 'Pipeline', icon: <BarChart3 className="w-5 h-5" /> },
-    { path: '/companies', label: 'Companies', icon: <Building className="w-5 h-5" /> },
-    { path: '/campaigns', label: 'Campaigns', icon: <Mail className="w-5 h-5" /> },
-    { path: '/chat', label: 'Team Chat', icon: <MessageSquare className="w-5 h-5" /> },
-    { path: '/calls', label: 'Calls', icon: <Phone className="w-5 h-5" /> },
-    { path: '/calendar', label: 'Calendar', icon: <CheckSquare className="w-5 h-5" /> },
+    { path: '/dashboard', label: 'Dashboard', iconKey: 'LayoutDashboard' },
+    { path: '/leads', label: 'Leads', iconKey: 'Users' },
+    { path: '/contacts', label: 'Contacts', iconKey: 'Users' },
+    { path: '/deals', label: 'Deals', iconKey: 'Target' },
+    { path: '/tasks', label: 'Tasks', iconKey: 'CheckSquare' },
+    { path: '/projects', label: 'Projects', iconKey: 'CheckSquare' },
+    { path: '/pipeline', label: 'Pipeline', iconKey: 'BarChart3' },
+    { path: '/companies', label: 'Companies', iconKey: 'Building' },
+    { path: '/campaigns', label: 'Campaigns', iconKey: 'Mail' },
+    { path: '/chat', label: 'Team Chat', iconKey: 'MessageSquare' },
+    { path: '/calls', label: 'Calls', iconKey: 'Phone' },
+    { path: '/calendar', label: 'Calendar', iconKey: 'CheckSquare' },
+    { path: '/bookings', label: 'Bookings', iconKey: 'Users' },
     { divider: true },
-    { path: '/admin', label: 'Admin', icon: <Shield className="w-5 h-5" />, adminOnly: true },
-    { path: '/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
-    { path: '/support', label: 'Support', icon: <HelpCircle className="w-5 h-5" /> },
+    { path: '/admin', label: 'Admin', iconKey: 'Shield', adminOnly: true },
+    { path: '/settings', label: 'Settings', iconKey: 'Settings' },
+    { path: '/support', label: 'Support', iconKey: 'HelpCircle' },
   ];
 
   const handleLogout = async () => {
@@ -123,7 +126,7 @@ const DashboardLayout = ({ children }) => {
                     }`}
                     data-testid={`nav-${item.label.toLowerCase()}`}
                   >
-                    {item.icon}
+                    {(() => { const Icon = ICONS[item.iconKey]; return Icon ? <Icon className="w-5 h-5" /> : null; })()}
                     <span>{item.label}</span>
                     {isActive(item.path) && (
                       <ChevronRight className="w-4 h-4 ml-auto" />

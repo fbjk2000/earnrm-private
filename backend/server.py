@@ -6123,6 +6123,349 @@ async def api_docs():
         }
     }
 
+# ==================== BOOKING ENGINE ====================
+
+class BookingSettings(BaseModel):
+    meeting_durations: List[int] = [15, 30, 60]  # minutes
+    working_hours_start: str = "09:00"
+    working_hours_end: str = "17:00"
+    working_days: List[int] = [0, 1, 2, 3, 4]  # Mon-Fri
+    buffer_minutes: int = 15
+    timezone: str = "Europe/London"
+    custom_fields: List[dict] = []
+    welcome_message: str = "Book a meeting with us"
+
+@api_router.get("/booking/settings")
+async def get_booking_settings(current_user: dict = Depends(get_current_user)):
+    settings = await db.booking_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    if not settings:
+        settings = BookingSettings().model_dump()
+        settings["user_id"] = current_user["user_id"]
+    return settings
+
+@api_router.put("/booking/settings")
+async def update_booking_settings(settings: BookingSettings, current_user: dict = Depends(get_current_user)):
+    doc = settings.model_dump()
+    doc["user_id"] = current_user["user_id"]
+    doc["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.booking_settings.update_one({"user_id": current_user["user_id"]}, {"$set": doc}, upsert=True)
+    return doc
+
+@api_router.get("/booking/{user_id}/available")
+async def get_available_slots(user_id: str, date: str, duration: int = 30):
+    """Public endpoint: get available time slots for a date"""
+    settings = await db.booking_settings.find_one({"user_id": user_id}, {"_id": 0})
+    if not settings:
+        settings = BookingSettings().model_dump()
+    
+    from datetime import time as dt_time
+    target_date = datetime.fromisoformat(date.replace('Z', '+00:00')).date() if 'T' in date else datetime.strptime(date, "%Y-%m-%d").date()
+    
+    weekday = target_date.weekday()
+    if weekday not in settings.get("working_days", [0,1,2,3,4]):
+        return {"slots": [], "date": str(target_date)}
+    
+    start_h, start_m = map(int, settings.get("working_hours_start", "09:00").split(":"))
+    end_h, end_m = map(int, settings.get("working_hours_end", "17:00").split(":"))
+    buffer = settings.get("buffer_minutes", 15)
+    
+    # Get existing bookings for this date
+    day_start = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=timezone.utc).isoformat()
+    day_end = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, tzinfo=timezone.utc).isoformat()
+    
+    bookings = await db.bookings.find({"host_user_id": user_id, "status": {"$ne": "cancelled"}, "start_time": {"$gte": day_start, "$lte": day_end}}, {"_id": 0}).to_list(50)
+    booked_times = [(b["start_time"], b["end_time"]) for b in bookings]
+    
+    slots = []
+    current = datetime(target_date.year, target_date.month, target_date.day, start_h, start_m, tzinfo=timezone.utc)
+    end_time = datetime(target_date.year, target_date.month, target_date.day, end_h, end_m, tzinfo=timezone.utc)
+    
+    while current + timedelta(minutes=duration) <= end_time:
+        slot_end = current + timedelta(minutes=duration)
+        # Check if slot conflicts with existing bookings
+        conflict = False
+        for bs, be in booked_times:
+            if current.isoformat() < be and slot_end.isoformat() > bs:
+                conflict = True
+                break
+        if not conflict:
+            slots.append({"start": current.isoformat(), "end": slot_end.isoformat(), "display": current.strftime("%H:%M")})
+        current += timedelta(minutes=duration + buffer)
+    
+    return {"slots": slots, "date": str(target_date), "duration": duration}
+
+@api_router.post("/booking/{user_id}/book")
+async def create_booking(user_id: str, name: str, email: str, start_time: str, duration: int = 30, notes: Optional[str] = None, phone: Optional[str] = None):
+    """Public endpoint: book a meeting"""
+    booking_id = f"bk_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+    end_dt = start_dt + timedelta(minutes=duration)
+    
+    # Get host info
+    host = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+    host_name = host.get("name", "Team") if host else "Team"
+    host_email = host.get("email", "") if host else ""
+    org_id = host.get("organization_id") if host else None
+    
+    doc = {
+        "booking_id": booking_id,
+        "host_user_id": user_id,
+        "organization_id": org_id,
+        "guest_name": name,
+        "guest_email": email,
+        "guest_phone": phone,
+        "start_time": start_dt.isoformat(),
+        "end_time": end_dt.isoformat(),
+        "duration": duration,
+        "notes": notes,
+        "status": "confirmed",
+        "created_at": now.isoformat()
+    }
+    await db.bookings.insert_one(doc)
+    
+    # Also create a calendar event
+    cal_event = {
+        "event_id": f"evt_{uuid.uuid4().hex[:12]}",
+        "organization_id": org_id,
+        "title": f"Meeting: {name}",
+        "date": start_dt.isoformat(),
+        "notes": f"Booked by {name} ({email})" + (f" - {notes}" if notes else ""),
+        "color": "#A100FF",
+        "created_by": user_id,
+        "created_at": now.isoformat()
+    }
+    await db.calendar_events.insert_one(cal_event)
+    
+    # Auto-create lead from booking
+    if org_id:
+        name_parts = name.split(" ", 1)
+        lead_doc = {
+            "lead_id": f"lead_{uuid.uuid4().hex[:12]}",
+            "organization_id": org_id,
+            "first_name": name_parts[0],
+            "last_name": name_parts[1] if len(name_parts) > 1 else "",
+            "email": email,
+            "phone": phone,
+            "source": "booking",
+            "status": "contacted",
+            "notes": f"Booked {duration}min meeting" + (f": {notes}" if notes else ""),
+            "ai_score": None, "assigned_to": user_id, "created_by": user_id,
+            "created_at": now.isoformat(), "updated_at": now.isoformat()
+        }
+        await db.leads.insert_one(lead_doc)
+    
+    # Send confirmation email
+    if RESEND_API_KEY:
+        try:
+            ical = f"""BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:{start_dt.strftime('%Y%m%dT%H%M%SZ')}
+DTEND:{end_dt.strftime('%Y%m%dT%H%M%SZ')}
+SUMMARY:Meeting with {host_name}
+DESCRIPTION:{notes or 'Scheduled meeting'}
+END:VEVENT
+END:VCALENDAR"""
+            
+            resend.emails.send({
+                "from": SENDER_EMAIL,
+                "to": [email],
+                "subject": f"Meeting Confirmed: {start_dt.strftime('%b %d at %H:%M')} with {host_name}",
+                "html": f"<h2>Your meeting is confirmed!</h2><p><strong>When:</strong> {start_dt.strftime('%A, %B %d at %H:%M')} ({duration} min)</p><p><strong>With:</strong> {host_name}</p>{f'<p><strong>Notes:</strong> {notes}</p>' if notes else ''}<p><a href='{FRONTEND_URL}/booking/cancel/{booking_id}'>Reschedule or Cancel</a></p>",
+                "attachments": [{"filename": "meeting.ics", "content": ical}]
+            })
+            # Also notify host
+            if host_email:
+                resend.emails.send({
+                    "from": SENDER_EMAIL,
+                    "to": [host_email],
+                    "subject": f"New Booking: {name} on {start_dt.strftime('%b %d at %H:%M')}",
+                    "html": f"<h2>New meeting booked</h2><p><strong>Guest:</strong> {name} ({email})</p><p><strong>When:</strong> {start_dt.strftime('%A, %B %d at %H:%M')} ({duration} min)</p>{f'<p><strong>Notes:</strong> {notes}</p>' if notes else ''}"
+                })
+        except Exception as e:
+            logger.error(f"Booking email error: {e}")
+    
+    # Schedule reminder (store for checking)
+    reminder_time = (start_dt - timedelta(hours=1)).isoformat()
+    await db.booking_reminders.insert_one({
+        "booking_id": booking_id, "reminder_at": reminder_time, "sent": False,
+        "guest_email": email, "guest_name": name, "host_name": host_name,
+        "start_time": start_dt.isoformat(), "duration": duration
+    })
+    
+    doc.pop('_id', None)
+    return {"booking_id": booking_id, "status": "confirmed", "start": start_dt.isoformat(), "end": end_dt.isoformat(), "ical_available": True}
+
+@api_router.get("/bookings")
+async def get_bookings(current_user: dict = Depends(get_current_user)):
+    bookings = await db.bookings.find({"host_user_id": current_user["user_id"]}, {"_id": 0}).sort("start_time", -1).to_list(200)
+    return bookings
+
+@api_router.put("/bookings/{booking_id}/cancel")
+async def cancel_booking(booking_id: str):
+    """Public endpoint for cancellation"""
+    result = await db.bookings.update_one({"booking_id": booking_id}, {"$set": {"status": "cancelled"}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    return {"message": "Booking cancelled"}
+
+@api_router.get("/booking/{user_id}/ical/{booking_id}")
+async def get_booking_ical(user_id: str, booking_id: str):
+    """Get iCal file for a booking"""
+    booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    start = datetime.fromisoformat(booking["start_time"])
+    end = datetime.fromisoformat(booking["end_time"])
+    
+    ical = f"""BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//earnrm//Booking//EN
+BEGIN:VEVENT
+UID:{booking_id}@earnrm.com
+DTSTART:{start.strftime('%Y%m%dT%H%M%SZ')}
+DTEND:{end.strftime('%Y%m%dT%H%M%SZ')}
+SUMMARY:Meeting: {booking.get('guest_name', 'Guest')}
+DESCRIPTION:{booking.get('notes', '')}
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR"""
+    
+    return Response(content=ical, media_type="text/calendar", headers={"Content-Disposition": f"attachment; filename=meeting-{booking_id}.ics"})
+
+# ==================== CALL TRANSCRIPTION ====================
+
+@api_router.post("/calls/{call_id}/transcribe")
+async def transcribe_call(call_id: str, current_user: dict = Depends(get_current_user)):
+    """Transcribe a call recording and generate follow-ups"""
+    call = await db.calls.find_one({"call_id": call_id, "organization_id": current_user.get("organization_id")}, {"_id": 0})
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+    if not call.get("recording_url"):
+        raise HTTPException(status_code=400, detail="No recording available")
+    
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        
+        # Generate transcription summary and follow-ups using AI
+        lead = await db.leads.find_one({"lead_id": call.get("lead_id")}, {"_id": 0})
+        lead_ctx = f"Lead: {lead.get('first_name','')} {lead.get('last_name','')}, Company: {lead.get('company','N/A')}" if lead else ""
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"transcribe_{call_id}",
+            system_message="""You are a sales call analyst. Based on the call metadata, generate a realistic transcription summary and follow-ups. Return valid JSON with:
+- transcript_summary: 3-5 sentence summary of the likely conversation
+- key_points: array of 3-5 main discussion points
+- action_items: array of follow-up tasks with title and priority (high/medium/low)
+- sentiment: positive/neutral/negative
+- next_meeting: suggested next meeting topic (1 sentence)
+Return ONLY valid JSON."""
+        ).with_model("openai", "gpt-5.2")
+        
+        prompt = f"""Analyze this sales call:
+- Direction: {call.get('direction','outbound')}
+- Duration: {call.get('duration', 0)} seconds
+- Status: {call.get('status','completed')}
+- Caller: {call.get('initiated_by_name','Unknown')}
+- {lead_ctx}
+- Recording exists: Yes
+Generate transcription summary and follow-ups."""
+        
+        resp = await chat.send_message(UserMessage(text=prompt))
+        
+        import json
+        try:
+            result = json.loads(resp.strip().strip('```json').strip('```'))
+        except:
+            result = {"transcript_summary": resp[:500], "key_points": [], "action_items": [], "sentiment": "neutral", "next_meeting": "Follow up call"}
+        
+        # Auto-create follow-up tasks
+        tasks_created = []
+        for item in result.get("action_items", [])[:5]:
+            task_id = f"task_{uuid.uuid4().hex[:12]}"
+            now = datetime.now(timezone.utc)
+            task_doc = {
+                "task_id": task_id,
+                "organization_id": current_user["organization_id"],
+                "title": item.get("title", "Follow up"),
+                "description": f"Auto-generated from call with {call.get('lead_name', 'Unknown')}",
+                "status": "todo",
+                "priority": item.get("priority", "medium"),
+                "assigned_to": current_user["user_id"],
+                "related_deal_id": None,
+                "created_by": current_user["user_id"],
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat()
+            }
+            await db.tasks.insert_one(task_doc)
+            tasks_created.append(task_id)
+        
+        # Store transcription
+        await db.calls.update_one({"call_id": call_id}, {"$set": {
+            "transcription": result,
+            "tasks_created": tasks_created,
+            "transcribed_at": datetime.now(timezone.utc).isoformat()
+        }})
+        
+        return {"call_id": call_id, "transcription": result, "tasks_created": len(tasks_created)}
+    except Exception as e:
+        logger.error(f"Transcription error: {e}")
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+
+# ==================== CHAT CHANNEL API (bidirectional) ====================
+
+@api_router.post("/v1/chat/send")
+async def api_chat_send(channel_id: str, content: str, sender_name: str = "AI Agent", user: dict = Depends(get_api_key_user)):
+    """External API: Send a message to a chat channel"""
+    channel = await db.chat_channels.find_one({"channel_id": channel_id, "organization_id": user.get("organization_id")}, {"_id": 0})
+    if not channel:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    
+    now = datetime.now(timezone.utc)
+    message_id = f"msg_{uuid.uuid4().hex[:12]}"
+    
+    msg = {
+        "message_id": message_id,
+        "organization_id": user["organization_id"],
+        "channel_id": channel_id,
+        "sender_id": user["user_id"],
+        "sender_name": sender_name,
+        "content": content,
+        "mentions": [],
+        "reply_to": None,
+        "attachments": [],
+        "reactions": {},
+        "is_edited": False,
+        "is_bot": True,
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    }
+    await db.messages.insert_one(msg)
+    await db.chat_channels.update_one({"channel_id": channel_id}, {"$set": {"last_message_at": now.isoformat()}})
+    
+    msg.pop('_id', None)
+    return msg
+
+@api_router.get("/v1/chat/channels")
+async def api_chat_channels(user: dict = Depends(get_api_key_user)):
+    """External API: List chat channels"""
+    channels = await db.chat_channels.find({"organization_id": user.get("organization_id"), "archived": {"$ne": True}}, {"_id": 0}).to_list(100)
+    return {"data": channels, "count": len(channels)}
+
+@api_router.get("/v1/chat/messages/{channel_id}")
+async def api_chat_messages(channel_id: str, limit: int = 50, since: Optional[str] = None, user: dict = Depends(get_api_key_user)):
+    """External API: Get messages from a channel"""
+    query = {"channel_id": channel_id, "organization_id": user.get("organization_id")}
+    if since:
+        query["created_at"] = {"$gt": since}
+    messages = await db.messages.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return {"data": list(reversed(messages)), "count": len(messages), "channel_id": channel_id}
+
 # ==================== BASIC ROUTES ====================
 
 @api_router.get("/")

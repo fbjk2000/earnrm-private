@@ -24,6 +24,7 @@ import CallsPage from './pages/CallsPage';
 import ContactsPage from './pages/ContactsPage';
 import ProjectsPage from './pages/ProjectsPage';
 import CalendarPage from './pages/CalendarPage';
+import BookingPage, { PublicBookingPage } from './pages/BookingPage';
 
 import './App.css';
 
@@ -216,6 +217,7 @@ const AppRouter = () => {
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/support" element={<SupportPage />} />
+      <Route path="/book/:userId" element={<PublicBookingPage />} />
       <Route
         path="/subscription/success"
         element={
@@ -333,6 +335,14 @@ const AppRouter = () => {
         element={
           <ProtectedRoute>
             <CalendarPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings"
+        element={
+          <ProtectedRoute>
+            <BookingPage />
           </ProtectedRoute>
         }
       />

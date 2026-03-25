@@ -672,6 +672,23 @@ const CallsPage = () => {
                       <audio controls className="w-full" data-testid="call-recording-player"><source src={`${selectedCall.recording_url}.mp3`} type="audio/mpeg" /></audio>
                     </div>
                   )}
+                  {/* Transcription */}
+                  {selectedCall.transcription && (
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-100 space-y-2" data-testid="call-transcription">
+                      <p className="text-sm font-medium text-blue-900 flex items-center gap-2"><Mic className="w-4 h-4" /> Transcription</p>
+                      <p className="text-sm text-slate-700">{selectedCall.transcription.transcript_summary}</p>
+                      {selectedCall.transcription.key_points?.length > 0 && (
+                        <div><p className="text-xs font-medium text-blue-700 mb-1">Key Points</p>
+                          <ul className="space-y-1">{selectedCall.transcription.key_points.map((p, i) => <li key={i} className="text-xs text-slate-600">- {p}</li>)}</ul>
+                        </div>
+                      )}
+                      {selectedCall.transcription.action_items?.length > 0 && (
+                        <div><p className="text-xs font-medium text-emerald-700 mb-1">Follow-up Tasks (auto-created)</p>
+                          <ul className="space-y-1">{selectedCall.transcription.action_items.map((a, i) => <li key={i} className="text-xs text-slate-600">- {a.title} ({a.priority})</li>)}</ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {selectedCall.ai_analysis ? (
                     <div className="bg-amber-50 rounded-lg p-4 border border-amber-100 space-y-3" data-testid="call-analysis">
                       <p className="text-sm font-medium text-amber-900 flex items-center gap-2"><Sparkles className="w-4 h-4" /> AI Analysis <span className="ml-auto text-lg font-bold">{selectedCall.ai_analysis.score}/10</span></p>
@@ -694,10 +711,22 @@ const CallsPage = () => {
                       )}
                     </div>
                   ) : selectedCall.recording_url ? (
-                    <Button onClick={() => analyzeCall(selectedCall.call_id)} disabled={analyzing} className="w-full bg-amber-500 hover:bg-amber-600 text-white" data-testid="analyze-call-btn">
-                      {analyzing ? <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analyzing...</span> :
-                        <span className="flex items-center gap-2"><Sparkles className="w-4 h-4" /> Analyze with AI</span>}
-                    </Button>
+                    <div className="space-y-2">
+                      <Button onClick={() => analyzeCall(selectedCall.call_id)} disabled={analyzing} className="w-full bg-amber-500 hover:bg-amber-600 text-white" data-testid="analyze-call-btn">
+                        {analyzing ? <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analyzing...</span> :
+                          <span className="flex items-center gap-2"><Sparkles className="w-4 h-4" /> Analyze with AI</span>}
+                      </Button>
+                      <Button onClick={async () => {
+                        try {
+                          const res = await axios.post(`${API}/calls/${selectedCall.call_id}/transcribe`, {}, { headers });
+                          toast.success(`Transcribed! ${res.data.tasks_created} follow-up tasks created`);
+                          setSelectedCall(prev => ({ ...prev, transcription: res.data.transcription }));
+                          fetchCalls();
+                        } catch (e) { toast.error(e.response?.data?.detail || 'Transcription failed'); }
+                      }} className="w-full bg-blue-500 hover:bg-blue-600 text-white" data-testid="transcribe-call-btn">
+                        <span className="flex items-center gap-2"><Mic className="w-4 h-4" /> Transcribe + Create Follow-ups</span>
+                      </Button>
+                    </div>
                   ) : null}
                 </div>
               </>
