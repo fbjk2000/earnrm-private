@@ -605,7 +605,9 @@ Follow-up tasks are automatically created in your task board.
 |--------|----------|-------------|
 | GET | `/api/admin/stats` | Platform statistics |
 | GET | `/api/admin/users` | All users |
+| POST | `/api/admin/users/create` | Create user (no signup needed) |
 | PUT | `/api/admin/users/{id}/role` | Change user role |
+| PUT | `/api/admin/users/{id}/password` | Reset user password |
 | DELETE | `/api/admin/users/{id}` | Delete user |
 | GET | `/api/admin/organizations` | All organizations |
 | PUT | `/api/admin/organizations/{id}` | Edit org (name, plan, max_users, email_domain) |
@@ -619,12 +621,97 @@ Follow-up tasks are automatically created in your task board.
 | GET | `/api/admin/data-explorer` | List collections |
 | GET | `/api/admin/data-explorer/{collection}` | Browse collection |
 
+#### Create User (Admin)
+```http
+POST /api/admin/users/create
+Content-Type: application/json
+
+{
+  "email": "rep@company.com",
+  "name": "Sales Rep",
+  "password": "InitialPass123",
+  "role": "member",
+  "organization_id": "org_xxx"
+}
+```
+
+#### Reset User Password
+```http
+PUT /api/admin/users/{user_id}/password
+Content-Type: application/json
+
+{ "new_password": "NewSecurePass456" }
+```
+
 #### Edit Organization (License Override)
 ```http
 PUT /api/admin/organizations/{org_id}
 Content-Type: application/json
 
 { "max_users": 50, "plan": "enterprise", "email_domain": "acme.com" }
+```
+
+---
+
+### Reporting Engine
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/reports/overview` | Platform overview (users, leads, pipeline, revenue, win rate) |
+| GET | `/api/admin/reports/user-performance` | Performance per user (leads, deals, revenue, tasks, completion rate) |
+| GET | `/api/admin/reports/pipeline-forecast` | Forecast by stage, by user, and by tag/product |
+| GET | `/api/admin/reports/activity-log` | Activity over last N days. Param: `days` (default 30) |
+| GET | `/api/admin/reports/export/{entity}` | CSV export. Entities: leads, contacts, deals, tasks, users, companies |
+
+#### Overview Response
+```json
+{
+  "total_users": 12,
+  "total_leads": 27,
+  "total_deals": 13,
+  "pipeline_value": 247500,
+  "won_revenue": 0,
+  "win_rate": 0.0,
+  "deals_won": 0,
+  "deals_lost": 0
+}
+```
+
+#### User Performance Response
+```json
+[
+  {
+    "name": "Florian",
+    "email": "florian@unyted.world",
+    "leads_created": 18,
+    "deals_created": 5,
+    "deals_won": 2,
+    "revenue_won": 35000,
+    "tasks_completed": 12,
+    "tasks_total": 15,
+    "task_completion_rate": 80.0,
+    "last_login": "2026-03-25T10:00:00Z"
+  }
+]
+```
+
+#### Pipeline Forecast Response
+```json
+{
+  "by_stage": {
+    "qualified": { "count": 5, "value": 120000, "weighted": 72000 },
+    "proposal": { "count": 3, "value": 85000, "weighted": 59500 }
+  },
+  "by_user": { "user_xxx": { "name": "Florian", "count": 4, "value": 90000, "weighted": 54000 } },
+  "by_tag": { "enterprise": { "count": 2, "value": 75000, "weighted": 45000 } }
+}
+```
+
+#### CSV Export
+```bash
+# Download all leads as CSV
+curl -H "Authorization: Bearer TOKEN" \
+  "https://earnrm.com/api/admin/reports/export/leads" -o leads.csv
 ```
 
 ---
