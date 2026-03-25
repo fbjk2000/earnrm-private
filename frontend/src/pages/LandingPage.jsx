@@ -1,29 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import axios from 'axios';
-import {
-  Users,
-  Target,
-  Mail,
-  BarChart3,
-  Zap,
-  Shield,
-  ArrowRight,
-  Check,
-  Star,
-  Linkedin,
-  Menu,
-  X,
-  Download,
-  Gift,
-  BookOpen,
-  Smartphone
-} from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -38,621 +19,263 @@ const LandingPage = () => {
   const handleLeadMagnetSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-
     try {
-      const response = await axios.post(`${API}/lead-magnet/subscribe`, {
-        email: leadMagnetEmail,
-        first_name: leadMagnetName,
-        source: 'linkedin_guide'
-      });
-
-      if (response.data.success) {
-        setDownloadReady(true);
-        toast.success('Success! Your guide is ready to download.');
-      }
-    } catch (error) {
-      toast.error('Something went wrong. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
+      const response = await axios.post(`${API}/lead-magnet/subscribe`, { email: leadMagnetEmail, first_name: leadMagnetName, source: 'linkedin_guide' });
+      if (response.data.success) { setDownloadReady(true); toast.success('Your guide is ready.'); }
+    } catch { toast.error('Something went wrong.'); }
+    finally { setSubmitting(false); }
   };
 
   const handleDownload = () => {
-    // Download the actual PDF playbook
-    const pdfUrl = 'https://customer-assets.emergentagent.com/job_bf31783e-7e9c-47ad-b065-3e62a7895ee8/artifacts/7c9fmulw_EarnRM_LinkedIn_Lead_Generation_Playbook_Agency_Edition.pdf';
     const a = document.createElement('a');
-    a.href = pdfUrl;
-    a.download = 'EarnRM_LinkedIn_Lead_Generation_Playbook_Agency_Edition.pdf';
+    a.href = 'https://customer-assets.emergentagent.com/job_bf31783e-7e9c-47ad-b065-3e62a7895ee8/artifacts/7c9fmulw_EarnRM_LinkedIn_Lead_Generation_Playbook_Agency_Edition.pdf';
+    a.download = 'EarnRM_LinkedIn_Lead_Generation_Playbook.pdf';
     a.target = '_blank';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-
-    toast.success('Guide downloaded! Check your downloads folder.');
+    toast.success('Guide downloaded.');
     setShowLeadMagnet(false);
     setDownloadReady(false);
-    setLeadMagnetEmail('');
-    setLeadMagnetName('');
   };
 
   const features = [
-    {
-      icon: <Users className="w-6 h-6" />,
-      title: 'Lead Management',
-      description: 'Capture, organize, and nurture leads from LinkedIn and other sources with AI-powered scoring.'
-    },
-    {
-      icon: <Target className="w-6 h-6" />,
-      title: 'Deal Pipeline',
-      description: 'Visual Kanban boards to track deals from prospect to close. Never lose sight of opportunities.'
-    },
-    {
-      icon: <Mail className="w-6 h-6" />,
-      title: 'Email Campaigns',
-      description: 'AI-assisted email drafting and campaign management. Connect with Kit.com for automation.'
-    },
-    {
-      icon: <BarChart3 className="w-6 h-6" />,
-      title: 'Smart Analytics',
-      description: 'Real-time insights into your sales pipeline, team performance, and revenue forecasts.'
-    },
-    {
-      icon: <Zap className="w-6 h-6" />,
-      title: 'AI Assistant',
-      description: 'Let AI score leads, draft emails, and surface insights so you can focus on closing.'
-    },
-    {
-      icon: <Linkedin className="w-6 h-6" />,
-      title: 'LinkedIn Integration',
-      description: 'Import contacts via CSV or scrape profiles. Build your pipeline from the world\'s largest B2B network.'
-    }
-  ];
-
-  const testimonials = [
-    {
-      quote: "earnrm transformed how we handle leads. The AI scoring saves us hours every week.",
-      author: "Sarah Chen",
-      role: "Head of Sales, TechFlow",
-      image: "https://images.unsplash.com/photo-1675526607070-f5cbd71dde92?w=100&h=100&fit=crop&crop=faces"
-    },
-    {
-      quote: "Finally, a CRM that doesn't require a PhD to use. Simple, powerful, effective.",
-      author: "Marcus Williams",
-      role: "Founder, GrowthLab",
-      image: "https://images.unsplash.com/photo-1755190897791-7040dfdb988f?w=100&h=100&fit=crop&crop=faces"
-    }
+    { title: 'AI Lead Scoring', desc: 'Every lead ranked 1 to 100 based on fit, engagement, and conversion probability. Focus on what closes.', accent: '#D4A853' },
+    { title: 'Pipeline Management', desc: 'Drag and drop deals between stages. Kanban and list views. Lost deals excluded from forecasts automatically.', accent: '#7C3AED' },
+    { title: 'Outbound Calling', desc: 'Call leads directly from the CRM. Calls recorded, transcribed by AI, follow up tasks created on the spot.', accent: '#3B0764' },
+    { title: 'AI Email Drafting', desc: 'Generate personalised sales emails in seconds. Choose tone, purpose, and context. Copy or send with one click.', accent: '#D4A853' },
+    { title: 'Team Projects', desc: 'Group tasks under deals. Track progress with your team. Every project gets its own chat channel.', accent: '#7C3AED' },
+    { title: 'Calendar and Booking', desc: 'Built in calendar with Google Calendar sync. Share your booking link. Confirmations and reminders sent automatically.', accent: '#3B0764' },
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-slate-200/50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/" className="flex items-center" data-testid="logo-link">
-              <img 
-                src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/9ans91q7_earnrm_mark_purple.svg" 
-                alt="earnrm" 
-                className="h-10 w-10"
-              />
-            </Link>
-
-            {/* Desktop Nav */}
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-slate-600 hover:text-[#A100FF] transition-colors" data-testid="nav-features">Features</a>
-              <a href="#pricing" className="text-slate-600 hover:text-[#A100FF] transition-colors" data-testid="nav-pricing">Pricing</a>
-              <a href="#testimonials" className="text-slate-600 hover:text-[#A100FF] transition-colors" data-testid="nav-testimonials">Testimonials</a>
-              <Link to="/support" className="text-slate-600 hover:text-[#A100FF] transition-colors" data-testid="nav-support">Support</Link>
-              <button
-                onClick={() => setShowLeadMagnet(true)}
-                className="text-[#A100FF] hover:text-purple-700 font-medium transition-colors flex items-center gap-1"
-                data-testid="nav-free-guide"
-              >
-                <Gift className="w-4 h-4" />
-                Free Guide
-              </button>
-            </div>
-
-            <div className="hidden md:flex items-center space-x-4">
-              <Link to="/login">
-                <Button variant="ghost" data-testid="login-btn">Log in</Button>
-              </Link>
-              <Link to="/signup">
-                <Button className="bg-[#A100FF] hover:bg-purple-700" data-testid="get-started-btn">
-                  Get Started Free
-                </Button>
-              </Link>
-            </div>
-
-            {/* Mobile menu button */}
-            <button
-              className="md:hidden p-2"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              data-testid="mobile-menu-btn"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="bg-[#FAFAF8] text-[#0F0A1E]">
+      {/* Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#FAFAF8]/95 backdrop-blur-sm border-b border-[#0F0A1E]/5">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center">
+            <img src="/logo-horizontal.svg" alt="earnrm" className="h-7" data-testid="nav-logo" />
+          </Link>
+          <div className="hidden md:flex items-center gap-8">
+            <a href="#features" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">Features</a>
+            <a href="#product" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">Product</a>
+            <a href="#pricing" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">Pricing</a>
+            <Link to="/support" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">Support</Link>
           </div>
+          <div className="hidden md:flex items-center gap-3">
+            <Link to="/login"><Button variant="ghost" className="text-sm h-9 text-[#0F0A1E]/70 hover:text-[#0F0A1E]">Sign in</Button></Link>
+            <Link to="/signup"><Button className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-sm h-9 px-5 rounded-lg" data-testid="nav-cta">Start free</Button></Link>
+          </div>
+          <button className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} data-testid="mobile-menu-btn">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} /></svg>
+          </button>
         </div>
-
-        {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-t border-slate-200 py-4 px-6">
-            <div className="flex flex-col space-y-4">
-              <a href="#features" className="text-slate-600 hover:text-[#A100FF]">Features</a>
-              <a href="#pricing" className="text-slate-600 hover:text-[#A100FF]">Pricing</a>
-              <a href="#testimonials" className="text-slate-600 hover:text-[#A100FF]">Testimonials</a>
-              <Link to="/support" className="text-slate-600 hover:text-[#A100FF]">Support</Link>
-              <button
-                onClick={() => { setShowLeadMagnet(true); setMobileMenuOpen(false); }}
-                className="text-[#A100FF] font-medium text-left flex items-center gap-2"
-              >
-                <Gift className="w-4 h-4" />
-                Free LinkedIn Guide
-              </button>
-              <Link to="/login">
-                <Button variant="ghost" className="w-full justify-start">Log in</Button>
-              </Link>
-              <Link to="/signup">
-                <Button className="w-full bg-[#A100FF] hover:bg-purple-700">Get Started Free</Button>
-              </Link>
-            </div>
+          <div className="md:hidden bg-[#FAFAF8] border-t border-[#0F0A1E]/5 p-4 space-y-3">
+            <a href="#features" className="block text-sm py-2" onClick={() => setMobileMenuOpen(false)}>Features</a>
+            <a href="#pricing" className="block text-sm py-2" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
+            <Link to="/login" className="block text-sm py-2" onClick={() => setMobileMenuOpen(false)}>Sign in</Link>
+            <Link to="/signup"><Button className="w-full bg-[#7C3AED] text-white rounded-lg">Start free</Button></Link>
           </div>
         )}
       </nav>
 
-      {/* Hero Section - Apple-inspired glass design */}
-      <section className="pt-24 pb-16 px-6 relative overflow-hidden">
-        {/* Subtle gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 via-white to-slate-50/50" />
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#A100FF]/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-100/30 rounded-full blur-3xl" />
-        
-        <div className="max-w-7xl mx-auto relative">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              {/* Logo Wordmark - larger and prominent */}
-              <img 
-                src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/8movyjrt_earnrm_wordmark_purple.svg" 
-                alt="earnrm" 
-                className="h-16 lg:h-20 xl:h-24"
-              />
-              
-              <h1 className="text-3xl lg:text-4xl xl:text-5xl font-bold text-[#111111] tracking-tight leading-[1.1]" data-testid="hero-title">
-                Your CRM that
-                <br />
-                <span>p<span className="text-[#A100FF]">AI</span>s</span> you back
-              </h1>
-              
-              <p className="text-lg lg:text-xl text-slate-600 max-w-lg leading-relaxed" data-testid="hero-description">
-                The CRM that runs your marketing and sales department. LinkedIn lead generation, 
-                AI-powered insights, and team collaboration — without the complexity.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                <Link to="/signup">
-                  <Button size="lg" className="bg-[#A100FF] hover:bg-purple-600 h-14 px-8 rounded-2xl text-base font-semibold shadow-lg shadow-purple-500/25 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:-translate-y-0.5" data-testid="hero-cta-primary">
-                    Start Free Trial
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </Button>
-                </Link>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-14 px-8 rounded-2xl text-base font-semibold border-2 border-slate-200 hover:border-[#A100FF] hover:text-[#A100FF] bg-white/80 backdrop-blur-sm transition-all"
-                  onClick={() => setShowLeadMagnet(true)}
-                  data-testid="hero-cta-guide"
-                >
-                  <Download className="w-5 h-5 mr-2" />
-                  Free LinkedIn Guide
-                </Button>
-              </div>
-
-              {/* Social proof with glass effect */}
-              <div className="flex items-center gap-5 pt-4">
-                <div className="flex -space-x-3">
-                  <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=faces" alt="User" className="w-11 h-11 rounded-full border-2 border-white object-cover shadow-sm" />
-                  <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=faces" alt="User" className="w-11 h-11 rounded-full border-2 border-white object-cover shadow-sm" />
-                  <img src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=80&h=80&fit=crop&crop=faces" alt="User" className="w-11 h-11 rounded-full border-2 border-white object-cover shadow-sm" />
-                  <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=faces" alt="User" className="w-11 h-11 rounded-full border-2 border-white object-cover shadow-sm" />
-                  <div className="w-11 h-11 rounded-full border-2 border-white bg-gradient-to-br from-[#A100FF] to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">+500</div>
-                </div>
-                <div>
-                  <div className="flex items-center gap-0.5">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
-                    ))}
-                    <span className="ml-2 text-sm font-semibold text-slate-700">4.9</span>
-                  </div>
-                  <p className="text-sm text-slate-500">Trusted by 500+ teams</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Hero image with glass card overlay */}
-            <div className="relative">
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl shadow-slate-200/50 border border-slate-100">
-                <img
-                  src="https://customer-assets.emergentagent.com/job_ec98bdb3-0edd-4c4d-a872-3506f378be5d/artifacts/dxg4md11_Goddess%20of%20Europe.png"
-                  alt="earnrm - European Business Excellence"
-                  className="w-full"
-                  data-testid="hero-image"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
-              </div>
-              
-              {/* Floating glass card - Apple Liquid Glass style */}
-              <div className="absolute -bottom-4 -left-4 lg:-bottom-6 lg:-left-6 bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-200/50 p-4 border border-white/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 bg-gradient-to-br from-[#A100FF] to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-                    <Check className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-900">New Lead Scored</p>
-                    <p className="text-sm text-slate-500">AI Score: 87/100</p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Second floating card - top right */}
-              <div className="absolute -top-3 -right-3 lg:-top-4 lg:-right-4 bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-200/50 p-3 border border-white/50">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
-                    <ArrowRight className="w-4 h-4 text-white rotate-[-45deg]" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Revenue</p>
-                    <p className="font-bold text-emerald-600">+34%</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Lead Magnet Banner - Apple-inspired glass effect */}
-      <section className="py-16 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#A100FF] to-purple-600" />
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iNCIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
-        <div className="max-w-4xl mx-auto text-center relative">
-          <div className="inline-flex items-center gap-3 mb-6 bg-white/10 backdrop-blur-sm px-5 py-2 rounded-full">
-            <BookOpen className="w-5 h-5 text-white" />
-            <span className="text-white/90 font-medium">Free Resource</span>
-          </div>
-          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4" data-testid="lead-magnet-banner-title">
-            LinkedIn Lead Generation Playbook
-          </h2>
-          <p className="text-white/80 mb-8 max-w-2xl mx-auto text-lg">
-            Learn the exact strategies our top users use to generate 10x more qualified leads from LinkedIn. 
-            Includes templates, scripts, and automation tips.
-          </p>
-          <Button
-            size="lg"
-            className="bg-white text-[#A100FF] hover:bg-white/90 h-14 px-8 rounded-2xl text-base font-semibold shadow-xl transition-all hover:-translate-y-0.5"
-            onClick={() => setShowLeadMagnet(true)}
-            data-testid="lead-magnet-banner-btn"
-          >
-            <Download className="w-5 h-5 mr-2" />
-            Download Free Guide
-          </Button>
-        </div>
-      </section>
-
-      {/* Features Section - Apple-inspired */}
-      <section id="features" className="py-24 px-6 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-purple-100/30 rounded-full blur-3xl" />
-        <div className="max-w-7xl mx-auto relative">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 mb-4 bg-purple-100 px-4 py-1.5 rounded-full">
-              <Zap className="w-4 h-4 text-[#A100FF]" />
-              <span className="text-sm font-medium text-[#A100FF]">Powerful Features</span>
-            </div>
-            <h2 className="text-3xl lg:text-5xl font-bold text-slate-900 mb-4" data-testid="features-title">
-              Everything you need to grow
-            </h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Inspired by the best of HubSpot and Salesforce, without the bloat. 
-              Simple tools that just work.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-              <Card
-                key={index}
-                className="bg-white/70 backdrop-blur-sm border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 hover:-translate-y-1 rounded-2xl overflow-hidden group"
-                data-testid={`feature-card-${index}`}
-              >
-                <CardContent className="p-8">
-                  <div className="w-14 h-14 bg-gradient-to-br from-[#A100FF] to-purple-600 rounded-2xl flex items-center justify-center text-white mb-5 shadow-lg shadow-purple-500/20 group-hover:scale-110 transition-transform">
-                    {feature.icon}
-                  </div>
-                  <h3 className="text-xl font-semibold text-slate-900 mb-3">{feature.title}</h3>
-                  <p className="text-slate-600 leading-relaxed">{feature.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="py-24 px-6 relative">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 mb-4 bg-emerald-100 px-4 py-1.5 rounded-full">
-              <Check className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm font-medium text-emerald-600">Simple Pricing</span>
-            </div>
-            <h2 className="text-3xl lg:text-5xl font-bold text-slate-900 mb-4" data-testid="pricing-title">
-              Start free, scale when ready
-            </h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Start free with your team. Scale when you're ready.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Free Plan */}
-            <Card className="border-slate-200 rounded-2xl hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 bg-white" data-testid="pricing-free">
-              <CardContent className="p-8">
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">Starter</h3>
-                <p className="text-slate-500 mb-6">Perfect for small teams getting started</p>
-                <div className="mb-8">
-                  <span className="text-5xl font-bold text-slate-900">€0</span>
-                  <span className="text-slate-500">/month</span>
-                </div>
-                <ul className="space-y-4 mb-8">
-                  <li className="flex items-center text-slate-600">
-                    <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center mr-3">
-                      <Check className="w-3 h-3 text-[#A100FF]" />
-                    </div>
-                    Up to 3 users
-                  </li>
-                  <li className="flex items-center text-slate-600">
-                    <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center mr-3">
-                      <Check className="w-3 h-3 text-[#A100FF]" />
-                    </div>
-                    500 leads
-                  </li>
-                  <li className="flex items-center text-slate-600">
-                    <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center mr-3">
-                      <Check className="w-3 h-3 text-[#A100FF]" />
-                    </div>
-                    Basic AI scoring
-                  </li>
-                  <li className="flex items-center text-slate-600">
-                    <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center mr-3">
-                      <Check className="w-3 h-3 text-[#A100FF]" />
-                    </div>
-                    Email support
-                  </li>
-                </ul>
-                <Link to="/signup">
-                  <Button variant="outline" className="w-full h-12 rounded-xl border-2 border-slate-200 hover:border-[#A100FF] hover:text-[#A100FF] font-semibold transition-all" data-testid="pricing-free-btn">
-                    Get Started
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Pro Plan - Monthly */}
-            <Card className="border-2 border-[#A100FF] relative rounded-2xl shadow-xl shadow-purple-500/10 bg-gradient-to-b from-white to-purple-50/30" data-testid="pricing-pro">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                <span className="bg-gradient-to-r from-[#A100FF] to-purple-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold shadow-lg shadow-purple-500/30">
-                  Most Popular
-                </span>
-              </div>
-              <CardContent className="p-8 pt-10">
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">Pro</h3>
-                <p className="text-slate-500 mb-6">For growing teams that need more power</p>
-                <div className="mb-8">
-                  <span className="text-5xl font-bold text-slate-900">€15</span>
-                  <span className="text-slate-500">/user/month</span>
-                </div>
-                <ul className="space-y-4 mb-8">
-                  <li className="flex items-center text-slate-600">
-                    <div className="w-5 h-5 rounded-full bg-[#A100FF] flex items-center justify-center mr-3">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    Unlimited users
-                  </li>
-                  <li className="flex items-center text-slate-600">
-                    <div className="w-5 h-5 rounded-full bg-[#A100FF] flex items-center justify-center mr-3">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    Unlimited leads
-                  </li>
-                  <li className="flex items-center text-slate-600">
-                    <div className="w-5 h-5 rounded-full bg-[#A100FF] flex items-center justify-center mr-3">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    Advanced AI features
-                  </li>
-                  <li className="flex items-center text-slate-600">
-                    <div className="w-5 h-5 rounded-full bg-[#A100FF] flex items-center justify-center mr-3">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    LinkedIn integration
-                  </li>
-                  <li className="flex items-center text-slate-600">
-                    <div className="w-5 h-5 rounded-full bg-[#A100FF] flex items-center justify-center mr-3">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    Priority support
-                  </li>
-                </ul>
-                <Link to="/signup">
-                  <Button className="w-full h-12 rounded-xl bg-[#A100FF] hover:bg-purple-600 font-semibold shadow-lg shadow-purple-500/25 transition-all hover:shadow-xl hover:shadow-purple-500/30" data-testid="pricing-pro-btn">
-                    Start Free Trial
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Pro Plan - Annual */}
-            <Card className="border-slate-200 bg-slate-50" data-testid="pricing-annual">
-              <CardContent className="p-8">
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">Pro Annual</h3>
-                <p className="text-slate-600 mb-6">Save 20% with annual billing</p>
-                <div className="mb-2">
-                  <span className="text-4xl font-bold text-slate-900">€12</span>
-                  <span className="text-slate-600">/user/month</span>
-                </div>
-                <p className="text-[#A100FF] font-medium mb-6">Save 20% annually</p>
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
-                    Everything in Pro
-                  </li>
-                  <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
-                    20% discount
-                  </li>
-                  <li className="flex items-center text-slate-600">
-                    <Check className="w-5 h-5 text-[#A100FF] mr-2" />
-                    5% extra for crypto
-                  </li>
-                  <li className="flex items-center text-slate-600">
-                    <Shield className="w-5 h-5 text-purple-500 mr-2" />
-                    Stripe, PayPal, ETH
-                  </li>
-                </ul>
-                <Link to="/pricing">
-                  <Button variant="outline" className="w-full" data-testid="pricing-annual-btn">
-                    View Details
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-24 px-6 bg-slate-900">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4" data-testid="testimonials-title">
-              Loved by sales teams
-            </h2>
-            <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-              See what our customers have to say about earnrm.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="bg-slate-800 border-slate-700" data-testid={`testimonial-${index}`}>
-                <CardContent className="p-8">
-                  <div className="flex mb-4">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <Star key={i} className="w-5 h-5 text-amber-400 fill-amber-400" />
-                    ))}
-                  </div>
-                  <p className="text-lg text-slate-300 mb-6">"{testimonial.quote}"</p>
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={testimonial.image}
-                      alt={testimonial.author}
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                    <div>
-                      <p className="font-semibold text-white">{testimonial.author}</p>
-                      <p className="text-sm text-slate-400">{testimonial.role}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Mobile App Section */}
-      <section className="py-24 px-6 bg-gradient-to-b from-purple-50 to-white" id="mobile-apps">
+      {/* Hero */}
+      <section className="pt-32 pb-20 px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <span className="text-[#A100FF] font-semibold text-sm uppercase tracking-wide">Mobile App</span>
-            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mt-2 mb-4">
-              Take earnrm everywhere
-            </h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Install earnrm on your phone or tablet. Works on iOS, Android, and desktop — no app store needed.
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 bg-[#3B0764]/5 border border-[#3B0764]/10 rounded-full px-4 py-1.5 mb-8">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#D4A853]" />
+              <span className="text-xs tracking-widest uppercase text-[#3B0764]/70 font-medium" style={{ fontFamily: "'DM Sans', sans-serif" }}>AI powered CRM for European sales teams</span>
+            </div>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-6" style={{ fontFamily: "'Syne', sans-serif" }} data-testid="hero-title">
+              Close more deals.<br />
+              <span className="text-[#7C3AED]">Waste less time.</span>
+            </h1>
+            <p className="text-lg md:text-xl text-[#0F0A1E]/60 leading-relaxed max-w-xl mb-10" data-testid="hero-description">
+              earnrm brings your pipeline, leads, calls, and team into one place. AI handles the busywork so you can focus on selling.
             </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link to="/signup">
+                <Button className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white h-12 px-8 rounded-lg text-base font-medium" data-testid="hero-cta-primary">
+                  Start free trial
+                </Button>
+              </Link>
+              <Button variant="outline" className="h-12 px-8 rounded-lg text-base border-[#0F0A1E]/15 text-[#0F0A1E]/70 hover:border-[#0F0A1E]/30" onClick={() => setShowLeadMagnet(true)} data-testid="hero-cta-guide">
+                Get the playbook
+              </Button>
+            </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-slate-100 max-w-3xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-8 items-center">
-              <div>
-                <div className="flex items-center gap-4 mb-6">
-                  <img src="/icon-192.png" alt="earnrm" className="w-16 h-16 rounded-2xl shadow-md" />
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-900">earnrm PWA</h3>
-                    <p className="text-slate-500 text-sm">Install directly from your browser</p>
+          {/* Product Preview */}
+          <div className="mt-16 bg-[#0F0A1E] rounded-2xl p-2 shadow-2xl shadow-[#3B0764]/10" id="product" data-testid="hero-image">
+            <div className="bg-[#1a1230] rounded-xl p-6 md:p-8">
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                {[{ label: 'Active Leads', value: '284', change: '+12%' }, { label: 'Pipeline Value', value: '428,500', change: '+8%', prefix: '\u20AC' }, { label: 'Win Rate', value: '34%', change: '+3pp' }, { label: 'Avg. Deal Size', value: '18,200', prefix: '\u20AC', change: '+5%' }].map((s, i) => (
+                  <div key={i} className="bg-[#0F0A1E]/50 rounded-lg p-4 border border-white/5">
+                    <p className="text-white/40 text-xs mb-1" style={{ fontFamily: "'DM Sans'" }}>{s.label}</p>
+                    <p className="text-white text-xl font-semibold" style={{ fontFamily: "'Syne'" }}>{s.prefix || ''}{s.value}</p>
+                    <span className="text-[#D4A853] text-xs font-medium">{s.change}</span>
                   </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-6 gap-3">
+                {['Lead', 'Qualified', 'Proposal', 'Negotiation', 'Won'].map((stage, i) => (
+                  <div key={i} className="bg-[#0F0A1E]/40 rounded-lg p-3 border border-white/5">
+                    <p className="text-white/50 text-xs mb-2">{stage}</p>
+                    {[1, 2].map(j => (
+                      <div key={j} className="bg-white/5 rounded p-2 mb-2">
+                        <div className="h-2 bg-white/20 rounded w-3/4 mb-1" />
+                        <div className="h-1.5 bg-white/10 rounded w-1/2" />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                <div className="bg-[#D4A853]/10 rounded-lg p-3 border border-[#D4A853]/20">
+                  <p className="text-[#D4A853] text-xs mb-2 font-medium">Revenue</p>
+                  <p className="text-[#D4A853] text-lg font-bold" style={{ fontFamily: "'Syne'" }}>{'€'}186k</p>
+                  <p className="text-[#D4A853]/60 text-xs">this quarter</p>
                 </div>
-                <ul className="space-y-3 mb-6 text-slate-600">
-                  {['Full CRM on mobile', 'Works offline', 'Push notifications', 'Home screen icon', 'Fast & lightweight'].map((f) => (
-                    <li key={f} className="flex items-center gap-2">
-                      <Check className="w-5 h-5 text-emerald-500 shrink-0" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Strip */}
+      <section className="py-12 border-y border-[#0F0A1E]/5">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-4 text-[#0F0A1E]/30 text-sm">
+            <span>GDPR compliant</span>
+            <span className="w-px h-4 bg-[#0F0A1E]/10" />
+            <span>EU hosted data</span>
+            <span className="w-px h-4 bg-[#0F0A1E]/10" />
+            <span>SOC 2 ready</span>
+            <span className="w-px h-4 bg-[#0F0A1E]/10" />
+            <span>Stripe payments</span>
+            <span className="w-px h-4 bg-[#0F0A1E]/10" />
+            <span>99.9% uptime</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="py-24 px-6" id="features">
+        <div className="max-w-5xl mx-auto">
+          <div className="max-w-2xl mb-16">
+            <p className="text-xs tracking-[0.2em] uppercase font-semibold text-[#7C3AED] mb-4">What you get</p>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4" style={{ fontFamily: "'Syne'" }}>
+              Everything a sales team needs. Nothing it does not.
+            </h2>
+            <p className="text-[#0F0A1E]/60 text-lg">
+              Six core modules that work together. No bloat, no hidden complexity, no enterprise sales pitch required.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((f, i) => (
+              <div key={i} className="bg-white rounded-xl p-6 border border-[#0F0A1E]/5 hover:border-[#0F0A1E]/10 transition-colors" data-testid={`feature-${i}`}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-4" style={{ backgroundColor: f.accent + '15' }}>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: f.accent }} />
+                </div>
+                <h3 className="text-base font-semibold mb-2" style={{ fontFamily: "'Syne'" }}>{f.title}</h3>
+                <p className="text-sm text-[#0F0A1E]/60 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Social Proof */}
+      <section className="py-24 px-6 bg-[#0F0A1E]">
+        <div className="max-w-5xl mx-auto">
+          <p className="text-xs tracking-[0.2em] uppercase font-semibold text-[#D4A853] mb-4">What people say</p>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-12" style={{ fontFamily: "'Syne'" }}>
+            Built for teams that sell across Europe
+          </h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              { quote: "We replaced three tools with earnrm. Pipeline visibility went from guesswork to real time.", name: "Marcus W.", role: "Head of Sales, SaaS (Berlin)" },
+              { quote: "The AI scoring saves us hours every week. We only call leads that actually convert.", name: "Sophie L.", role: "Sales Director, Agency (Paris)" },
+              { quote: "Finally a CRM that does not feel like it was built for a Fortune 500 IT department.", name: "James R.", role: "Founder, Consulting (London)" }
+            ].map((t, i) => (
+              <div key={i} className="bg-white/5 rounded-xl p-6 border border-white/5">
+                <p className="text-white/80 text-sm leading-relaxed mb-6">"{t.quote}"</p>
+                <div>
+                  <p className="text-white text-sm font-medium">{t.name}</p>
+                  <p className="text-white/40 text-xs">{t.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section className="py-24 px-6" id="pricing">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <p className="text-xs tracking-[0.2em] uppercase font-semibold text-[#7C3AED] mb-4">Pricing</p>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4" style={{ fontFamily: "'Syne'" }}>
+              Simple, fair pricing
+            </h2>
+            <p className="text-[#0F0A1E]/60 text-lg">Start free. Upgrade when your team grows.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            {[
+              { plan: 'Free', price: '0', desc: 'For individuals getting started', features: ['Up to 3 users', '100 leads', 'Basic pipeline', 'Team chat'], cta: 'Start free', primary: false },
+              { plan: 'Pro', price: '15', desc: 'For growing sales teams', features: ['Unlimited users', 'Unlimited leads', 'AI scoring and enrichment', 'Outbound calling', 'Calendar booking', 'Priority support'], cta: 'Start free trial', primary: true },
+              { plan: 'Enterprise', price: 'Custom', desc: 'For organisations with complex needs', features: ['Everything in Pro', 'Custom integrations', 'Dedicated account manager', 'SSO and audit logs', 'SLA guarantee'], cta: 'Talk to sales', primary: false },
+            ].map((p, i) => (
+              <div key={i} className={`rounded-xl p-6 border ${p.primary ? 'bg-[#3B0764] border-[#3B0764] text-white' : 'bg-white border-[#0F0A1E]/5'}`} data-testid={`pricing-${p.plan.toLowerCase()}`}>
+                <p className={`text-sm font-medium mb-1 ${p.primary ? 'text-[#D4A853]' : 'text-[#7C3AED]'}`}>{p.plan}</p>
+                <div className="flex items-baseline gap-1 mb-2">
+                  {p.price !== 'Custom' ? (
+                    <>
+                      <span className="text-4xl font-bold" style={{ fontFamily: "'Syne'" }}>{'\u20AC'}{p.price}</span>
+                      <span className={`text-sm ${p.primary ? 'text-white/60' : 'text-[#0F0A1E]/40'}`}>/user/month</span>
+                    </>
+                  ) : (
+                    <span className="text-4xl font-bold" style={{ fontFamily: "'Syne'" }}>Custom</span>
+                  )}
+                </div>
+                <p className={`text-sm mb-6 ${p.primary ? 'text-white/60' : 'text-[#0F0A1E]/50'}`}>{p.desc}</p>
+                <ul className="space-y-2.5 mb-6">
+                  {p.features.map((f, j) => (
+                    <li key={j} className={`text-sm flex items-start gap-2 ${p.primary ? 'text-white/80' : 'text-[#0F0A1E]/70'}`}>
+                      <svg className={`w-4 h-4 mt-0.5 shrink-0 ${p.primary ? 'text-[#D4A853]' : 'text-[#7C3AED]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                       {f}
                     </li>
                   ))}
                 </ul>
+                <Link to={p.plan === 'Enterprise' ? '/support' : '/signup'}>
+                  <Button className={`w-full h-10 rounded-lg text-sm ${p.primary ? 'bg-[#D4A853] hover:bg-[#c49a48] text-[#0F0A1E] font-medium' : 'bg-[#0F0A1E]/5 hover:bg-[#0F0A1E]/10 text-[#0F0A1E]'}`}>
+                    {p.cta}
+                  </Button>
+                </Link>
               </div>
-              <div className="space-y-4">
-                <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
-                  <p className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-                    <Smartphone className="w-5 h-5 text-[#A100FF]" /> How to install
-                  </p>
-                  <div className="space-y-2 text-sm text-slate-600">
-                    <p><strong>Chrome / Edge:</strong> Click the install icon in the address bar, or Menu → Install app</p>
-                    <p><strong>Safari (iOS):</strong> Tap Share → Add to Home Screen</p>
-                    <p><strong>Android:</strong> Tap the "Add to Home Screen" banner that appears</p>
-                  </div>
-                </div>
-                <Button
-                  size="lg"
-                  className="w-full bg-[#A100FF] hover:bg-purple-700 h-12"
-                  data-testid="pwa-install-btn"
-                  onClick={() => {
-                    if (window.deferredPWAPrompt) {
-                      window.deferredPWAPrompt.prompt();
-                    } else {
-                      toast.success('Open this site in Chrome or Safari and follow the install instructions above!');
-                    }
-                  }}
-                >
-                  <Download className="w-5 h-5 mr-2" /> Install earnrm App
-                </Button>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-24 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
-            Ready to transform your sales?
+      {/* Final CTA */}
+      <section className="py-24 px-6 bg-[#3B0764]">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-4" style={{ fontFamily: "'Syne'" }}>
+            Ready to sell smarter?
           </h2>
-          <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
-            Join hundreds of teams using earnrm to close more deals with less effort.
-            Start your free trial today.
+          <p className="text-white/60 text-lg mb-8 max-w-xl mx-auto">
+            Join hundreds of European sales teams using earnrm to close more deals with less effort.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/signup">
-              <Button size="lg" className="bg-[#A100FF] hover:bg-purple-700 h-12 px-8" data-testid="cta-signup">
-                Start Free Trial
-                <ArrowRight className="w-5 h-5 ml-2" />
+              <Button className="bg-[#D4A853] hover:bg-[#c49a48] text-[#0F0A1E] h-12 px-8 rounded-lg text-base font-medium">
+                Start free trial
               </Button>
             </Link>
             <Link to="/login">
-              <Button size="lg" variant="outline" className="h-12 px-8" data-testid="cta-login">
-                Sign In
+              <Button variant="outline" className="h-12 px-8 rounded-lg text-base border-white/20 text-white hover:bg-white/5">
+                Sign in
               </Button>
             </Link>
           </div>
@@ -660,161 +283,69 @@ const LandingPage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6 bg-slate-900 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto">
+      <footer className="py-12 px-6 bg-[#0F0A1E]">
+        <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
-            {/* Company Info */}
             <div className="md:col-span-2">
-              <img 
-                src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/u9efkh3m_earnrm_logo_horizontal_light_notag_purpleword.png" 
-                alt="earnrm" 
-                className="h-8 mb-4 brightness-0 invert"
-              />
-              <p className="text-slate-400 text-sm mb-4">
-                Your CRM that p<span className="text-[#A100FF] font-bold">AI</span>s you back. Simplify your workflow, grow your business.
+              <img src="/logo-horizontal-reversed.svg" alt="earnrm" className="h-6 mb-4" />
+              <p className="text-white/40 text-sm mb-4 max-w-xs">
+                The CRM that runs your marketing and sales. Built for European teams that want results, not complexity.
               </p>
-              <div className="text-sm text-slate-500">
-                <p className="font-medium text-slate-400">Fintery Ltd.</p>
-                <p>Canbury Works, Units 6 and 7</p>
-                <p>Canbury Business Park, Elm Crescent</p>
+              <div className="text-xs text-white/30">
+                <p className="font-medium text-white/40">Finerty Ltd.</p>
+                <p>Canbury Works, Units 6 and 7, Canbury Business Park</p>
                 <p>Kingston upon Thames, Surrey, KT2 6HJ, UK</p>
               </div>
             </div>
-
-            {/* Quick Links */}
             <div>
-              <h4 className="font-semibold text-white mb-4">Product</h4>
+              <h4 className="text-white/60 text-xs tracking-[0.15em] uppercase font-medium mb-4">Product</h4>
               <div className="space-y-2 text-sm">
-                <a href="#features" className="block text-slate-400 hover:text-white transition-colors">Features</a>
-                <a href="#pricing" className="block text-slate-400 hover:text-white transition-colors">Pricing</a>
-                <Link to="/support" className="block text-slate-400 hover:text-white transition-colors">Support & FAQ</Link>
-                <button
-                  onClick={() => setShowLeadMagnet(true)}
-                  className="block text-slate-400 hover:text-white transition-colors text-left"
-                >
-                  Free Guide
-                </button>
+                <a href="#features" className="block text-white/40 hover:text-white/70 transition-colors">Features</a>
+                <a href="#pricing" className="block text-white/40 hover:text-white/70 transition-colors">Pricing</a>
+                <Link to="/support" className="block text-white/40 hover:text-white/70 transition-colors">Support</Link>
+                <button onClick={() => setShowLeadMagnet(true)} className="block text-white/40 hover:text-white/70 transition-colors text-left">Free Guide</button>
               </div>
             </div>
-
-            {/* Legal */}
             <div>
-              <h4 className="font-semibold text-white mb-4">Legal</h4>
+              <h4 className="text-white/60 text-xs tracking-[0.15em] uppercase font-medium mb-4">Legal</h4>
               <div className="space-y-2 text-sm">
-                <Link to="/support#legal" className="block text-slate-400 hover:text-white transition-colors">Terms of Service</Link>
-                <Link to="/support#legal" className="block text-slate-400 hover:text-white transition-colors">Privacy Policy</Link>
-                <Link to="/support#legal" className="block text-slate-400 hover:text-white transition-colors">Cookie Policy</Link>
-                <Link to="/support#contact" className="block text-slate-400 hover:text-white transition-colors">Contact Us</Link>
+                <a href="#" className="block text-white/40 hover:text-white/70 transition-colors">Privacy Policy</a>
+                <a href="#" className="block text-white/40 hover:text-white/70 transition-colors">Terms of Service</a>
+                <a href="mailto:support@earnrm.com" className="block text-white/40 hover:text-white/70 transition-colors">support@earnrm.com</a>
               </div>
             </div>
           </div>
-
-          <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-slate-500">
-              © {new Date().getFullYear()} earnrm by Fintery Ltd. All rights reserved.
-            </p>
-            <p className="text-xs text-slate-600">
-              support@earnrm.com | Company No. registered in England & Wales
-            </p>
+          <div className="border-t border-white/5 pt-6 text-center">
+            <p className="text-white/30 text-xs">{new Date().getFullYear()} earnrm by Finerty Ltd. All rights reserved.</p>
           </div>
         </div>
       </footer>
 
-      {/* Lead Magnet Modal */}
+      {/* Lead Magnet Dialog */}
       <Dialog open={showLeadMagnet} onOpenChange={setShowLeadMagnet}>
-        <DialogContent className="max-w-md" data-testid="lead-magnet-modal">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <BookOpen className="w-6 h-6 text-[#A100FF]" />
-              Free LinkedIn Lead Generation Playbook
-            </DialogTitle>
+            <DialogTitle style={{ fontFamily: "'Syne'" }}>Get the LinkedIn Lead Generation Playbook</DialogTitle>
           </DialogHeader>
-          
-          {!downloadReady ? (
-            <form onSubmit={handleLeadMagnetSubmit} className="space-y-4 pt-4">
-              <div className="p-4 bg-purple-50 rounded-lg mb-4">
-                <p className="text-sm text-purple-800 font-medium mb-2">What you'll learn:</p>
-                <ul className="text-sm text-purple-700 space-y-1">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4" />
-                    Profile optimization for lead gen
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4" />
-                    Connection request templates
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4" />
-                    Engagement & conversion tactics
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4" />
-                    Automation best practices
-                  </li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">First Name</label>
-                <Input
-                  type="text"
-                  placeholder="Your first name"
-                  value={leadMagnetName}
-                  onChange={(e) => setLeadMagnetName(e.target.value)}
-                  data-testid="lead-magnet-name"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Email Address *</label>
-                <Input
-                  type="email"
-                  placeholder="you@company.com"
-                  value={leadMagnetEmail}
-                  onChange={(e) => setLeadMagnetEmail(e.target.value)}
-                  required
-                  data-testid="lead-magnet-email"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-[#A100FF] hover:bg-purple-700 h-12"
-                disabled={submitting}
-                data-testid="lead-magnet-submit"
-              >
-                {submitting ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Download className="w-5 h-5 mr-2" />
-                    Get Free Guide
-                  </>
-                )}
-              </Button>
-
-              <p className="text-xs text-center text-slate-500">
-                We'll also send you occasional tips. Unsubscribe anytime.
-              </p>
-            </form>
-          ) : (
-            <div className="text-center py-6">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Check className="w-8 h-8 text-[#A100FF]" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">You're all set!</h3>
-              <p className="text-slate-600 mb-6">
-                Click below to download your LinkedIn Lead Generation Playbook.
-              </p>
-              <Button
-                onClick={handleDownload}
-                className="w-full bg-[#A100FF] hover:bg-purple-700 h-12"
-                data-testid="lead-magnet-download"
-              >
-                <Download className="w-5 h-5 mr-2" />
-                Download Playbook
-              </Button>
+          {downloadReady ? (
+            <div className="text-center py-4">
+              <p className="text-[#0F0A1E]/70 mb-4">Your guide is ready to download.</p>
+              <Button onClick={handleDownload} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-lg">Download PDF</Button>
             </div>
+          ) : (
+            <form onSubmit={handleLeadMagnetSubmit} className="space-y-4 pt-2">
+              <div>
+                <label className="text-sm text-[#0F0A1E]/60 mb-1 block">First name</label>
+                <Input value={leadMagnetName} onChange={(e) => setLeadMagnetName(e.target.value)} required placeholder="Your name" />
+              </div>
+              <div>
+                <label className="text-sm text-[#0F0A1E]/60 mb-1 block">Work email</label>
+                <Input type="email" value={leadMagnetEmail} onChange={(e) => setLeadMagnetEmail(e.target.value)} required placeholder="you@company.com" />
+              </div>
+              <Button type="submit" disabled={submitting} className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-lg">
+                {submitting ? 'Sending...' : 'Get the playbook'}
+              </Button>
+            </form>
           )}
         </DialogContent>
       </Dialog>

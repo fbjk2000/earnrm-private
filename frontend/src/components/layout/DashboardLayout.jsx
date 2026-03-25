@@ -65,7 +65,7 @@ const DashboardLayout = ({ children }) => {
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4">
         <Link to="/dashboard" className="flex items-center space-x-2">
           <img 
-            src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/u9efkh3m_earnrm_logo_horizontal_light_notag_purpleword.png" 
+            src="/logo-horizontal.svg" 
             alt="earnrm" 
             className="h-8"
           />
@@ -98,13 +98,8 @@ const DashboardLayout = ({ children }) => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="h-16 flex items-center px-6 border-b border-slate-100">
-            <Link to="/dashboard" className="flex items-center space-x-3">
-              <img 
-                src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/9ans91q7_earnrm_mark_purple.svg" 
-                alt="earnrm" 
-                className="h-9 w-9"
-              />
-              <span className="text-xl font-semibold text-slate-900">earnrm</span>
+            <Link to="/dashboard" className="flex items-center">
+              <img src="/logo-horizontal.svg" alt="earnrm" className="h-7" />
             </Link>
           </div>
 
