@@ -1151,7 +1151,7 @@ async def generate_invite_link(
     
     # Get the app URL - prefer frontend URL for invite links
     frontend_url = os.environ.get('FRONTEND_URL', '')
-    app_url = frontend_url or os.environ.get('APP_URL', 'https://earnrm.com')
+    app_url = frontend_url or os.environ.get('FRONTEND_URL', '')
     invite_link = f"{app_url}/signup?invite={invite_code}"
     
     return {
@@ -1188,7 +1188,7 @@ async def send_email_invites(
     
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(days=7)
-    app_url = os.environ.get('FRONTEND_URL', os.environ.get('APP_URL', 'https://earnrm.com'))
+    app_url = os.environ.get('FRONTEND_URL', '')
     
     sent_invites = []
     failed_invites = []
@@ -1482,7 +1482,7 @@ async def get_my_affiliate_status(current_user: dict = Depends(get_current_user)
     return {
         "enrolled": True,
         "affiliate": affiliate,
-        "referral_link": f"https://earnrm.com/signup?ref={affiliate['affiliate_code']}",
+        "referral_link": f"{os.environ.get('FRONTEND_URL', '')}/signup?ref={affiliate['affiliate_code']}",
         "referrals": referrals
     }
 
