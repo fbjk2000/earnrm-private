@@ -81,8 +81,6 @@ android-sdk/ frontend/node_modules/.cache/default-development/0.pack
 frontend/node_modules/.cache/default-development/0.pack
 -e 
 # Environment files
-*.env
-*.env.*
 frontend/node_modules/.cache/default-development/1.pack
 frontend/node_modules/.cache/default-development/8.pack
 frontend/node_modules/.cache/default-development/2.pack
@@ -107,64 +105,34 @@ frontend/node_modules/.cache/default-development/23.pack
 frontend/node_modules/.cache/default-development/24.pack
 -e 
 # Environment files
-*.env
-*.env.*
 frontend/node_modules/.cache/default-development/26.pack
 -e 
 # Environment files
-*.env
-*.env.*
 frontend/node_modules/.cache/default-development/25.pack
 -e 
 # Environment files
-*.env
-*.env.*
 -e 
 # Environment files
-*.env
-*.env.*
 -e 
 # Environment files
-*.env
-*.env.*
 -e 
 # Environment files
-*.env
-*.env.*
 -e 
 # Environment files
-*.env
-*.env.*
 -e 
 # Environment files
-*.env
-*.env.*
 -e 
 # Environment files
-*.env
-*.env.*
 -e 
 # Environment files
-*.env
-*.env.*
 frontend/node_modules/.cache/default-development/13.pack
 -e 
 # Environment files
-*.env
-*.env.*
 -e 
 # Environment files
-*.env
-*.env.*
 -e 
 # Environment files
-*.env
-*.env.*
 -e 
 # Environment files
-*.env
-*.env.*
 -e 
 # Environment files
-*.env
-*.env.*
