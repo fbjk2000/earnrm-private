@@ -1819,6 +1819,10 @@ async def get_tasks(
         query["assigned_to"] = assigned_to
     
     tasks = await db.tasks.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    for t in tasks:
+        subs = t.get("subtasks", [])
+        t["subtask_count"] = len(subs)
+        t["subtasks_done"] = len([s for s in subs if s.get("done")])
     return tasks
 
 @api_router.post("/tasks")
@@ -1834,6 +1838,9 @@ async def create_task(task_data: TaskCreate, current_user: dict = Depends(get_cu
         "task_id": task_id,
         "organization_id": current_user["organization_id"],
         **task_data.model_dump(),
+        "subtasks": [],
+        "comments": [],
+        "activity": [{"action": "created", "by": current_user["user_id"], "by_name": current_user.get("name", ""), "at": now.isoformat()}],
         "created_by": current_user["user_id"],
         "created_at": now.isoformat(),
         "updated_at": now.isoformat()
@@ -1841,34 +1848,83 @@ async def create_task(task_data: TaskCreate, current_user: dict = Depends(get_cu
     if task_doc.get("due_date"):
         task_doc["due_date"] = task_doc["due_date"].isoformat()
     await db.tasks.insert_one(task_doc)
-    # Remove MongoDB's _id field before returning
     task_doc.pop('_id', None)
     return task_doc
 
 @api_router.put("/tasks/{task_id}")
 async def update_task(task_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
-    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
+    old_task = await db.tasks.find_one({"task_id": task_id, "organization_id": current_user.get("organization_id")}, {"_id": 0})
+    if not old_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    activities = []
+    for field in ["status", "priority", "assigned_to", "due_date", "description", "title"]:
+        if field in updates and updates[field] != old_task.get(field):
+            activities.append({"action": f"{field}_changed", "from": str(old_task.get(field, "")), "to": str(updates[field]), "by": current_user["user_id"], "by_name": current_user.get("name", ""), "at": now.isoformat()})
+    
+    updates["updated_at"] = now.isoformat()
     if updates.get("due_date") and isinstance(updates["due_date"], datetime):
         updates["due_date"] = updates["due_date"].isoformat()
     
-    result = await db.tasks.update_one(
-        {"task_id": task_id, "organization_id": current_user.get("organization_id")},
-        {"$set": updates}
-    )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
+    update_ops = {"$set": updates}
+    if activities:
+        update_ops["$push"] = {"activity": {"$each": activities}}
+    await db.tasks.update_one({"task_id": task_id}, update_ops)
     task = await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
     return task
 
 @api_router.delete("/tasks/{task_id}")
 async def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):
-    result = await db.tasks.delete_one(
-        {"task_id": task_id, "organization_id": current_user.get("organization_id")}
-    )
+    result = await db.tasks.delete_one({"task_id": task_id, "organization_id": current_user.get("organization_id")})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"message": "Task deleted"}
+
+@api_router.post("/tasks/{task_id}/comments")
+async def add_task_comment(task_id: str, content: str, current_user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    comment = {"id": f"cmt_{uuid.uuid4().hex[:8]}", "content": content, "by": current_user["user_id"], "by_name": current_user.get("name", ""), "at": now.isoformat()}
+    activity = {"action": "comment_added", "by": current_user["user_id"], "by_name": current_user.get("name", ""), "at": now.isoformat()}
+    result = await db.tasks.update_one({"task_id": task_id, "organization_id": current_user.get("organization_id")}, {"$push": {"comments": comment, "activity": activity}, "$set": {"updated_at": now.isoformat()}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return comment
+
+@api_router.post("/tasks/{task_id}/subtasks")
+async def add_subtask(task_id: str, title: str, current_user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    subtask = {"id": f"sub_{uuid.uuid4().hex[:8]}", "title": title, "done": False, "created_at": now.isoformat()}
+    activity = {"action": "subtask_added", "detail": title, "by": current_user["user_id"], "by_name": current_user.get("name", ""), "at": now.isoformat()}
+    result = await db.tasks.update_one({"task_id": task_id, "organization_id": current_user.get("organization_id")}, {"$push": {"subtasks": subtask, "activity": activity}, "$set": {"updated_at": now.isoformat()}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return subtask
+
+@api_router.put("/tasks/{task_id}/subtasks/{subtask_id}")
+async def toggle_subtask(task_id: str, subtask_id: str, done: bool, current_user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    task = await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    subtasks = task.get("subtasks", [])
+    title = ""
+    for s in subtasks:
+        if s["id"] == subtask_id:
+            s["done"] = done
+            title = s["title"]
+    activity = {"action": "subtask_completed" if done else "subtask_reopened", "detail": title, "by": current_user["user_id"], "by_name": current_user.get("name", ""), "at": now.isoformat()}
+    await db.tasks.update_one({"task_id": task_id}, {"$set": {"subtasks": subtasks, "updated_at": now.isoformat()}, "$push": {"activity": activity}})
+    return {"subtask_id": subtask_id, "done": done}
+
+@api_router.post("/tasks/{task_id}/reopen")
+async def reopen_task(task_id: str, current_user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    activity = {"action": "reopened", "by": current_user["user_id"], "by_name": current_user.get("name", ""), "at": now.isoformat()}
+    result = await db.tasks.update_one({"task_id": task_id, "organization_id": current_user.get("organization_id"), "status": "done"}, {"$set": {"status": "todo", "updated_at": now.isoformat()}, "$push": {"activity": activity}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found or not done")
+    return {"message": "Task reopened"}
 
 # ==================== PROJECTS ROUTES ====================
 

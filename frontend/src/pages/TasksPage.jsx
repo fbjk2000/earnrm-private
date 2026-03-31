@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { Plus, MoreVertical, Calendar, Trash2, Filter, X, User, Edit2, Save, GripVertical } from 'lucide-react';
+import { Plus, MoreVertical, Calendar, Trash2, Filter, X, User, Edit2, Save, GripVertical, MessageSquare, CheckSquare, Clock, RotateCcw } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
@@ -25,6 +25,9 @@ const TasksPage = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
+  const [newComment, setNewComment] = useState('');
+  const [newSubtask, setNewSubtask] = useState('');
+  const [detailTab, setDetailTab] = useState('details');
 
   const [newTask, setNewTask] = useState({
     title: '', description: '', status: 'todo', priority: 'medium',
@@ -121,6 +124,58 @@ const TasksPage = () => {
     setSelectedTask(task);
     setEditData({ ...task });
     setEditMode(false);
+    setDetailTab('details');
+    setNewComment('');
+    setNewSubtask('');
+    // Refresh the task to get latest comments/subtasks
+    refreshTask(task.task_id);
+  };
+
+  const refreshTask = async (taskId) => {
+    try {
+      const res = await axios.get(`${API}/tasks`, ax);
+      const fresh = res.data.find(t => t.task_id === taskId);
+      if (fresh) { setSelectedTask(fresh); setEditData({ ...fresh }); }
+    } catch {}
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !selectedTask) return;
+    try {
+      await axios.post(`${API}/tasks/${selectedTask.task_id}/comments?content=${encodeURIComponent(newComment)}`, {}, ax);
+      setNewComment('');
+      refreshTask(selectedTask.task_id);
+      fetchTasks();
+    } catch { toast.error('Failed to add comment'); }
+  };
+
+  const handleAddSubtask = async () => {
+    if (!newSubtask.trim() || !selectedTask) return;
+    try {
+      await axios.post(`${API}/tasks/${selectedTask.task_id}/subtasks?title=${encodeURIComponent(newSubtask)}`, {}, ax);
+      setNewSubtask('');
+      refreshTask(selectedTask.task_id);
+      fetchTasks();
+    } catch { toast.error('Failed to add subtask'); }
+  };
+
+  const handleToggleSubtask = async (subtaskId, done) => {
+    if (!selectedTask) return;
+    try {
+      await axios.put(`${API}/tasks/${selectedTask.task_id}/subtasks/${subtaskId}?done=${done}`, {}, ax);
+      refreshTask(selectedTask.task_id);
+      fetchTasks();
+    } catch {}
+  };
+
+  const handleReopenTask = async () => {
+    if (!selectedTask) return;
+    try {
+      await axios.post(`${API}/tasks/${selectedTask.task_id}/reopen`, {}, ax);
+      toast.success('Task reopened');
+      refreshTask(selectedTask.task_id);
+      fetchTasks();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); }
   };
 
   const onDragEnd = (result) => {
@@ -229,6 +284,8 @@ const TasksPage = () => {
                                         {task.description && <p className="text-xs text-slate-500 line-clamp-2">{task.description}</p>}
                                         {task.assigned_to && <div className="flex items-center gap-1 mt-2 text-xs text-[#7C3AED]"><User className="w-3 h-3" />{getOwnerName(task.assigned_to)}</div>}
                                         {task.due_date && <div className="flex items-center gap-1 mt-1 text-xs text-slate-400"><Calendar className="w-3 h-3" />{new Date(task.due_date).toLocaleDateString()}</div>}
+                                        {task.subtask_count > 0 && <div className="flex items-center gap-1 mt-1 text-xs text-slate-400"><CheckSquare className="w-3 h-3" />{task.subtasks_done}/{task.subtask_count}</div>}
+                                        {task.comments?.length > 0 && <div className="flex items-center gap-1 mt-1 text-xs text-slate-400"><MessageSquare className="w-3 h-3" />{task.comments.length}</div>}
                                       </div>
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 shrink-0"><MoreVertical className="w-3 h-3" /></Button></DropdownMenuTrigger>
@@ -265,7 +322,10 @@ const TasksPage = () => {
               <DialogHeader>
                 <DialogTitle className="flex items-center justify-between">
                   <span>{editMode ? 'Edit Task' : selectedTask.title}</span>
-                  {!editMode && <Button size="sm" variant="outline" onClick={() => setEditMode(true)} data-testid="edit-task-btn"><Edit2 className="w-3.5 h-3.5 mr-1" /> Edit</Button>}
+                  <div className="flex gap-1">
+                    {!editMode && selectedTask.status === 'done' && <Button size="sm" variant="outline" onClick={handleReopenTask} data-testid="reopen-task-btn"><RotateCcw className="w-3.5 h-3.5 mr-1" /> Reopen</Button>}
+                    {!editMode && <Button size="sm" variant="outline" onClick={() => setEditMode(true)} data-testid="edit-task-btn"><Edit2 className="w-3.5 h-3.5 mr-1" /> Edit</Button>}
+                  </div>
                 </DialogTitle>
               </DialogHeader>
               {editMode ? (
@@ -302,28 +362,102 @@ const TasksPage = () => {
                 </div>
               ) : (
                 <div className="space-y-4 pt-2">
+                  {/* Description (stable) */}
                   {selectedTask.description && (
                     <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500 mb-1">Description</p><p className="text-sm text-slate-700 whitespace-pre-wrap">{selectedTask.description}</p></div>
                   )}
+                  
+                  {/* Info row */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Status</p><p className="text-sm font-medium capitalize">{selectedTask.status?.replace('_', ' ')}</p></div>
                     <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Priority</p>
                       <div className="flex items-center gap-1.5"><div className={`w-2 h-2 rounded-full ${priorities.find(p => p.value === selectedTask.priority)?.color}`} /><span className="text-sm font-medium capitalize">{selectedTask.priority}</span></div>
                     </div>
-                    {selectedTask.assigned_to && (
-                      <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Assigned To</p><p className="text-sm font-medium">{getOwnerName(selectedTask.assigned_to)}</p></div>
-                    )}
-                    {selectedTask.due_date && (
-                      <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Due Date</p><p className="text-sm font-medium">{new Date(selectedTask.due_date).toLocaleDateString()}</p></div>
-                    )}
-                    {selectedTask.project_id && (
-                      <div className="bg-purple-50 rounded-lg p-3"><p className="text-xs text-purple-500">Project</p><p className="text-sm font-medium text-purple-700">{selectedTask.project_id}</p></div>
-                    )}
-                    {selectedTask.related_deal_id && (
-                      <div className="bg-purple-50 rounded-lg p-3"><p className="text-xs text-purple-500">Linked Deal</p><p className="text-sm font-medium text-purple-700">{selectedTask.related_deal_id}</p></div>
-                    )}
+                    {selectedTask.assigned_to && <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Owner</p><p className="text-sm font-medium">{getOwnerName(selectedTask.assigned_to)}</p></div>}
+                    {selectedTask.due_date && <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Due</p><p className="text-sm font-medium">{new Date(selectedTask.due_date).toLocaleDateString()}</p></div>}
                   </div>
-                  <div className="flex gap-2 pt-1">
+
+                  {/* Tabs: Subtasks | Comments | Activity */}
+                  <div className="flex gap-1 border-b">
+                    {[['details', 'Subtasks'], ['comments', 'Updates'], ['activity', 'History']].map(([key, label]) => (
+                      <button key={key} onClick={() => setDetailTab(key)} className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${detailTab === key ? 'border-[#7C3AED] text-[#7C3AED]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{label}
+                        {key === 'details' && selectedTask.subtasks?.length > 0 && <span className="ml-1 text-xs bg-slate-100 px-1.5 rounded-full">{selectedTask.subtasks_done || selectedTask.subtasks?.filter(s => s.done).length || 0}/{selectedTask.subtasks?.length}</span>}
+                        {key === 'comments' && selectedTask.comments?.length > 0 && <span className="ml-1 text-xs bg-slate-100 px-1.5 rounded-full">{selectedTask.comments.length}</span>}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Subtasks tab */}
+                  {detailTab === 'details' && (
+                    <div className="space-y-2">
+                      {selectedTask.subtasks?.map(sub => (
+                        <div key={sub.id} className="flex items-center gap-2 py-1.5">
+                          <button onClick={() => handleToggleSubtask(sub.id, !sub.done)} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${sub.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-slate-400'}`}>
+                            {sub.done && <CheckSquare className="w-3 h-3" />}
+                          </button>
+                          <span className={`text-sm ${sub.done ? 'line-through text-slate-400' : 'text-slate-700'}`}>{sub.title}</span>
+                        </div>
+                      ))}
+                      {(!selectedTask.subtasks || selectedTask.subtasks.length === 0) && <p className="text-xs text-slate-400 py-2">No subtasks yet</p>}
+                      <div className="flex gap-2 pt-2">
+                        <Input value={newSubtask} onChange={e => setNewSubtask(e.target.value)} placeholder="Add a subtask..." className="h-8 text-sm" onKeyDown={e => { if (e.key === 'Enter') handleAddSubtask(); }} data-testid="add-subtask-input" />
+                        <Button size="sm" onClick={handleAddSubtask} disabled={!newSubtask.trim()} className="h-8" data-testid="add-subtask-btn"><Plus className="w-3 h-3" /></Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Comments/Updates tab */}
+                  {detailTab === 'comments' && (
+                    <div className="space-y-3">
+                      {selectedTask.comments?.length > 0 ? (
+                        <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                          {selectedTask.comments.map(c => (
+                            <div key={c.id} className="bg-slate-50 rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-medium text-slate-900">{c.by_name}</span>
+                                <span className="text-xs text-slate-400">{new Date(c.at).toLocaleString()}</span>
+                              </div>
+                              <p className="text-sm text-slate-700">{c.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="text-xs text-slate-400 py-2">No updates yet</p>}
+                      <div className="flex gap-2">
+                        <Input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Add progress note, blocker, or update..." className="h-8 text-sm" onKeyDown={e => { if (e.key === 'Enter') handleAddComment(); }} data-testid="add-comment-input" />
+                        <Button size="sm" onClick={handleAddComment} disabled={!newComment.trim()} className="h-8" data-testid="add-comment-btn"><MessageSquare className="w-3 h-3" /></Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Activity/History tab */}
+                  {detailTab === 'activity' && (
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {selectedTask.activity?.length > 0 ? (
+                        <div className="space-y-1">
+                          {[...selectedTask.activity].reverse().map((a, i) => (
+                            <div key={i} className="flex items-start gap-2 py-1.5 text-xs">
+                              <Clock className="w-3 h-3 text-slate-300 mt-0.5 shrink-0" />
+                              <div>
+                                <span className="font-medium text-slate-700">{a.by_name || 'System'}</span>
+                                {' '}
+                                {a.action === 'created' && <span className="text-slate-500">created this task</span>}
+                                {a.action === 'comment_added' && <span className="text-slate-500">added a comment</span>}
+                                {a.action === 'subtask_added' && <span className="text-slate-500">added subtask: {a.detail}</span>}
+                                {a.action === 'subtask_completed' && <span className="text-emerald-600">completed: {a.detail}</span>}
+                                {a.action === 'subtask_reopened' && <span className="text-amber-600">unchecked: {a.detail}</span>}
+                                {a.action === 'reopened' && <span className="text-blue-600">reopened this task</span>}
+                                {a.action?.endsWith('_changed') && <span className="text-slate-500">changed {a.action.replace('_changed', '')} from <span className="text-slate-400">{a.from || 'none'}</span> to <span className="font-medium">{a.to}</span></span>}
+                                <span className="text-slate-300 ml-2">{new Date(a.at).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="text-xs text-slate-400 py-2">No activity yet</p>}
+                    </div>
+                  )}
+
+                  {/* Bottom actions */}
+                  <div className="flex gap-2 pt-1 border-t">
                     <Button size="sm" variant="outline" className="text-red-500" onClick={() => handleDeleteTask(selectedTask.task_id)}><Trash2 className="w-3.5 h-3.5 mr-1" /> Delete</Button>
                   </div>
                 </div>
