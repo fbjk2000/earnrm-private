@@ -1188,7 +1188,7 @@ async def send_email_invites(
     
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(days=7)
-    app_url = os.environ.get('APP_URL', 'https://earnrm.com')
+    app_url = os.environ.get('FRONTEND_URL', os.environ.get('APP_URL', 'https://earnrm.com'))
     
     sent_invites = []
     failed_invites = []
@@ -1240,7 +1240,7 @@ async def send_email_invites(
             try:
                 resend.Emails.send({
                     "from": SENDER_EMAIL,
-                    "to": email,
+                    "to": [email],
                     "subject": f"You're invited to join {org_name} on earnrm",
                     "html": f"""
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
