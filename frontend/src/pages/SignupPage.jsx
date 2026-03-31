@@ -13,7 +13,7 @@ import { ArrowLeft, Mail, Lock, User, Building, Eye, EyeOff, Users } from 'lucid
 const SignupPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { register } = useAuth();
+  const { register, user, token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [inviteInfo, setInviteInfo] = useState(null);
@@ -30,9 +30,27 @@ const SignupPage = () => {
     const code = searchParams.get('invite');
     if (code) {
       setInviteCode(code);
+      // If already logged in, accept invite directly
+      if (token && user) {
+        acceptInviteForExistingUser(code);
+      } else {
+        validateInvite(code);
+      }
+    }
+  }, [searchParams, token, user]);
+
+  const acceptInviteForExistingUser = async (code) => {
+    try {
+      const res = await axios.post(`${API}/organizations/invites/accept?invite_code=${code}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }, withCredentials: true
+      });
+      toast.success(res.data.message || 'Joined organisation');
+      navigate('/dashboard');
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Could not accept invite');
       validateInvite(code);
     }
-  }, [searchParams]);
+  };
 
   const validateInvite = async (code) => {
     try {

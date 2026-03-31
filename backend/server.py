@@ -1200,9 +1200,7 @@ async def send_email_invites(
             if existing_user.get("organization_id") == current_user["organization_id"]:
                 failed_invites.append({"email": email, "reason": "Already a member"})
                 continue
-            else:
-                failed_invites.append({"email": email, "reason": "User belongs to another organization"})
-                continue
+            # User exists in another org - still allow invite (they can switch)
         
         # Check for existing pending invite
         existing_invite = await db.invites.find_one({
@@ -1247,8 +1245,9 @@ async def send_email_invites(
                         <h2 style="color: #A100FF;">You're Invited!</h2>
                         <p>{current_user['name']} has invited you to join <strong>{org_name}</strong> on earnrm.</p>
                         <p>earnrm is an AI-powered CRM that helps teams manage leads, deals, and customer relationships more effectively.</p>
+                        <p style="color: #666; font-size: 14px;">Already have an account? Log in and use the link below to switch organisations.</p>
                         <div style="margin: 30px 0;">
-                            <a href="{invite_link}" style="background-color: #A100FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+                            <a href="{invite_link}" style="background-color: #7C3AED; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
                                 Accept Invitation
                             </a>
                         </div>
@@ -1352,6 +1351,34 @@ async def revoke_invite(
         raise HTTPException(status_code=404, detail="Invite not found")
     
     return {"message": "Invite revoked"}
+
+@api_router.post("/organizations/invites/accept")
+async def accept_invite(invite_code: str, current_user: dict = Depends(get_current_user)):
+    """Accept an invite and switch to the new organization"""
+    now = datetime.now(timezone.utc)
+    invite = await db.invites.find_one({"invite_code": invite_code, "is_active": True}, {"_id": 0})
+    if not invite:
+        raise HTTPException(status_code=400, detail="Invalid or expired invitation")
+    if invite.get("expires_at") and invite["expires_at"] < now.isoformat():
+        raise HTTPException(status_code=400, detail="Invitation has expired")
+    if invite.get("email") and invite["email"].lower() != current_user.get("email", "").lower():
+        raise HTTPException(status_code=400, detail="This invitation is for a different email")
+    
+    new_org_id = invite["organization_id"]
+    old_org_id = current_user.get("organization_id")
+    new_role = invite.get("role", "member")
+    
+    # Decrement old org user count
+    if old_org_id and old_org_id != new_org_id:
+        await db.organizations.update_one({"organization_id": old_org_id}, {"$inc": {"user_count": -1}})
+    
+    # Switch user to new org
+    await db.users.update_one({"user_id": current_user["user_id"]}, {"$set": {"organization_id": new_org_id, "role": new_role}})
+    await db.organizations.update_one({"organization_id": new_org_id}, {"$inc": {"user_count": 1}})
+    await db.invites.update_one({"invite_code": invite_code}, {"$inc": {"used_count": 1}})
+    
+    org = await db.organizations.find_one({"organization_id": new_org_id}, {"_id": 0})
+    return {"message": f"Joined {org.get('name', 'organization')}", "organization_id": new_org_id, "role": new_role}
 
 @api_router.get("/invites/validate/{invite_code}")
 async def validate_invite(invite_code: str):
