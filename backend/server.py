@@ -730,7 +730,8 @@ async def forgot_password(email: str):
     
     if RESEND_API_KEY:
         try:
-            resend.Emails.send({
+            import asyncio
+            result = await asyncio.to_thread(resend.Emails.send, {
                 "from": SENDER_EMAIL,
                 "to": [email.lower()],
                 "subject": "Reset your earnrm password",
@@ -741,6 +742,7 @@ async def forgot_password(email: str):
                     <p style="color: #666; font-size: 14px;">This link expires in 1 hour. If you did not request this, ignore this email.</p>
                 </div>"""
             })
+            logger.info(f"Reset email sent to {email}: {result}")
         except Exception as e:
             logger.error(f"Reset email error: {e}")
     
