@@ -1711,6 +1711,92 @@ async def get_company(company_id: str, current_user: dict = Depends(get_current_
         raise HTTPException(status_code=404, detail="Company not found")
     return company
 
+@api_router.put("/companies/{company_id}")
+async def update_company(company_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.companies.update_one(
+        {"company_id": company_id, "organization_id": current_user.get("organization_id")},
+        {"$set": updates}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return await get_company(company_id, current_user)
+
+@api_router.delete("/companies/{company_id}")
+async def delete_company(company_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.companies.delete_one(
+        {"company_id": company_id, "organization_id": current_user.get("organization_id")}
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return {"message": "Company deleted"}
+
+@api_router.post("/companies/import-csv")
+async def import_companies_csv(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
+    content = await file.read()
+    text = content.decode('utf-8-sig')
+    reader = csv.DictReader(io.StringIO(text))
+    now = datetime.now(timezone.utc)
+    count = 0
+    for row in reader:
+        r = {k.strip().lower().replace(' ', '_'): v.strip() for k, v in row.items() if v and v.strip()}
+        if not r.get('name') and not r.get('company'):
+            continue
+        doc = {
+            "company_id": f"company_{uuid.uuid4().hex[:12]}",
+            "organization_id": current_user["organization_id"],
+            "name": r.get('name') or r.get('company', ''),
+            "industry": r.get('industry'),
+            "website": r.get('website') or r.get('url'),
+            "size": r.get('size') or r.get('employees') or r.get('company_size'),
+            "description": r.get('description') or r.get('notes'),
+            "location": r.get('location') or r.get('city') or r.get('address'),
+            "created_by": current_user["user_id"],
+            "created_at": now.isoformat()
+        }
+        await db.companies.insert_one(doc)
+        count += 1
+    return {"count": count, "message": f"Imported {count} companies"}
+
+# ==================== CUSTOMIZABLE STAGES ====================
+
+@api_router.get("/settings/stages")
+async def get_custom_stages(current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
+    org_id = current_user["organization_id"]
+    settings = await db.org_stage_settings.find_one({"organization_id": org_id}, {"_id": 0})
+    if not settings:
+        settings = {
+            "organization_id": org_id,
+            "deal_stages": [
+                {"id": "lead", "name": "Lead"}, {"id": "qualified", "name": "Qualified"},
+                {"id": "proposal", "name": "Proposal"}, {"id": "negotiation", "name": "Negotiation"},
+                {"id": "won", "name": "Won"}, {"id": "lost", "name": "Lost"}
+            ],
+            "task_statuses": [
+                {"id": "todo", "name": "To Do"}, {"id": "in_progress", "name": "In Progress"}, {"id": "done", "name": "Done"}
+            ]
+        }
+    return settings
+
+@api_router.put("/settings/stages")
+async def update_custom_stages(stages: dict, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("organization_id"):
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
+    role = current_user.get("role", "member")
+    if role not in ["admin", "owner", "super_admin", "deputy_admin"]:
+        raise HTTPException(status_code=403, detail="Only admins can modify stages")
+    org_id = current_user["organization_id"]
+    stages["organization_id"] = org_id
+    await db.org_stage_settings.update_one({"organization_id": org_id}, {"$set": stages}, upsert=True)
+    return await get_custom_stages(current_user)
+
 # ==================== DEALS ROUTES ====================
 
 @api_router.get("/deals")

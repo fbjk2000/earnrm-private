@@ -279,7 +279,7 @@ const DealsPage = () => {
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create New Deal</DialogTitle>
+                <DialogTitle>{ t('forms.newDeal') }</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddDeal} className="space-y-4 pt-4">
                 {/* Deal Info Section */}

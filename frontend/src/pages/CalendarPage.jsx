@@ -251,7 +251,7 @@ const CalendarPage = () => {
       {/* Create Event Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>New Calendar Event</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{ t('forms.newEvent') }</DialogTitle></DialogHeader>
           <div className="space-y-3 pt-2">
             <div><Label>Title *</Label><Input value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="Meeting, deadline..." data-testid="event-title" /></div>
             <div><Label>Date *</Label><Input type="datetime-local" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} data-testid="event-date" /></div>
