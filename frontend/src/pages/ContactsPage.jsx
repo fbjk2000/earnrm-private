@@ -176,7 +176,7 @@ const ContactsPage = () => {
         <div className="flex items-center justify-between">
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input placeholder="Search contacts..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" data-testid="contacts-search" />
+            <Input placeholder={t('contacts.searchContacts')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" data-testid="contacts-search" />
           </div>
           <Button size="sm" variant="ghost" onClick={() => setShowColSettings(!showColSettings)} data-testid="contact-col-settings"><Filter className="w-3.5 h-3.5 mr-1" /> Columns</Button>
         </div>
@@ -232,7 +232,7 @@ const ContactsPage = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {visibleCols.decision_maker && c.decision_maker && <Badge className="bg-amber-100 text-amber-700 text-xs">Decision Maker</Badge>}
+                        {visibleCols.decision_maker && c.decision_maker && <Badge className="bg-amber-100 text-amber-700 text-xs">{ t('contacts.decisionMaker') }</Badge>}
                         {c.ai_score && <Badge className="bg-purple-100 text-purple-700 text-xs">{c.ai_score}/100</Badge>}
                       </div>
                       </div>

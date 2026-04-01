@@ -115,7 +115,7 @@ const ProjectsPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{ t('projects.title') }</h1>
-            <p className="text-slate-500 text-sm mt-1">Multi-task projects linked to deals</p>
+            <p className="text-slate-500 text-sm mt-1">{ t('projects.subtitle') }</p>
           </div>
           <Button className="bg-[#A100FF] hover:bg-purple-700" onClick={() => setShowCreate(true)} data-testid="new-project-btn">
             <Plus className="w-4 h-4 mr-2" /> New Project
@@ -126,7 +126,7 @@ const ProjectsPage = () => {
           <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-[#A100FF] border-t-transparent rounded-full animate-spin" /></div>
         ) : projects.length === 0 ? (
           <Card className="p-12 text-center">
-            <p className="font-medium text-slate-600">No projects yet</p>
+            <p className="font-medium text-slate-600">{ t('projects.noProjects') }</p>
             <p className="text-sm text-slate-400 mt-1">Create a project to organize tasks around a deal</p>
             <Button className="mt-4 bg-[#A100FF] hover:bg-purple-700" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-2" /> Create Project</Button>
           </Card>
@@ -201,14 +201,14 @@ const ProjectsPage = () => {
                 {selectedProject.deal && (
                   <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 flex items-center justify-between">
                     <div><p className="text-sm font-medium text-purple-900"><Target className="w-4 h-4 inline mr-1" />{selectedProject.deal.name}</p><p className="text-xs text-purple-600">€{selectedProject.deal.value?.toLocaleString()} — {selectedProject.deal.stage}</p></div>
-                    <Button size="sm" variant="outline" onClick={() => { setSelectedProject(null); navigate(`/deals`); }}>View Deal</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setSelectedProject(null); navigate(`/deals`); }}>{ t('projects.viewDeal') }</Button>
                   </div>
                 )}
 
                 {/* Action buttons */}
                 <div className="flex gap-2">
-                  <Button size="sm" className="bg-[#A100FF] hover:bg-purple-700" onClick={() => setShowAddTask(true)} data-testid="add-task-to-project"><Plus className="w-4 h-4 mr-1" /> Add Task</Button>
-                  <Button size="sm" variant="outline" onClick={() => { setSelectedProject(null); navigate(`/chat?type=project&id=${selectedProject.project_id}`); }}><MessageSquare className="w-4 h-4 mr-1" /> Project Chat</Button>
+                  <Button size="sm" className="bg-[#A100FF] hover:bg-purple-700" onClick={() => setShowAddTask(true)} data-testid="add-task-to-project"><Plus className="w-4 h-4 mr-1" />{ t('projects.addTask') }</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setSelectedProject(null); navigate(`/chat?type=project&id=${selectedProject.project_id}`); }}><MessageSquare className="w-4 h-4 mr-1" />{ t('projects.projectChat') }</Button>
                 </div>
 
                 {/* Tasks */}
@@ -281,7 +281,7 @@ const ProjectsPage = () => {
                 </div>
               </div>
               <div><Label>Due Date</Label><Input type="date" value={newTask.due_date} onChange={e => setNewTask({ ...newTask, due_date: e.target.value })} /></div>
-              <Button onClick={handleAddTask} className="w-full bg-[#A100FF] hover:bg-purple-700" data-testid="submit-project-task"><Plus className="w-4 h-4 mr-2" /> Add Task</Button>
+              <Button onClick={handleAddTask} className="w-full bg-[#A100FF] hover:bg-purple-700" data-testid="submit-project-task"><Plus className="w-4 h-4 mr-2" />{ t('projects.addTask') }</Button>
             </div>
           </DialogContent>
         </Dialog>

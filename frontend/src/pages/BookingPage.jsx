@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect } from 'react';
 import { useAuth, API } from '../App';
 import { useParams } from 'react-router-dom';
@@ -59,7 +60,7 @@ const BookingPage = () => {
       <div className="p-6 space-y-6" data-testid="booking-page">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Bookings</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{ t('bookings.title') }</h1>
             <p className="text-slate-500 text-sm mt-1">Manage your calendar booking page</p>
           </div>
           <div className="flex gap-2">
@@ -74,7 +75,7 @@ const BookingPage = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-900">Your Booking Page</p>
+                <p className="text-sm font-medium text-purple-900">{ t('bookings.bookingPage') }</p>
                 <p className="text-sm text-purple-700 font-mono mt-1">{bookingLink}</p>
               </div>
               <Button size="sm" variant="outline" onClick={copyLink}><Copy className="w-3.5 h-3.5 mr-1" /> Copy</Button>
@@ -85,7 +86,7 @@ const BookingPage = () => {
         {/* Upcoming Bookings */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Upcoming Bookings</CardTitle>
+            <CardTitle className="text-lg">{ t('bookings.upcoming') }</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (

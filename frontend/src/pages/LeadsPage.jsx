@@ -493,7 +493,7 @@ const LeadsPage = () => {
             <div className="flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-lg p-3 flex-1">
               <span className="text-sm font-medium text-purple-800">{selectedIds.length} selected</span>
               <Button size="sm" variant="outline" onClick={handleBulkEnrich} data-testid="bulk-enrich-btn"><Wand2 className="w-3.5 h-3.5 mr-1" /> Enrich</Button>
-              <Button size="sm" variant="outline" className="text-red-600 border-red-200" onClick={handleBulkDelete} data-testid="bulk-delete-btn"><X className="w-3.5 h-3.5 mr-1" /> Delete</Button>
+              <Button size="sm" variant="outline" className="text-red-600 border-red-200" onClick={handleBulkDelete} data-testid="bulk-delete-btn"><X className="w-3.5 h-3.5 mr-1" />{ t('common.delete') }</Button>
               <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>Clear</Button>
             </div>
           ) : <div />}

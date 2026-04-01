@@ -136,7 +136,7 @@ const CalendarPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{ t('calendar.title') }</h1>
-            <p className="text-slate-500 text-sm mt-1">Scheduled calls, task due dates, deal closes</p>
+            <p className="text-slate-500 text-sm mt-1">{ t('calendar.subtitle') }</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex border border-slate-200 rounded-lg overflow-hidden">
@@ -149,7 +149,7 @@ const CalendarPage = () => {
                 Connect Google
               </Button>
             ) : (
-              <Badge className="bg-blue-100 text-blue-700">Google Connected</Badge>
+              <Badge className="bg-blue-100 text-blue-700">{ t('calendar.googleConnected') }</Badge>
             )}
             <Button className="bg-[#A100FF] hover:bg-purple-700" onClick={() => setShowCreate(true)} data-testid="new-event-btn"><Plus className="w-4 h-4 mr-1" /> Event</Button>
           </div>
@@ -166,10 +166,10 @@ const CalendarPage = () => {
             {view === 'month' ? `${MONTHS[month]} ${year}` : `Week of ${weekDays[0].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${weekDays[6].toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`}
           </h2>
           <div className="flex gap-3 text-xs text-slate-500">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#A100FF]" />Calls</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" />Tasks</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500" />Deals</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-400" />Events</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#A100FF]" />{ t('calendar.legendCalls') }</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" />{ t('calendar.legendTasks') }</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500" />{ t('calendar.legendDeals') }</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-400" />{ t('calendar.legendEvents') }</span>
             {googleConnected && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" />Google</span>}
           </div>
         </div>

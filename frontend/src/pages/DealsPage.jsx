@@ -417,7 +417,7 @@ const DealsPage = () => {
 
                 {/* Link to Entity */}
                 <div className="space-y-3 bg-slate-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-slate-800 text-sm">Link Deal To</h3>
+                  <h3 className="font-semibold text-slate-800 text-sm">{ t('deals.linkTo') }</h3>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Lead</Label>
@@ -639,8 +639,8 @@ const DealsPage = () => {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="w-3 h-3" /></Button></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/chat?type=deal&id=${deal.deal_id}`)}><MessageSquare className="w-3 h-3 mr-2" />Discuss</DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteDeal(deal.deal_id)}>Delete</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/chat?type=deal&id=${deal.deal_id}`)}><MessageSquare className="w-3 h-3 mr-2" />{ t('leads.discuss') }</DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteDeal(deal.deal_id)}>{ t('common.delete') }</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>
@@ -648,7 +648,7 @@ const DealsPage = () => {
                   ))}
                 </tbody>
               </table>
-              {deals.length === 0 && <p className="text-center text-slate-500 py-8">No deals</p>}
+              {deals.length === 0 && <p className="text-center text-slate-500 py-8">{ t('deals.noDeals') }</p>}
             </CardContent>
           </Card>
         ) : (
@@ -708,11 +708,11 @@ const DealsPage = () => {
                                             <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0"><MoreVertical className="w-3.5 h-3.5" /></Button>
                                           </DropdownMenuTrigger>
                                           <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => navigate(`/chat?type=deal&id=${deal.deal_id}`)}><MessageSquare className="w-3.5 h-3.5 mr-2" />Discuss</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/chat?type=deal&id=${deal.deal_id}`)}><MessageSquare className="w-3.5 h-3.5 mr-2" />{ t('leads.discuss') }</DropdownMenuItem>
                                             {stages.map(s => (
                                               <DropdownMenuItem key={s.id} onClick={() => handleStageChange(deal.deal_id, s.id)} disabled={s.id === deal.stage}>Move to {s.name}</DropdownMenuItem>
                                             ))}
-                                            <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteDeal(deal.deal_id)}><Trash2 className="w-3.5 h-3.5 mr-2" />Delete</DropdownMenuItem>
+                                            <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteDeal(deal.deal_id)}><Trash2 className="w-3.5 h-3.5 mr-2" />{ t('common.delete') }</DropdownMenuItem>
                                           </DropdownMenuContent>
                                         </DropdownMenu>
                                       </div>
@@ -723,7 +723,7 @@ const DealsPage = () => {
                             ))}
                             {provided.placeholder}
                             {getStageDeals(stage.id).length === 0 && (
-                              <p className="text-center text-sm text-slate-400 py-4">Drop deals here</p>
+                              <p className="text-center text-sm text-slate-400 py-4">{ t('deals.dropHere') }</p>
                             )}
                           </CardContent>
                         </Card>

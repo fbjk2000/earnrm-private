@@ -40,9 +40,9 @@ const TasksPage = () => {
   const ax = { headers, withCredentials: true };
 
   const statuses = [
-    { id: 'todo', name: 'To Do', color: 'border-slate-300' },
-    { id: 'in_progress', name: 'In Progress', color: 'border-blue-400' },
-    { id: 'done', name: 'Done', color: 'border-emerald-400' }
+    { id: 'todo', name: t('tasks.statuses.todo'), color: 'border-slate-300' },
+    { id: 'in_progress', name: t('tasks.statuses.in_progress'), color: 'border-blue-400' },
+    { id: 'done', name: t('tasks.statuses.done'), color: 'border-emerald-400' }
   ];
 
   const priorities = [
@@ -197,8 +197,8 @@ const TasksPage = () => {
       <div className="p-6 space-y-6" data-testid="tasks-page">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Tasks</h1>
-            <p className="text-slate-500 text-sm mt-1">Manage your team's tasks and to-dos</p>
+            <h1 className="text-2xl font-bold text-slate-900">{ t('tasks.title') }</h1>
+            <p className="text-slate-500 text-sm mt-1">{ t('tasks.subtitle') }</p>
           </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -209,7 +209,7 @@ const TasksPage = () => {
             <DialogContent className="max-w-md">
               <DialogHeader><DialogTitle>Create Task</DialogTitle></DialogHeader>
               <form onSubmit={handleAddTask} className="space-y-3 pt-2">
-                <div><Label>Title *</Label><Input value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})} required data-testid="task-title" /></div>
+                <div><Label>{ t('common.create') }</Label><Input value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})} required data-testid="task-title" /></div>
                 <div><Label>Description</Label><Textarea value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} rows={2} /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Priority</Label>
@@ -226,7 +226,7 @@ const TasksPage = () => {
                   </div>
                 </div>
                 <div><Label>Due Date</Label><Input type="date" value={newTask.due_date} onChange={(e) => setNewTask({...newTask, due_date: e.target.value})} /></div>
-                <Button type="submit" className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white" data-testid="submit-task">Create Task</Button>
+                <Button type="submit" className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white" data-testid="submit-task">{ t('common.create') }</Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -238,11 +238,11 @@ const TasksPage = () => {
             <Filter className="w-4 h-4 text-slate-500" />
             <Select value={filterStatus || 'all'} onValueChange={(v) => setFilterStatus(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-36" data-testid="filter-status"><SelectValue placeholder="All Stages" /></SelectTrigger>
-              <SelectContent><SelectItem value="all">All Stages</SelectItem>{statuses.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+              <SelectContent><SelectItem value="all">{ t('common.all') }</SelectItem>{statuses.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
             </Select>
             <Select value={filterOwner || 'all'} onValueChange={(v) => setFilterOwner(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-36" data-testid="filter-owner"><SelectValue placeholder="All Owners" /></SelectTrigger>
-              <SelectContent><SelectItem value="all">All Owners</SelectItem>{members.map(m => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}</SelectContent>
+              <SelectContent><SelectItem value="all">{ t('common.all') }</SelectItem>{members.map(m => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}</SelectContent>
             </Select>
             {hasFilters && <Button variant="ghost" size="sm" onClick={() => { setFilterStatus(''); setFilterOwner(''); }}><X className="w-3 h-3 mr-1" />Clear</Button>}
           </div>
@@ -292,9 +292,9 @@ const TasksPage = () => {
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 shrink-0"><MoreVertical className="w-3 h-3" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                          <DropdownMenuItem onClick={() => { openTaskDetail(task); setEditMode(true); }}><Edit2 className="w-3 h-3 mr-2" />Edit</DropdownMenuItem>
-                                          {statuses.map(s => <DropdownMenuItem key={s.id} onClick={() => handleStatusChange(task.task_id, s.id)} disabled={s.id === task.status}>Move to {s.name}</DropdownMenuItem>)}
-                                          <DropdownMenuItem className="text-rose-600" onClick={() => handleDeleteTask(task.task_id)}><Trash2 className="w-3 h-3 mr-2" />Delete</DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => { openTaskDetail(task); setEditMode(true); }}><Edit2 className="w-3 h-3 mr-2" />{ t('common.edit') }</DropdownMenuItem>
+                                          {statuses.map(s => <DropdownMenuItem key={s.id} onClick={() => handleStatusChange(task.task_id, s.id)} disabled={s.id === task.status}>{ s.name }</DropdownMenuItem>)}
+                                          <DropdownMenuItem className="text-rose-600" onClick={() => handleDeleteTask(task.task_id)}><Trash2 className="w-3 h-3 mr-2" />{ t('common.delete') }</DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
                                     </div>
@@ -304,7 +304,7 @@ const TasksPage = () => {
                             </Draggable>
                           ))}
                           {provided.placeholder}
-                          {getStatusTasks(status.id).length === 0 && <p className="text-center text-sm text-slate-400 py-8">Drop tasks here</p>}
+                          {getStatusTasks(status.id).length === 0 && <p className="text-center text-sm text-slate-400 py-8">{ t('tasks.dropHere') }</p>}
                         </CardContent>
                       </Card>
                     </div>
@@ -323,7 +323,7 @@ const TasksPage = () => {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center justify-between">
-                  <span>{editMode ? 'Edit Task' : selectedTask.title}</span>
+                  <span>{ editMode ? t('common.edit') : selectedTask.title }</span>
                   <div className="flex gap-1">
                     {!editMode && selectedTask.status === 'done' && <Button size="sm" variant="outline" onClick={handleReopenTask} data-testid="reopen-task-btn"><RotateCcw className="w-3.5 h-3.5 mr-1" /> Reopen</Button>}
                     {!editMode && <Button size="sm" variant="outline" onClick={() => setEditMode(true)} data-testid="edit-task-btn"><Edit2 className="w-3.5 h-3.5 mr-1" /> Edit</Button>}
@@ -358,21 +358,21 @@ const TasksPage = () => {
                     <div><Label>Due Date</Label><Input type="date" value={editData.due_date ? editData.due_date.split('T')[0] : ''} onChange={e => setEditData({...editData, due_date: e.target.value || null})} /></div>
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <Button onClick={handleSaveTask} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white" data-testid="save-task-btn"><Save className="w-4 h-4 mr-2" /> Save</Button>
-                    <Button variant="outline" onClick={() => { setEditMode(false); setEditData({...selectedTask}); }}>Cancel</Button>
+                    <Button onClick={handleSaveTask} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white" data-testid="save-task-btn"><Save className="w-4 h-4 mr-2" />{ t('common.save') }</Button>
+                    <Button variant="outline" onClick={() => { setEditMode(false); setEditData({...selectedTask}); }}>{ t('common.cancel') }</Button>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-4 pt-2">
                   {/* Description (stable) */}
                   {selectedTask.description && (
-                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500 mb-1">Description</p><p className="text-sm text-slate-700 whitespace-pre-wrap">{selectedTask.description}</p></div>
+                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500 mb-1">{ t('common.description') || 'Description' }</p><p className="text-sm text-slate-700 whitespace-pre-wrap">{selectedTask.description}</p></div>
                   )}
                   
                   {/* Info row */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Status</p><p className="text-sm font-medium capitalize">{selectedTask.status?.replace('_', ' ')}</p></div>
-                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Priority</p>
+                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">{ t('tasks.statuses.todo') ? 'Status' : 'Status' }</p><p className="text-sm font-medium capitalize">{selectedTask.status?.replace('_', ' ')}</p></div>
+                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">{ 'Prioritaet' }</p>
                       <div className="flex items-center gap-1.5"><div className={`w-2 h-2 rounded-full ${priorities.find(p => p.value === selectedTask.priority)?.color}`} /><span className="text-sm font-medium capitalize">{selectedTask.priority}</span></div>
                     </div>
                     {selectedTask.assigned_to && <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Owner</p><p className="text-sm font-medium">{getOwnerName(selectedTask.assigned_to)}</p></div>}
@@ -381,7 +381,7 @@ const TasksPage = () => {
 
                   {/* Tabs: Subtasks | Comments | Activity */}
                   <div className="flex gap-1 border-b">
-                    {[['details', 'Subtasks'], ['comments', 'Updates'], ['activity', 'History']].map(([key, label]) => (
+                    {[['details', t('tasks.subtasks')], ['comments', t('tasks.updates')], ['activity', t('tasks.history')]].map(([key, label]) => (
                       <button key={key} onClick={() => setDetailTab(key)} className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${detailTab === key ? 'border-[#7C3AED] text-[#7C3AED]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{label}
                         {key === 'details' && selectedTask.subtasks?.length > 0 && <span className="ml-1 text-xs bg-slate-100 px-1.5 rounded-full">{selectedTask.subtasks_done || selectedTask.subtasks?.filter(s => s.done).length || 0}/{selectedTask.subtasks?.length}</span>}
                         {key === 'comments' && selectedTask.comments?.length > 0 && <span className="ml-1 text-xs bg-slate-100 px-1.5 rounded-full">{selectedTask.comments.length}</span>}
@@ -400,9 +400,9 @@ const TasksPage = () => {
                           <span className={`text-sm ${sub.done ? 'line-through text-slate-400' : 'text-slate-700'}`}>{sub.title}</span>
                         </div>
                       ))}
-                      {(!selectedTask.subtasks || selectedTask.subtasks.length === 0) && <p className="text-xs text-slate-400 py-2">No subtasks yet</p>}
+                      {(!selectedTask.subtasks || selectedTask.subtasks.length === 0) && <p className="text-xs text-slate-400 py-2">{ t('tasks.noSubtasks') }</p>}
                       <div className="flex gap-2 pt-2">
-                        <Input value={newSubtask} onChange={e => setNewSubtask(e.target.value)} placeholder="Add a subtask..." className="h-8 text-sm" onKeyDown={e => { if (e.key === 'Enter') handleAddSubtask(); }} data-testid="add-subtask-input" />
+                        <Input value={newSubtask} onChange={e => setNewSubtask(e.target.value)} placeholder={t('tasks.addSubtask')} className="h-8 text-sm" onKeyDown={e => { if (e.key === 'Enter') handleAddSubtask(); }} data-testid="add-subtask-input" />
                         <Button size="sm" onClick={handleAddSubtask} disabled={!newSubtask.trim()} className="h-8" data-testid="add-subtask-btn"><Plus className="w-3 h-3" /></Button>
                       </div>
                     </div>
@@ -423,9 +423,9 @@ const TasksPage = () => {
                             </div>
                           ))}
                         </div>
-                      ) : <p className="text-xs text-slate-400 py-2">No updates yet</p>}
+                      ) : <p className="text-xs text-slate-400 py-2">{ t('tasks.noUpdates') }</p>}
                       <div className="flex gap-2">
-                        <Input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Add progress note, blocker, or update..." className="h-8 text-sm" onKeyDown={e => { if (e.key === 'Enter') handleAddComment(); }} data-testid="add-comment-input" />
+                        <Input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder={t('tasks.addComment')} className="h-8 text-sm" onKeyDown={e => { if (e.key === 'Enter') handleAddComment(); }} data-testid="add-comment-input" />
                         <Button size="sm" onClick={handleAddComment} disabled={!newComment.trim()} className="h-8" data-testid="add-comment-btn"><MessageSquare className="w-3 h-3" /></Button>
                       </div>
                     </div>
@@ -442,25 +442,25 @@ const TasksPage = () => {
                               <div>
                                 <span className="font-medium text-slate-700">{a.by_name || 'System'}</span>
                                 {' '}
-                                {a.action === 'created' && <span className="text-slate-500">created this task</span>}
-                                {a.action === 'comment_added' && <span className="text-slate-500">added a comment</span>}
+                                {a.action === 'created' && <span className="text-slate-500">{ t('tasks.activity.created') }</span>}
+                                {a.action === 'comment_added' && <span className="text-slate-500">{ t('tasks.activity.commentAdded') }</span>}
                                 {a.action === 'subtask_added' && <span className="text-slate-500">added subtask: {a.detail}</span>}
                                 {a.action === 'subtask_completed' && <span className="text-emerald-600">completed: {a.detail}</span>}
                                 {a.action === 'subtask_reopened' && <span className="text-amber-600">unchecked: {a.detail}</span>}
-                                {a.action === 'reopened' && <span className="text-blue-600">reopened this task</span>}
+                                {a.action === 'reopened' && <span className="text-blue-600">{ t('tasks.activity.reopened') }</span>}
                                 {a.action?.endsWith('_changed') && <span className="text-slate-500">changed {a.action.replace('_changed', '')} from <span className="text-slate-400">{a.from || 'none'}</span> to <span className="font-medium">{a.to}</span></span>}
                                 <span className="text-slate-300 ml-2">{new Date(a.at).toLocaleString()}</span>
                               </div>
                             </div>
                           ))}
                         </div>
-                      ) : <p className="text-xs text-slate-400 py-2">No activity yet</p>}
+                      ) : <p className="text-xs text-slate-400 py-2">{ t('tasks.noActivity') }</p>}
                     </div>
                   )}
 
                   {/* Bottom actions */}
                   <div className="flex gap-2 pt-1 border-t">
-                    <Button size="sm" variant="outline" className="text-red-500" onClick={() => handleDeleteTask(selectedTask.task_id)}><Trash2 className="w-3.5 h-3.5 mr-1" /> Delete</Button>
+                    <Button size="sm" variant="outline" className="text-red-500" onClick={() => handleDeleteTask(selectedTask.task_id)}><Trash2 className="w-3.5 h-3.5 mr-1" /> { t('common.delete') }</Button>
                   </div>
                 </div>
               )}
