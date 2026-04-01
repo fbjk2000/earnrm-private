@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect } from 'react';
 import { useAuth, API } from '../App';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -17,6 +18,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 const TasksPage = () => {
   const { token, user } = useAuth();
   const [tasks, setTasks] = useState([]);
+  const { t } = useT();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

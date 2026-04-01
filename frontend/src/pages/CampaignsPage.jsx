@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect } from 'react';
 import { useAuth, API } from '../App';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -15,6 +16,7 @@ import { Plus, Mail, Send, Zap, Eye, MousePointer, RefreshCw, Check, ExternalLin
 const CampaignsPage = () => {
   const { token } = useAuth();
   const [campaigns, setCampaigns] = useState([]);
+  const { t } = useT();
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isAIDraftOpen, setIsAIDraftOpen] = useState(false);
@@ -239,7 +241,7 @@ const CampaignsPage = () => {
         {/* Tabs for Campaigns and Kit.com */}
         <Tabs defaultValue="campaigns" className="space-y-6">
           <TabsList data-testid="campaigns-tabs">
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+            <TabsTrigger value="campaigns">{ t('campaigns.title') }</TabsTrigger>
             <TabsTrigger value="kit">Kit.com (Optional)</TabsTrigger>
             <TabsTrigger value="subscribers">Lead Magnet Subscribers</TabsTrigger>
           </TabsList>

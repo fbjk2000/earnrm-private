@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect } from 'react';
 import { useAuth, API } from '../App';
 import { useNavigate } from 'react-router-dom';
@@ -24,6 +25,7 @@ const DealsPage = () => {
   const { token, user } = useAuth();
   const navigate = useNavigate();
   const [deals, setDeals] = useState([]);
+  const { t } = useT();
   const [members, setMembers] = useState([]);
   const [existingTags, setExistingTags] = useState([]);
   const [loading, setLoading] = useState(true);

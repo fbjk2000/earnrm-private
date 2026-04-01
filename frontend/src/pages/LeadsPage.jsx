@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect } from 'react';
 import { useAuth, API } from '../App';
 import { useNavigate } from 'react-router-dom';
@@ -52,6 +53,7 @@ const LeadsPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
   const [leads, setLeads] = useState([]);
+  const { t } = useT();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -460,7 +462,7 @@ const LeadsPage = () => {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
-                  placeholder="Search leads..."
+                  placeholder="${t('leads.searchLeads')}"
                   className="pl-10"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}

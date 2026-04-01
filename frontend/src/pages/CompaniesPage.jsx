@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect } from 'react';
 import { useAuth, API } from '../App';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -14,6 +15,7 @@ import { Plus, Building, Globe, Users, Search } from 'lucide-react';
 const CompaniesPage = () => {
   const { token } = useAuth();
   const [companies, setCompanies] = useState([]);
+  const { t } = useT();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -86,7 +88,7 @@ const CompaniesPage = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900" data-testid="companies-title">Companies</h1>
+            <h1 className="text-2xl font-bold text-slate-900" data-testid="companies-title">{ t('companies.title') }</h1>
             <p className="text-slate-600 mt-1">Manage your business accounts</p>
           </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

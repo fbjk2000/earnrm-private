@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth, API } from '../App';
 import { useNavigate } from 'react-router-dom';
@@ -21,6 +22,7 @@ const CalendarPage = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
+  const { t } = useT();
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState('month');
@@ -133,13 +135,13 @@ const CalendarPage = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Calendar</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{ t('calendar.title') }</h1>
             <p className="text-slate-500 text-sm mt-1">Scheduled calls, task due dates, deal closes</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex border border-slate-200 rounded-lg overflow-hidden">
-              <button onClick={() => setView('month')} className={`px-3 py-1.5 text-sm ${view === 'month' ? 'bg-[#A100FF] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>Month</button>
-              <button onClick={() => setView('week')} className={`px-3 py-1.5 text-sm ${view === 'week' ? 'bg-[#A100FF] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>Week</button>
+              <button onClick={() => setView('month')} className={`px-3 py-1.5 text-sm ${view === 'month' ? 'bg-[#A100FF] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>{ t('calendar.month') }</button>
+              <button onClick={() => setView('week')} className={`px-3 py-1.5 text-sm ${view === 'week' ? 'bg-[#A100FF] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>{ t('calendar.week') }</button>
             </div>
             {!googleConnected ? (
               <Button variant="outline" onClick={connectGoogle} data-testid="connect-google-cal">
@@ -158,7 +160,7 @@ const CalendarPage = () => {
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={view === 'month' ? prevMonth : prevWeek}><ChevronLeft className="w-4 h-4" /></Button>
             <Button variant="outline" size="icon" onClick={view === 'month' ? nextMonth : nextWeek}><ChevronRight className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="sm" onClick={goToday}>Today</Button>
+            <Button variant="ghost" size="sm" onClick={goToday}>{ t('calendar.today') }</Button>
           </div>
           <h2 className="text-lg font-semibold text-slate-900">
             {view === 'month' ? `${MONTHS[month]} ${year}` : `Week of ${weekDays[0].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${weekDays[6].toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`}

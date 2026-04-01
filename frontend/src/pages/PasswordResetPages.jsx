@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/button';
@@ -11,6 +12,7 @@ const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 export const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
+  const { t } = useT();
   const [sent, setSent] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -44,8 +46,8 @@ export const ForgotPasswordPage = () => {
           {sent ? (
             <div className="text-center space-y-4">
               <p className="text-sm text-slate-600">Did not receive it? Check your spam folder or try again.</p>
-              <Button variant="outline" onClick={() => setSent(false)} className="w-full">Try again</Button>
-              <Link to="/login"><Button variant="ghost" className="w-full">Back to sign in</Button></Link>
+              <Button variant="outline" onClick={() => setSent(false)} className="w-full">{ t('auth.tryAgain') }</Button>
+              <Link to="/login"><Button variant="ghost" className="w-full">{ t('auth.backToSignIn') }</Button></Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -55,17 +57,17 @@ export const ForgotPasswordPage = () => {
               </div>
               {notFound && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-                  <p className="text-sm text-amber-800 font-medium mb-1">No account found for this email</p>
+                  <p className="text-sm text-amber-800 font-medium mb-1">{ t('auth.noAccountFound') }</p>
                   <p className="text-xs text-amber-600 mb-3">You need an account before you can reset your password.</p>
                   <Link to={`/signup?email=${encodeURIComponent(email)}`}>
-                    <Button size="sm" className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs">Sign up with this email</Button>
+                    <Button size="sm" className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs">{ t('auth.signUpWith') }</Button>
                   </Link>
                 </div>
               )}
               <Button type="submit" disabled={loading} className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white">
                 {loading ? 'Sending...' : 'Send reset link'}
               </Button>
-              <Link to="/login"><Button variant="ghost" className="w-full">Back to sign in</Button></Link>
+              <Link to="/login"><Button variant="ghost" className="w-full">{ t('auth.backToSignIn') }</Button></Link>
             </form>
           )}
         </CardContent>
@@ -78,6 +80,7 @@ export const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const [password, setPassword] = useState('');
+  const { t } = useT();
   const [confirm, setConfirm] = useState('');
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);

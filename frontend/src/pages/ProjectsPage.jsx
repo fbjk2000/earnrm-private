@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect } from 'react';
 import { useAuth, API } from '../App';
 import { useNavigate } from 'react-router-dom';
@@ -23,6 +24,7 @@ const ProjectsPage = () => {
   const { token, user } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
+  const { t } = useT();
   const [deals, setDeals] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -112,7 +114,7 @@ const ProjectsPage = () => {
       <div className="p-6 space-y-6" data-testid="projects-page">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{ t('projects.title') }</h1>
             <p className="text-slate-500 text-sm mt-1">Multi-task projects linked to deals</p>
           </div>
           <Button className="bg-[#A100FF] hover:bg-purple-700" onClick={() => setShowCreate(true)} data-testid="new-project-btn">
@@ -155,7 +157,7 @@ const ProjectsPage = () => {
         {/* Create Project Dialog */}
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
           <DialogContent className="max-w-md">
-            <DialogHeader><DialogTitle><Plus className="w-5 h-5 inline mr-2 text-[#A100FF]" />New Project</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle><Plus className="w-5 h-5 inline mr-2 text-[#A100FF]" />{ t('projects.newProject') }</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
               <div><Label>Project Name *</Label><Input value={newProject.name} onChange={e => setNewProject({ ...newProject, name: e.target.value })} placeholder="Q2 Enterprise Onboarding" data-testid="project-name" /></div>
               <div><Label>Description</Label><Textarea value={newProject.description} onChange={e => setNewProject({ ...newProject, description: e.target.value })} rows={2} placeholder="Project goals and scope..." /></div>

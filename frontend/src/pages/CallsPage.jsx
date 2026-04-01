@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, API } from '../App';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -38,6 +39,7 @@ import {
 const CallsPage = () => {
   const { token } = useAuth();
   const [calls, setCalls] = useState([]);
+  const { t } = useT();
   const [leads, setLeads] = useState([]);
   const [stats, setStats] = useState(null);
   const [scheduledCalls, setScheduledCalls] = useState([]);
@@ -614,7 +616,7 @@ const CallsPage = () => {
         {/* Immediate Call Dialog */}
         <Dialog open={showCallDialog} onOpenChange={setShowCallDialog}>
           <DialogContent className="max-w-md">
-            <DialogHeader><DialogTitle>Call Now</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{ t('calls.newCall') }</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
               <div>
                 <label className="text-sm font-medium text-slate-700 mb-1.5 block">Select Lead</label>

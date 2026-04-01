@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, API } from '../App';
@@ -23,6 +24,7 @@ const DashboardPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const { t } = useT();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -182,7 +184,7 @@ const DashboardPage = () => {
           {/* Recent Leads */}
           <Card data-testid="recent-leads-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg font-semibold">Recent Leads</CardTitle>
+              <CardTitle className="text-lg font-semibold">{ t('dashboard.recentLeads') }</CardTitle>
               <Link to="/leads">
                 <Button variant="ghost" size="sm">View all</Button>
               </Link>
@@ -241,7 +243,7 @@ const DashboardPage = () => {
           {/* Recent Tasks */}
           <Card data-testid="recent-tasks-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg font-semibold">Recent Tasks</CardTitle>
+              <CardTitle className="text-lg font-semibold">{ t('dashboard.recentTasks') }</CardTitle>
               <Link to="/tasks">
                 <Button variant="ghost" size="sm">View all</Button>
               </Link>

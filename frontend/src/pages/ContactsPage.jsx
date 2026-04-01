@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect } from 'react';
 import { useAuth, API } from '../App';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +23,7 @@ const ContactsPage = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
   const [contacts, setContacts] = useState([]);
+  const { t } = useT();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -356,7 +358,7 @@ const ContactsPage = () => {
       {/* Add Contact Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add Contact</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{ t('contacts.addContact') }</DialogTitle></DialogHeader>
           <form onSubmit={handleAddContact} className="space-y-3 pt-2">
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">First Name *</Label><Input value={newContact.first_name} onChange={(e) => setNewContact({ ...newContact, first_name: e.target.value })} required data-testid="new-contact-first" /></div>

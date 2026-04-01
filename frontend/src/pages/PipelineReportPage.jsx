@@ -1,3 +1,4 @@
+import { useT } from '../useT';
 import React, { useState, useEffect } from 'react';
 import { useAuth, API } from '../App';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -22,6 +23,7 @@ import {
 const PipelineReportPage = () => {
   const { token, user } = useAuth();
   const [pipelineData, setPipelineData] = useState(null);
+  const { t } = useT();
   const [teamData, setTeamData] = useState(null);
   const [loading, setLoading] = useState(true);
 
