@@ -708,6 +708,60 @@ async def login(credentials: UserLogin, response: Response):
         "token": token
     }
 
+@api_router.post("/auth/forgot-password")
+async def forgot_password(email: str):
+    """Send password reset email"""
+    user = await db.users.find_one({"email": email.lower()}, {"_id": 0})
+    if not user:
+        return {"message": "If an account exists, a reset link has been sent."}
+    
+    reset_token = secrets.token_urlsafe(32)
+    await db.password_resets.insert_one({
+        "token": reset_token,
+        "user_id": user["user_id"],
+        "email": email.lower(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "used": False
+    })
+    
+    frontend_url = os.environ.get('FRONTEND_URL', '')
+    reset_link = f"{frontend_url}/reset-password?token={reset_token}"
+    
+    if RESEND_API_KEY:
+        try:
+            resend.Emails.send({
+                "from": SENDER_EMAIL,
+                "to": [email.lower()],
+                "subject": "Reset your earnrm password",
+                "html": f"""<div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+                    <h2 style="color: #3B0764;">Reset your password</h2>
+                    <p>You requested a password reset for your earnrm account.</p>
+                    <p><a href="{reset_link}" style="background: #7C3AED; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">Reset Password</a></p>
+                    <p style="color: #666; font-size: 14px;">This link expires in 1 hour. If you did not request this, ignore this email.</p>
+                </div>"""
+            })
+        except Exception as e:
+            logger.error(f"Reset email error: {e}")
+    
+    return {"message": "If an account exists, a reset link has been sent."}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(token: str, new_password: str):
+    """Reset password using token"""
+    reset = await db.password_resets.find_one({"token": token, "used": False}, {"_id": 0})
+    if not reset:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+    
+    created = datetime.fromisoformat(reset["created_at"])
+    if (datetime.now(timezone.utc) - created).total_seconds() > 3600:
+        raise HTTPException(status_code=400, detail="Reset link has expired. Please request a new one.")
+    
+    await db.users.update_one({"user_id": reset["user_id"]}, {"$set": {"password_hash": hash_password(new_password)}})
+    await db.password_resets.update_one({"token": token}, {"$set": {"used": True}})
+    
+    return {"message": "Password reset successfully. You can now sign in."}
+
+
 @api_router.post("/auth/session")
 async def process_google_session(request: Request, response: Response):
     body = await request.json()

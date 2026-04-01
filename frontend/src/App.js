@@ -26,6 +26,7 @@ import ContactsPage from './pages/ContactsPage';
 import ProjectsPage from './pages/ProjectsPage';
 import CalendarPage from './pages/CalendarPage';
 import BookingPage, { PublicBookingPage } from './pages/BookingPage';
+import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordResetPages';
 
 import './App.css';
 
@@ -219,6 +220,8 @@ const AppRouter = () => {
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/support" element={<SupportPage />} />
       <Route path="/book/:userId" element={<PublicBookingPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         path="/subscription/success"
         element={

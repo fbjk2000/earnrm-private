@@ -54,7 +54,7 @@ const LoginPage = () => {
         <Card className="w-full max-w-md border-slate-200 shadow-lg" data-testid="login-card">
           <CardHeader className="text-center pb-2">
             <img 
-              src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/u9efkh3m_earnrm_logo_horizontal_light_notag_purpleword.png" 
+              src="/logo-horizontal.svg" 
               alt="earnrm" 
               className="h-10 mx-auto mb-4"
             />
@@ -110,7 +110,7 @@ const LoginPage = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-slate-700">Password</Label>
-                  <a href="#" className="text-sm text-[#A100FF] hover:text-purple-700">Forgot password?</a>
+                  <Link to="/forgot-password" className="text-sm text-[#7C3AED] hover:text-purple-700">Forgot password?</Link>
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />

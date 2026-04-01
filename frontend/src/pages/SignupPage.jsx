@@ -113,7 +113,7 @@ const SignupPage = () => {
         <Card className="w-full max-w-md border-slate-200 shadow-lg" data-testid="signup-card">
           <CardHeader className="text-center pb-2">
             <img 
-              src="https://customer-assets.emergentagent.com/job_leadhub-app-2/artifacts/u9efkh3m_earnrm_logo_horizontal_light_notag_purpleword.png" 
+              src="/logo-horizontal.svg"
               alt="earnrm" 
               className="h-10 mx-auto mb-4"
             />
