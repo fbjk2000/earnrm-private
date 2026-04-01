@@ -13,6 +13,7 @@ from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone, timedelta
 import jwt
+import secrets
 import bcrypt
 import httpx
 import csv
@@ -6321,7 +6322,6 @@ Provide your analysis."""
 
 # ==================== API KEYS ====================
 
-import secrets
 
 @api_router.post("/api-keys")
 async def create_api_key(name: str = "Default", current_user: dict = Depends(get_current_user)):
