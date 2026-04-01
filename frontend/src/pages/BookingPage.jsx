@@ -24,30 +24,40 @@ const BookingPage = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [editSettings, setEditSettings] = useState({});
 
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  const ax = { headers, withCredentials: true };
+  // Only fetch when token is available
+  useEffect(() => {
+    if (!token) return;
+    const h = { Authorization: `Bearer ${token}` };
+    const cfg = { headers: h, withCredentials: true };
+    
+    const load = async () => {
+      try {
+        const [bRes, sRes] = await Promise.allSettled([
+          axios.get(`${API}/bookings`, cfg),
+          axios.get(`${API}/booking/settings`, cfg)
+        ]);
+        if (bRes.status === 'fulfilled') setBookings(bRes.value.data || []);
+        if (sRes.status === 'fulfilled') { setSettings(sRes.value.data); setEditSettings(sRes.value.data); }
+      } catch (err) {
+        console.error('Bookings load error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { fetchBookings(); fetchSettings(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchBookings = async () => {
-    try { const r = await axios.get(`${API}/bookings`, ax); setBookings(r.data || []); }
-    catch (err) { if (err.response?.status !== 401) console.error('Bookings fetch error:', err); }
-    finally { setLoading(false); }
-  };
-
-  const fetchSettings = async () => {
-    try { const r = await axios.get(`${API}/booking/settings`, ax); setSettings(r.data); setEditSettings(r.data); }
-    catch (err) { if (err.response?.status !== 401) console.error('Settings fetch error:', err); }
-  };
+  const getHeaders = () => ({ Authorization: `Bearer ${token}` });
 
   const saveSettings = async () => {
     try {
       const { user_id, ...data } = editSettings;
-      await axios.put(`${API}/booking/settings`, data, ax);
+      await axios.put(`${API}/booking/settings`, data, { headers: getHeaders(), withCredentials: true });
       toast.success('Settings saved');
       setShowSettings(false);
-      fetchSettings();
-    } catch { toast.error('Failed to save'); }
+      const r = await axios.get(`${API}/booking/settings`, { headers: getHeaders(), withCredentials: true });
+      setSettings(r.data); setEditSettings(r.data);
+    } catch (err) { console.error(err); toast.error('Failed to save'); }
   };
 
   const bookingLink = user ? `${window.location.origin}/book/${user.user_id}` : '';

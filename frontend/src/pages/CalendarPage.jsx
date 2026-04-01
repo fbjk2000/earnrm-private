@@ -32,16 +32,22 @@ const CalendarPage = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [googleConnected, setGoogleConnected] = useState(false);
 
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  const ax = { headers, withCredentials: true };
-
-  useEffect(() => { fetchEvents(); checkGoogleStatus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!token) return;
+    const h = { Authorization: `Bearer ${token}` };
+    const cfg = { headers: h, withCredentials: true };
+    Promise.allSettled([
+      axios.get(`${API}/calendar/events`, cfg).then(r => setEvents(prev => [...(r.data || [])])),
+      axios.get(`${API}/calendar/google/events`, cfg).then(r => { if (Array.isArray(r.data)) setEvents(prev => [...prev, ...r.data]); }),
+      axios.get(`${API}/calendar/google/status`, cfg).then(r => setGoogleConnected(r.data.connected))
+    ]).finally(() => setLoading(false));
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchEvents = async () => {
     try {
       const [earnrmRes, googleRes] = await Promise.all([
-        axios.get(`${API}/calendar/events`, ax),
-        axios.get(`${API}/calendar/google/events`, ax).catch(() => ({ data: [] }))
+        axios.get(`${API}/calendar/events`, getAx()),
+        axios.get(`${API}/calendar/google/events`, getAx()).catch(() => ({ data: [] }))
       ]);
       setEvents([...earnrmRes.data, ...(Array.isArray(googleRes.data) ? googleRes.data : [])]);
     } catch { toast.error('Failed to load calendar'); }
@@ -49,12 +55,12 @@ const CalendarPage = () => {
   };
 
   const checkGoogleStatus = async () => {
-    try { const r = await axios.get(`${API}/calendar/google/status`, ax); setGoogleConnected(r.data.connected); } catch (err) { console.error(err); }
+    try { const r = await axios.get(`${API}/calendar/google/status`, getAx()); setGoogleConnected(r.data.connected); } catch (err) { console.error(err); }
   };
 
   const connectGoogle = async () => {
     try {
-      const r = await axios.get(`${API}/calendar/google/auth-url`, ax);
+      const r = await axios.get(`${API}/calendar/google/auth-url`, getAx());
       window.location.href = r.data.auth_url;
     } catch (e) { toast.error(e.response?.data?.detail || 'Failed to connect'); }
   };
@@ -62,7 +68,7 @@ const CalendarPage = () => {
   const handleCreateEvent = async () => {
     if (!newEvent.title || !newEvent.date) return;
     try {
-      await axios.post(`${API}/calendar/events?title=${encodeURIComponent(newEvent.title)}&date=${encodeURIComponent(new Date(newEvent.date).toISOString())}&notes=${encodeURIComponent(newEvent.notes || '')}`, {}, ax);
+      await axios.post(`${API}/calendar/events?title=${encodeURIComponent(newEvent.title)}&date=${encodeURIComponent(new Date(newEvent.date).toISOString())}&notes=${encodeURIComponent(newEvent.notes || '')}`, {}, getAx());
       toast.success('Event created');
       setShowCreate(false);
       setNewEvent({ title: '', date: '', notes: '' });
@@ -71,7 +77,7 @@ const CalendarPage = () => {
   };
 
   const handleDeleteEvent = async (id) => {
-    try { await axios.delete(`${API}/calendar/events/${id}`, ax); toast.success('Deleted'); fetchEvents(); setSelectedEvent(null); }
+    try { await axios.delete(`${API}/calendar/events/${id}`, getAx()); toast.success('Deleted'); fetchEvents(); setSelectedEvent(null); }
     catch { toast.error('Failed'); }
   };
 

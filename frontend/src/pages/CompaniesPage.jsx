@@ -27,13 +27,15 @@ const CompaniesPage = () => {
   const [newCompany, setNewCompany] = useState({ name: '', industry: '', website: '', size: '', description: '', location: '' });
   const [selectedIds, setSelectedIds] = useState([]);
 
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  const ax = { headers, withCredentials: true };
+  const getAx = () => ({ headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
 
-  useEffect(() => { fetchCompanies(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!token) return;
+    fetchCompanies();
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchCompanies = async () => {
-    try { const r = await axios.get(`${API}/companies`, ax); setCompanies(r.data); }
+    try { const r = await axios.get(`${API}/companies`, getAx()); setCompanies(r.data); }
     catch (err) { console.error(err); toast.error('Failed to load companies'); }
     finally { setLoading(false); }
   };
@@ -41,7 +43,7 @@ const CompaniesPage = () => {
   const handleAdd = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/companies`, newCompany, ax);
+      await axios.post(`${API}/companies`, newCompany, getAx());
       toast.success('Company added');
       setShowAdd(false);
       setNewCompany({ name: '', industry: '', website: '', size: '', description: '', location: '' });
@@ -53,7 +55,7 @@ const CompaniesPage = () => {
     if (!selectedCompany) return;
     try {
       const { company_id, organization_id, created_by, created_at, _id, ...updates } = editData;
-      const res = await axios.put(`${API}/companies/${selectedCompany.company_id}`, updates, ax);
+      const res = await axios.put(`${API}/companies/${selectedCompany.company_id}`, updates, getAx());
       toast.success('Company updated');
       setSelectedCompany(res.data); setEditData(res.data); setEditMode(false);
       fetchCompanies();
@@ -61,12 +63,12 @@ const CompaniesPage = () => {
   };
 
   const handleDelete = async (id) => {
-    try { await axios.delete(`${API}/companies/${id}`, ax); toast.success('Deleted'); setSelectedCompany(null); fetchCompanies(); }
+    try { await axios.delete(`${API}/companies/${id}`, getAx()); toast.success('Deleted'); setSelectedCompany(null); fetchCompanies(); }
     catch (err) { console.error(err); toast.error('Failed'); }
   };
 
   const handleBulkDelete = async () => {
-    try { await axios.post(`${API}/bulk/delete`, { entity_type: 'company', entity_ids: selectedIds }, ax); toast.success(`${selectedIds.length} deleted`); setSelectedIds([]); fetchCompanies(); }
+    try { await axios.post(`${API}/bulk/delete`, { entity_type: 'company', entity_ids: selectedIds }, getAx()); toast.success(`${selectedIds.length} deleted`); setSelectedIds([]); fetchCompanies(); }
     catch (err) { console.error(err); toast.error('Failed'); }
   };
 

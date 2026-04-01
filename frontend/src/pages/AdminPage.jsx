@@ -83,8 +83,9 @@ const AdminPage = () => {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
   useEffect(() => {
+    if (!token) return;
     fetchAllData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAllData = async () => {
     setLoading(true);

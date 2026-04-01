@@ -72,6 +72,7 @@ const DealsPage = () => {
   ];
 
   useEffect(() => {
+    if (!token) return;
     fetchDeals();
     fetchMembers();
     fetchTags();

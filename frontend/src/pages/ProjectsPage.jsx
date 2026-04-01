@@ -35,22 +35,24 @@ const ProjectsPage = () => {
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium', assigned_to: '', due_date: '' });
 
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  const ax = { headers, withCredentials: true };
+  const getAx = () => ({ headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
 
-  useEffect(() => { fetchProjects(); fetchDeals(); fetchMembers(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!token) return;
+    fetchProjects(); fetchDeals(); fetchMembers();
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchProjects = async () => {
-    try { const r = await axios.get(`${API}/projects`, ax); setProjects(r.data); }
+    try { const r = await axios.get(`${API}/projects`, getAx()); setProjects(r.data); }
     catch { toast.error('Failed to load projects'); }
     finally { setLoading(false); }
   };
-  const fetchDeals = async () => { try { const r = await axios.get(`${API}/deals`, ax); setDeals(r.data); } catch (err) { console.error(err); } };
+  const fetchDeals = async () => { try { const r = await axios.get(`${API}/deals`, getAx()); setDeals(r.data); } catch (err) { console.error(err); } };
   const fetchMembers = async () => {
     try {
-      const orgRes = await axios.get(`${API}/organizations/current`, ax);
+      const orgRes = await axios.get(`${API}/organizations/current`, getAx());
       if (orgRes.data?.organization_id) {
-        const r = await axios.get(`${API}/organizations/${orgRes.data.organization_id}/members`, ax);
+        const r = await axios.get(`${API}/organizations/${orgRes.data.organization_id}/members`, getAx());
         setMembers(r.data || []);
       }
     } catch (err) { console.error(err); }
@@ -60,7 +62,7 @@ const ProjectsPage = () => {
     if (!newProject.name.trim()) return;
     try {
       const payload = { ...newProject, deal_id: newProject.deal_id === 'none' ? null : newProject.deal_id || null };
-      const r = await axios.post(`${API}/projects`, payload, ax);
+      const r = await axios.post(`${API}/projects`, payload, getAx());
       toast.success('Project created');
       setShowCreate(false);
       setNewProject({ name: '', description: '', deal_id: '', members: [] });
@@ -70,7 +72,7 @@ const ProjectsPage = () => {
   };
 
   const openProject = async (id) => {
-    try { const r = await axios.get(`${API}/projects/${id}`, ax); setSelectedProject(r.data); }
+    try { const r = await axios.get(`${API}/projects/${id}`, getAx()); setSelectedProject(r.data); }
     catch { toast.error('Failed to load project'); }
   };
 
@@ -80,7 +82,7 @@ const ProjectsPage = () => {
       const payload = { ...newTask, project_id: selectedProject.project_id, related_deal_id: selectedProject.deal_id || undefined };
       if (!payload.due_date) delete payload.due_date;
       if (!payload.assigned_to) payload.assigned_to = user?.user_id;
-      await axios.post(`${API}/tasks`, payload, ax);
+      await axios.post(`${API}/tasks`, payload, getAx());
       toast.success('Task added');
       setShowAddTask(false);
       setNewTask({ title: '', description: '', priority: 'medium', assigned_to: '', due_date: '' });
@@ -90,19 +92,19 @@ const ProjectsPage = () => {
 
   const handleTaskStatus = async (taskId, status) => {
     try {
-      await axios.put(`${API}/tasks/${taskId}`, { status }, ax);
+      await axios.put(`${API}/tasks/${taskId}`, { status }, getAx());
       openProject(selectedProject.project_id);
     } catch (err) { console.error(err); }
   };
 
   const handleDeleteProject = async (id) => {
     if (!window.confirm('Delete this project?')) return;
-    try { await axios.delete(`${API}/projects/${id}`, ax); toast.success('Deleted'); setSelectedProject(null); fetchProjects(); }
+    try { await axios.delete(`${API}/projects/${id}`, getAx()); toast.success('Deleted'); setSelectedProject(null); fetchProjects(); }
     catch { toast.error('Failed'); }
   };
 
   const handleUpdateStatus = async (id, status) => {
-    try { await axios.put(`${API}/projects/${id}`, { status }, ax); fetchProjects(); if (selectedProject?.project_id === id) openProject(id); }
+    try { await axios.put(`${API}/projects/${id}`, { status }, getAx()); fetchProjects(); if (selectedProject?.project_id === id) openProject(id); }
     catch {}
   };
 

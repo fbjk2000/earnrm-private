@@ -38,8 +38,7 @@ const TasksPage = () => {
     due_date: '', assigned_to: ''
   });
 
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  const ax = { headers, withCredentials: true };
+  const getAx = () => ({ headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
 
   const statuses = [
     { id: 'todo', name: t('tasks.statuses.todo'), color: 'border-slate-300' },
@@ -53,7 +52,7 @@ const TasksPage = () => {
     { value: 'high', label: 'High', color: 'bg-rose-500' }
   ];
 
-  useEffect(() => { fetchTasks(); fetchMembers(); }, [filterStatus, filterOwner]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!token) return; fetchTasks(); fetchMembers(); }, [token, filterStatus, filterOwner]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchTasks = async () => {
     try {
@@ -62,7 +61,7 @@ const TasksPage = () => {
       if (filterStatus) params.push(`status=${filterStatus}`);
       if (filterOwner) params.push(`assigned_to=${filterOwner}`);
       if (params.length) url += `?${params.join('&')}`;
-      const res = await axios.get(url, ax);
+      const res = await axios.get(url, getAx());
       setTasks(res.data);
     } catch { toast.error('Failed to load tasks'); }
     finally { setLoading(false); }
@@ -70,9 +69,9 @@ const TasksPage = () => {
 
   const fetchMembers = async () => {
     try {
-      const orgRes = await axios.get(`${API}/organizations/current`, ax);
+      const orgRes = await axios.get(`${API}/organizations/current`, getAx());
       if (orgRes.data?.organization_id) {
-        const res = await axios.get(`${API}/organizations/${orgRes.data.organization_id}/members`, ax);
+        const res = await axios.get(`${API}/organizations/${orgRes.data.organization_id}/members`, getAx());
         setMembers(res.data || []);
       }
     } catch (err) { console.error(err); }
@@ -84,7 +83,7 @@ const TasksPage = () => {
       const data = { ...newTask };
       if (!data.due_date) delete data.due_date;
       if (!data.assigned_to) data.assigned_to = user?.user_id;
-      await axios.post(`${API}/tasks`, data, ax);
+      await axios.post(`${API}/tasks`, data, getAx());
       toast.success('Task created');
       setIsAddDialogOpen(false);
       setNewTask({ title: '', description: '', status: 'todo', priority: 'medium', due_date: '', assigned_to: '' });
@@ -95,14 +94,14 @@ const TasksPage = () => {
   const handleStatusChange = async (taskId, status) => {
     try {
       setTasks(prev => prev.map(t => t.task_id === taskId ? { ...t, status } : t));
-      await axios.put(`${API}/tasks/${taskId}`, { status }, ax);
+      await axios.put(`${API}/tasks/${taskId}`, { status }, getAx());
       fetchTasks();
     } catch { toast.error('Failed'); }
   };
 
   const handleDeleteTask = async (taskId) => {
     try {
-      await axios.delete(`${API}/tasks/${taskId}`, ax);
+      await axios.delete(`${API}/tasks/${taskId}`, getAx());
       toast.success('Task deleted');
       setSelectedTask(null);
       fetchTasks();
@@ -114,11 +113,11 @@ const TasksPage = () => {
     try {
       const { task_id, organization_id, created_by, created_at, _id, ...updates } = editData;
       if (!updates.due_date) delete updates.due_date;
-      await axios.put(`${API}/tasks/${selectedTask.task_id}`, updates, ax);
+      await axios.put(`${API}/tasks/${selectedTask.task_id}`, updates, getAx());
       toast.success('Task updated');
       setEditMode(false);
       fetchTasks();
-      const updated = await axios.get(`${API}/tasks`, ax);
+      const updated = await axios.get(`${API}/tasks`, getAx());
       const fresh = updated.data.find(t => t.task_id === selectedTask.task_id);
       if (fresh) { setSelectedTask(fresh); setEditData(fresh); }
     } catch { toast.error('Failed to update'); }
@@ -137,7 +136,7 @@ const TasksPage = () => {
 
   const refreshTask = async (taskId) => {
     try {
-      const res = await axios.get(`${API}/tasks`, ax);
+      const res = await axios.get(`${API}/tasks`, getAx());
       const fresh = res.data.find(t => t.task_id === taskId);
       if (fresh) { setSelectedTask(fresh); setEditData({ ...fresh }); }
     } catch (err) { console.error(err); }
@@ -146,7 +145,7 @@ const TasksPage = () => {
   const handleAddComment = async () => {
     if (!newComment.trim() || !selectedTask) return;
     try {
-      await axios.post(`${API}/tasks/${selectedTask.task_id}/comments?content=${encodeURIComponent(newComment)}`, {}, ax);
+      await axios.post(`${API}/tasks/${selectedTask.task_id}/comments?content=${encodeURIComponent(newComment)}`, {}, getAx());
       setNewComment('');
       refreshTask(selectedTask.task_id);
       fetchTasks();
@@ -156,7 +155,7 @@ const TasksPage = () => {
   const handleAddSubtask = async () => {
     if (!newSubtask.trim() || !selectedTask) return;
     try {
-      await axios.post(`${API}/tasks/${selectedTask.task_id}/subtasks?title=${encodeURIComponent(newSubtask)}`, {}, ax);
+      await axios.post(`${API}/tasks/${selectedTask.task_id}/subtasks?title=${encodeURIComponent(newSubtask)}`, {}, getAx());
       setNewSubtask('');
       refreshTask(selectedTask.task_id);
       fetchTasks();
@@ -166,7 +165,7 @@ const TasksPage = () => {
   const handleToggleSubtask = async (subtaskId, done) => {
     if (!selectedTask) return;
     try {
-      await axios.put(`${API}/tasks/${selectedTask.task_id}/subtasks/${subtaskId}?done=${done}`, {}, ax);
+      await axios.put(`${API}/tasks/${selectedTask.task_id}/subtasks/${subtaskId}?done=${done}`, {}, getAx());
       refreshTask(selectedTask.task_id);
       fetchTasks();
     } catch (err) { console.error(err); }
@@ -175,7 +174,7 @@ const TasksPage = () => {
   const handleReopenTask = async () => {
     if (!selectedTask) return;
     try {
-      await axios.post(`${API}/tasks/${selectedTask.task_id}/reopen`, {}, ax);
+      await axios.post(`${API}/tasks/${selectedTask.task_id}/reopen`, {}, getAx());
       toast.success('Task reopened');
       refreshTask(selectedTask.task_id);
       fetchTasks();

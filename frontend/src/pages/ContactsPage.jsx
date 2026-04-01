@@ -43,7 +43,7 @@ const ContactsPage = () => {
 
   useEffect(() => { fetchContacts(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
+  useEffect(() => { if (!token) return;
     const detailId = searchParams.get('detail');
     if (detailId && contacts.length > 0) {
       const c = contacts.find(x => x.contact_id === detailId);

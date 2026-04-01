@@ -38,10 +38,11 @@ const CampaignsPage = () => {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
   useEffect(() => {
+    if (!token) return;
     fetchCampaigns();
     fetchKitData();
     fetchLeadMagnetSubscribers();
-  }, []);
+  }, [token]);
 
   const fetchCampaigns = async () => {
     try {
