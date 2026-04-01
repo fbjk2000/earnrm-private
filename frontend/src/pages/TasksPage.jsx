@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { Plus, MoreVertical, Calendar, Trash2, Filter, X, User, Edit2, Save, GripVertical, MessageSquare, CheckSquare, Clock, RotateCcw } from 'lucide-react';
+import { Plus, MoreVertical, Calendar, Trash2, Filter, X, User, Edit2, Save, GripVertical, MessageSquare, CheckSquare, Clock, RotateCcw, LayoutGrid, List } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
+import { Badge } from '../components/ui/badge';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const TasksPage = () => {
@@ -20,6 +21,7 @@ const TasksPage = () => {
   const [tasks, setTasks] = useState([]);
   const { t } = useT();
   const [members, setMembers] = useState([]);
+  const [viewMode, setViewMode] = useState('kanban');
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState('');
@@ -200,10 +202,19 @@ const TasksPage = () => {
             <h1 className="text-2xl font-bold text-slate-900">{ t('tasks.title') }</h1>
             <p className="text-slate-500 text-sm mt-1">{ t('tasks.subtitle') }</p>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white" data-testid="add-task-btn">
-                <Plus className="w-4 h-4 mr-2" /> New Task
+          <div className="flex items-center gap-2">
+            <div className="flex border border-slate-200 rounded-lg overflow-hidden">
+              <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm flex items-center gap-1 ${viewMode === 'kanban' ? 'bg-[#7C3AED] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`} data-testid="kanban-view-btn">
+                <LayoutGrid className="w-3.5 h-3.5" /> Kanban
+              </button>
+              <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 text-sm flex items-center gap-1 ${viewMode === 'list' ? 'bg-[#7C3AED] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`} data-testid="list-view-btn">
+                <List className="w-3.5 h-3.5" /> {t('deals.list')}
+              </button>
+            </div>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white" data-testid="add-task-btn">
+                  <Plus className="w-4 h-4 mr-2" /> {t('forms.newTask')}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
@@ -230,6 +241,7 @@ const TasksPage = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Filters */}
@@ -251,6 +263,51 @@ const TasksPage = () => {
         {/* Kanban with DnD */}
         {loading ? (
           <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-[#7C3AED] border-t-transparent rounded-full animate-spin" /></div>
+        ) : viewMode === 'list' ? (
+          /* List View */
+          <Card>
+            <CardContent className="p-0">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b bg-slate-50">
+                  <th className="py-3 px-4 text-left text-xs font-medium text-slate-500">{t('forms.title')}</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-slate-500">{t('forms.status')}</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-slate-500">{t('forms.priority')}</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-slate-500">{t('forms.assignTo')}</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-slate-500">{t('forms.dueDate')}</th>
+                  <th className="py-3 px-4 w-20"></th>
+                </tr></thead>
+                <tbody>
+                  {tasks.map(task => (
+                    <tr key={task.task_id} className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer" onClick={() => openTaskDetail(task)} data-testid={`task-list-${task.task_id}`}>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${priorities.find(p => p.value === task.priority)?.color || 'bg-slate-400'}`} />
+                          <span className="font-medium">{task.title}</span>
+                          {task.subtask_count > 0 && <Badge variant="secondary" className="text-xs">{task.subtasks_done}/{task.subtask_count}</Badge>}
+                          {task.comments?.length > 0 && <Badge variant="outline" className="text-xs">{task.comments.length} {t('tasks.updates').toLowerCase()}</Badge>}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
+                        <Select value={task.status} onValueChange={v => handleStatusChange(task.task_id, v)}>
+                          <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>{statuses.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`text-xs px-2 py-1 rounded-full ${task.priority === 'high' ? 'bg-rose-100 text-rose-700' : task.priority === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{task.priority}</span>
+                      </td>
+                      <td className="py-3 px-4 text-xs text-slate-600">{task.assigned_to ? getOwnerName(task.assigned_to) : '-'}</td>
+                      <td className="py-3 px-4 text-xs text-slate-500">{task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}</td>
+                      <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" className="text-red-500 h-7" onClick={() => handleDeleteTask(task.task_id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {tasks.length === 0 && <p className="text-center text-slate-500 py-8">{t('tasks.dropHere')}</p>}
+            </CardContent>
+          </Card>
         ) : (
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="grid md:grid-cols-3 gap-6">

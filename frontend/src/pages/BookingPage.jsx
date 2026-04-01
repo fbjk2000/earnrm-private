@@ -30,14 +30,14 @@ const BookingPage = () => {
   useEffect(() => { fetchBookings(); fetchSettings(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchBookings = async () => {
-    try { const r = await axios.get(`${API}/bookings`, ax); setBookings(r.data); }
-    catch {}
+    try { const r = await axios.get(`${API}/bookings`, ax); setBookings(r.data || []); }
+    catch (err) { if (err.response?.status !== 401) console.error('Bookings fetch error:', err); }
     finally { setLoading(false); }
   };
 
   const fetchSettings = async () => {
     try { const r = await axios.get(`${API}/booking/settings`, ax); setSettings(r.data); setEditSettings(r.data); }
-    catch {}
+    catch (err) { if (err.response?.status !== 401) console.error('Settings fetch error:', err); }
   };
 
   const saveSettings = async () => {
