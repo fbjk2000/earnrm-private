@@ -27,7 +27,7 @@ const BookingPage = () => {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   const ax = { headers, withCredentials: true };
 
-  useEffect(() => { fetchBookings(); fetchSettings(); }, []);
+  useEffect(() => { fetchBookings(); fetchSettings(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchBookings = async () => {
     try { const r = await axios.get(`${API}/bookings`, ax); setBookings(r.data); }

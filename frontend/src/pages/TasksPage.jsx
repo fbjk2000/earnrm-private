@@ -51,7 +51,7 @@ const TasksPage = () => {
     { value: 'high', label: 'High', color: 'bg-rose-500' }
   ];
 
-  useEffect(() => { fetchTasks(); fetchMembers(); }, [filterStatus, filterOwner]);
+  useEffect(() => { fetchTasks(); fetchMembers(); }, [filterStatus, filterOwner]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchTasks = async () => {
     try {

@@ -6047,6 +6047,7 @@ async def initiate_call(data: CallInitiate, current_user: dict = Depends(get_cur
 
     twilio = get_twilio_client()
     call_id = str(uuid.uuid4())
+    twilio_call = None
     base_url = FRONTEND_URL.rstrip('/')
 
     try:
@@ -6273,6 +6274,7 @@ async def schedule_call(data: ScheduleCallRequest, current_user: dict = Depends(
 
     schedule_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
+    scheduled_dt = None
 
     try:
         scheduled_dt = datetime.fromisoformat(data.scheduled_at.replace('Z', '+00:00'))

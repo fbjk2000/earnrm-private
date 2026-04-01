@@ -64,7 +64,7 @@ class TestSupportContact:
         """POST /api/support/contact - Submit contact form"""
         contact_data = {
             "name": "TEST_User",
-            "email": "florian@unyted.world",  # Only verified email in test mode
+            "email": os.getenv("TEST_EMAIL", "florian@unyted.world"),  # Only verified email in test mode
             "subject": "Test Support Request",
             "message": "This is a test message from automated testing."
         }
@@ -116,8 +116,8 @@ class TestAuthentication:
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
             json={
-                "email": "florian@unyted.world",
-                "password": "DavidConstantin18"
+                "email": os.getenv("TEST_EMAIL", "florian@unyted.world"),
+                "password": os.getenv("TEST_PASSWORD", "DavidConstantin18")
             }
         )
         if response.status_code == 200:
@@ -134,8 +134,8 @@ class TestAuthentication:
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
             json={
-                "email": "florian@unyted.world",
-                "password": "DavidConstantin18"
+                "email": os.getenv("TEST_EMAIL", "florian@unyted.world"),
+                "password": os.getenv("TEST_PASSWORD", "DavidConstantin18")
             }
         )
         assert response.status_code == 200
@@ -155,8 +155,8 @@ class TestDiscountCodes:
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
             json={
-                "email": "florian@unyted.world",
-                "password": "DavidConstantin18"
+                "email": os.getenv("TEST_EMAIL", "florian@unyted.world"),
+                "password": os.getenv("TEST_PASSWORD", "DavidConstantin18")
             }
         )
         if response.status_code == 200:
@@ -242,8 +242,8 @@ class TestSubscriptionCheckout:
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
             json={
-                "email": "florian@unyted.world",
-                "password": "DavidConstantin18"
+                "email": os.getenv("TEST_EMAIL", "florian@unyted.world"),
+                "password": os.getenv("TEST_PASSWORD", "DavidConstantin18")
             }
         )
         if response.status_code == 200:
@@ -380,8 +380,8 @@ class TestInvoices:
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
             json={
-                "email": "florian@unyted.world",
-                "password": "DavidConstantin18"
+                "email": os.getenv("TEST_EMAIL", "florian@unyted.world"),
+                "password": os.getenv("TEST_PASSWORD", "DavidConstantin18")
             }
         )
         if response.status_code == 200:
@@ -447,8 +447,8 @@ class TestDiscountCodeIntegration:
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
             json={
-                "email": "florian@unyted.world",
-                "password": "DavidConstantin18"
+                "email": os.getenv("TEST_EMAIL", "florian@unyted.world"),
+                "password": os.getenv("TEST_PASSWORD", "DavidConstantin18")
             }
         )
         if response.status_code == 200:

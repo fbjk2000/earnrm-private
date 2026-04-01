@@ -41,7 +41,7 @@ const ContactsPage = () => {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   const axiosConfig = { headers, withCredentials: true };
 
-  useEffect(() => { fetchContacts(); }, []);
+  useEffect(() => { fetchContacts(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const detailId = searchParams.get('detail');

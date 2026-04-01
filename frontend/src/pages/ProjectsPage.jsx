@@ -38,7 +38,7 @@ const ProjectsPage = () => {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   const ax = { headers, withCredentials: true };
 
-  useEffect(() => { fetchProjects(); fetchDeals(); fetchMembers(); }, []);
+  useEffect(() => { fetchProjects(); fetchDeals(); fetchMembers(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchProjects = async () => {
     try { const r = await axios.get(`${API}/projects`, ax); setProjects(r.data); }

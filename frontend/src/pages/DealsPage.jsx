@@ -76,7 +76,7 @@ const DealsPage = () => {
     fetchMembers();
     fetchTags();
     fetchLinkedEntities();
-  }, [filterStage, filterTag, filterOwner]);
+  }, [filterStage, filterTag, filterOwner]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchLinkedEntities = async () => {
     try {

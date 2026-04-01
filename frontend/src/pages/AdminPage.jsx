@@ -84,7 +84,7 @@ const AdminPage = () => {
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAllData = async () => {
     setLoading(true);

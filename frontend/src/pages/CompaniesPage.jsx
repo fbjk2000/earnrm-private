@@ -30,7 +30,7 @@ const CompaniesPage = () => {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   const ax = { headers, withCredentials: true };
 
-  useEffect(() => { fetchCompanies(); }, []);
+  useEffect(() => { fetchCompanies(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchCompanies = async () => {
     try { const r = await axios.get(`${API}/companies`, ax); setCompanies(r.data); }

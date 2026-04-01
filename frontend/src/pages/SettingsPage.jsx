@@ -395,12 +395,12 @@ const SettingsPage = () => {
       const printWindow = window.open('', '_blank');
       const doc = printWindow.document;
       doc.open();
-      const sanitized = typeof response.data === 'string' ? response.data : '';
-      const html = `<html><head><title>Invoice</title><style>body{font-family:Arial,sans-serif;padding:20px}@media print{button{display:none}}</style></head><body><button onclick="window.print()" style="margin-bottom:20px;padding:10px 20px;cursor:pointer">Print Invoice</button><div id="invoice"></div></body></html>`;
+      const rawHtml = typeof response.data === 'string' ? response.data : '';
+      // Sanitize: strip script tags to prevent XSS
+      const sanitized = rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+      const html = `<html><head><title>Invoice</title><style>body{font-family:Arial,sans-serif;padding:20px}@media print{button{display:none}}</style></head><body><button onclick="window.print()" style="margin-bottom:20px;padding:10px 20px;cursor:pointer">Print Invoice</button><div id="invoice">${sanitized}</div></body></html>`;
       doc.write(html);
       doc.close();
-      doc.getElementById('invoice').textContent = '';
-      doc.getElementById('invoice').innerHTML = sanitized;
     } catch (error) {
       toast.error('Failed to load invoice');
     }

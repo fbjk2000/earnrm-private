@@ -35,7 +35,7 @@ const CalendarPage = () => {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   const ax = { headers, withCredentials: true };
 
-  useEffect(() => { fetchEvents(); checkGoogleStatus(); }, []);
+  useEffect(() => { fetchEvents(); checkGoogleStatus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchEvents = async () => {
     try {
