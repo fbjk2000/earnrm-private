@@ -31,6 +31,7 @@ const PricingPage = () => {
   const [useCrypto, setUseCrypto] = useState(false);
   const [loading, setLoading] = useState(false);
   const [validatingCode, setValidatingCode] = useState(false);
+  const [unytStatus, setUnytStatus] = useState('');
 
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
@@ -116,6 +117,56 @@ const PricingPage = () => {
     }
 
     setLoading(true);
+    
+    if (useCrypto) {
+      // UNYT wallet payment
+      try {
+        if (!window.ethereum) { toast.error('Please install MetaMask or another Web3 wallet'); setLoading(false); return; }
+        
+        const { ethers } = await import('ethers');
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send('eth_requestAccounts', []);
+        
+        try {
+          await provider.send('wallet_switchEthereumChain', [{ chainId: '0xa4b1' }]);
+        } catch (switchErr) {
+          if (switchErr.code === 4902) {
+            await provider.send('wallet_addEthereumChain', [{
+              chainId: '0xa4b1', chainName: 'Arbitrum One',
+              nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+              rpcUrls: ['https://arb1.arbitrum.io/rpc'], blockExplorerUrls: ['https://arbiscan.io']
+            }]);
+          }
+        }
+        
+        const signer = provider.getSigner();
+        const wallet = await signer.getAddress();
+        const pricing = calculatePricing();
+        const unytAmount = pricing.totalAmount / 0.50;
+        const unytWei = ethers.utils.parseUnits(unytAmount.toFixed(0), 18);
+        
+        setUnytStatus(`Sending ${unytAmount.toFixed(0)} UNYT...`);
+        
+        const erc20Abi = ['function transfer(address to, uint256 amount) returns (bool)'];
+        const contract = new ethers.Contract('0x5305bF91163D97D0d93188611433F86D1bb69898', erc20Abi, signer);
+        const tx = await contract.transfer('0xFf98458bEBA08e0a8967D45Ce216D9Ee5fdecD1A', unytWei);
+        
+        setUnytStatus('Transaction sent. Waiting for confirmation...');
+        await tx.wait();
+        
+        toast.success('UNYT payment confirmed! Your subscription is being activated.');
+        setUnytStatus('');
+        navigate('/settings?tab=billing');
+      } catch (err) {
+        console.error(err);
+        toast.error(err.reason || err.message || 'Transaction failed');
+        setUnytStatus('');
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Stripe checkout
     try {
       const response = await axios.post(
         `${API}/subscriptions/checkout`,
@@ -123,13 +174,12 @@ const PricingPage = () => {
           plan_id: selectedPlan,
           user_count: userCount,
           discount_code: appliedDiscount?.code || null,
-          use_crypto: useCrypto,
+          use_crypto: false,
           origin_url: window.location.origin
         },
         { headers, withCredentials: true }
       );
 
-      // Redirect to Stripe Checkout
       window.location.href = response.data.checkout_url;
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to create checkout session');
@@ -308,20 +358,20 @@ const PricingPage = () => {
               </CardContent>
             </Card>
 
-            {/* Crypto Payment Option */}
+            {/* UNYT Token Payment Option */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bitcoin className="w-5 h-5" />
-                  Pay with Crypto
+                  Pay with UNYT Token
                 </CardTitle>
-                <CardDescription>Get an additional 5% discount when paying with cryptocurrency</CardDescription>
+                <CardDescription>Get an additional 5% discount when paying with UNYT on Arbitrum</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-slate-900">Enable Crypto Payment</p>
-                    <p className="text-sm text-slate-500">Pay with ETH/USDC via Stripe</p>
+                    <p className="font-medium text-slate-900">Enable UNYT Payment</p>
+                    <p className="text-sm text-slate-500">Pay via MetaMask with UNYT tokens (Arbitrum)</p>
                   </div>
                   <Switch
                     checked={useCrypto}
@@ -330,11 +380,15 @@ const PricingPage = () => {
                   />
                 </div>
                 {useCrypto && (
-                  <div className="mt-3 p-3 bg-amber-50 rounded-lg">
-                    <p className="text-amber-700 text-sm">
-                      <Zap className="w-4 h-4 inline mr-1" />
-                      5% crypto discount will be applied. Payment will be in USD.
-                    </p>
+                  <div className="mt-3 space-y-2">
+                    <div className="p-3 bg-amber-50 rounded-lg">
+                      <p className="text-amber-700 text-sm font-medium">
+                        <Zap className="w-4 h-4 inline mr-1" />
+                        5% discount applied. You will pay {(calculatePricing().totalAmount / 0.50).toFixed(0)} UNYT at EUR 0.50 per token.
+                      </p>
+                    </div>
+                    <p className="text-xs text-slate-500">Requires MetaMask or a compatible Web3 wallet connected to Arbitrum One.</p>
+                    {unytStatus && <p className="text-sm text-[#7C3AED] font-medium animate-pulse">{unytStatus}</p>}
                   </div>
                 )}
               </CardContent>
@@ -405,7 +459,7 @@ const PricingPage = () => {
                   ) : (
                     <>
                       <CreditCard className="w-5 h-5 mr-2" />
-                      {useCrypto ? 'Pay with Crypto' : 'Pay with Card'}
+                      {useCrypto ? 'Connect Wallet and Pay with UNYT' : 'Pay with Card'}
                     </>
                   )}
                 </Button>
