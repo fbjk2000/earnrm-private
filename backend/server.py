@@ -1997,13 +1997,22 @@ async def get_projects(current_user: dict = Depends(get_current_user)):
         current_user["organization_id"] = org_id
     projects = await db.projects.find({"organization_id": current_user["organization_id"]}, {"_id": 0}).sort("created_at", -1).to_list(200)
     
-    # Enrich with task counts
+    # Batch task counts with aggregation instead of N+1 queries
+    proj_ids = [p["project_id"] for p in projects]
+    if proj_ids:
+        task_stats = await db.tasks.aggregate([
+            {"$match": {"project_id": {"$in": proj_ids}}},
+            {"$group": {"_id": "$project_id", "total": {"$sum": 1}, "done": {"$sum": {"$cond": [{"$eq": ["$status", "done"]}, 1, 0]}}}}
+        ]).to_list(500)
+        stats_map = {s["_id"]: s for s in task_stats}
+    else:
+        stats_map = {}
+    
     for p in projects:
-        total = await db.tasks.count_documents({"project_id": p["project_id"]})
-        done = await db.tasks.count_documents({"project_id": p["project_id"], "status": "done"})
-        p["task_count"] = total
-        p["tasks_done"] = done
-        p["progress"] = round((done / total) * 100) if total > 0 else 0
+        s = stats_map.get(p["project_id"], {"total": 0, "done": 0})
+        p["task_count"] = s["total"]
+        p["tasks_done"] = s["done"]
+        p["progress"] = round((s["done"] / s["total"]) * 100) if s["total"] > 0 else 0
     return projects
 
 @api_router.post("/projects")
