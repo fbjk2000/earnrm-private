@@ -12,15 +12,23 @@ const API = process.env.REACT_APP_BACKEND_URL + '/api';
 export const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setNotFound(false);
     setLoading(true);
     try {
       await axios.post(`${API}/auth/forgot-password?email=${encodeURIComponent(email)}`);
       setSent(true);
-    } catch { toast.error('Something went wrong.'); }
+    } catch (err) {
+      if (err.response?.data?.detail === 'no_account') {
+        setNotFound(true);
+      } else {
+        toast.error('Something went wrong.');
+      }
+    }
     finally { setLoading(false); }
   };
 
@@ -43,8 +51,17 @@ export const ForgotPasswordPage = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label>Email</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@company.com" />
+                <Input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setNotFound(false); }} required placeholder="you@company.com" />
               </div>
+              {notFound && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                  <p className="text-sm text-amber-800 font-medium mb-1">No account found for this email</p>
+                  <p className="text-xs text-amber-600 mb-3">You need an account before you can reset your password.</p>
+                  <Link to={`/signup?email=${encodeURIComponent(email)}`}>
+                    <Button size="sm" className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs">Sign up with this email</Button>
+                  </Link>
+                </div>
+              )}
               <Button type="submit" disabled={loading} className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white">
                 {loading ? 'Sending...' : 'Send reset link'}
               </Button>

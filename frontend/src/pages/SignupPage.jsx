@@ -25,9 +25,13 @@ const SignupPage = () => {
     organization_name: ''
   });
 
-  // Check for invite code in URL
+  // Check for invite code or prefilled email in URL
   useEffect(() => {
     const code = searchParams.get('invite');
+    const prefillEmail = searchParams.get('email');
+    if (prefillEmail) {
+      setFormData(prev => ({ ...prev, email: prefillEmail }));
+    }
     if (code) {
       setInviteCode(code);
       // If already logged in, accept invite directly

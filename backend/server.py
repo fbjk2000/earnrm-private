@@ -714,7 +714,7 @@ async def forgot_password(email: str):
     """Send password reset email"""
     user = await db.users.find_one({"email": email.lower()}, {"_id": 0})
     if not user:
-        return {"message": "If an account exists, a reset link has been sent."}
+        raise HTTPException(status_code=404, detail="no_account")
     
     reset_token = secrets.token_urlsafe(32)
     await db.password_resets.insert_one({
