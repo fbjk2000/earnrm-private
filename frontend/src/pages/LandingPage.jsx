@@ -14,6 +14,8 @@ const LaunchEdition = () => {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', email: '' });
   const [loading, setLoading] = useState(false);
+  const [payMethod, setPayMethod] = useState('stripe');
+  const [unytStatus, setUnytStatus] = useState('');
 
   useEffect(() => {
     const end = new Date("2026-06-30T22:59:59Z").getTime();
@@ -36,6 +38,60 @@ const LaunchEdition = () => {
   const handleCheckout = async () => {
     if (!form.email) { toast.error('Please enter your email'); return; }
     setLoading(true);
+    
+    if (payMethod === 'unyt') {
+      try {
+        if (!window.ethereum) { toast.error('Please install MetaMask or another Web3 wallet'); setLoading(false); return; }
+        
+        const { ethers } = await import('ethers');
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send('eth_requestAccounts', []);
+        
+        // Switch to Arbitrum
+        try {
+          await provider.send('wallet_switchEthereumChain', [{ chainId: '0xa4b1' }]);
+        } catch (switchErr) {
+          if (switchErr.code === 4902) {
+            await provider.send('wallet_addEthereumChain', [{
+              chainId: '0xa4b1', chainName: 'Arbitrum One',
+              nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+              rpcUrls: ['https://arb1.arbitrum.io/rpc'], blockExplorerUrls: ['https://arbiscan.io']
+            }]);
+          }
+        }
+        
+        const signer = provider.getSigner();
+        const wallet = await signer.getAddress();
+        
+        // Create order
+        const orderRes = await axios.post(`${API}/checkout/launch-edition/unyt`, { name: form.name, email: form.email, wallet });
+        const order = orderRes.data;
+        
+        setUnytStatus(`Sending ${order.unyt_amount.toLocaleString()} UNYT...`);
+        
+        // Send ERC-20 transfer
+        const erc20Abi = ['function transfer(address to, uint256 amount) returns (bool)'];
+        const contract = new ethers.Contract(order.contract, erc20Abi, signer);
+        const tx = await contract.transfer(order.receiver, order.unyt_amount_wei);
+        
+        setUnytStatus('Transaction sent. Waiting for confirmation...');
+        await tx.wait();
+        
+        // Confirm with backend
+        await axios.post(`${API}/checkout/launch-edition/unyt/confirm?deal_id=${order.deal_id}&tx_hash=${tx.hash}`);
+        toast.success('Payment confirmed! We will be in touch about your Launch Edition setup.');
+        setUnytStatus('');
+        setShowForm(false);
+      } catch (err) {
+        console.error(err);
+        toast.error(err.reason || err.message || 'Transaction failed');
+        setUnytStatus('');
+      }
+      setLoading(false);
+      return;
+    }
+    
+    // Stripe checkout
     try {
       const res = await axios.post(`${API}/checkout/launch-edition`, {
         origin_url: window.location.origin, name: form.name, email: form.email
@@ -89,8 +145,14 @@ const LaunchEdition = () => {
                 <div className="space-y-2">
                   <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Your name" className="bg-white/10 border-white/10 text-white placeholder:text-white/40" />
                   <Input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="Your email" required className="bg-white/10 border-white/10 text-white placeholder:text-white/40" />
-                  <button onClick={handleCheckout} disabled={loading} className="w-full min-h-[52px] rounded-xl bg-[#D4A853] text-[#0f172a] font-bold text-base py-3 hover:opacity-95 transition-opacity shadow-lg disabled:opacity-50" data-testid="launch-checkout-btn">
-                    {loading ? 'Redirecting to checkout...' : 'Proceed to Checkout (EUR 4,999)'}
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => setPayMethod('stripe')} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${payMethod === 'stripe' ? 'bg-white text-[#0f172a]' : 'bg-white/10 text-white/70 hover:bg-white/15'}`}>Card / Bank</button>
+                    <button onClick={() => setPayMethod('unyt')} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${payMethod === 'unyt' ? 'bg-[#D4A853] text-[#0f172a]' : 'bg-white/10 text-white/70 hover:bg-white/15'}`}>Pay with UNYT</button>
+                  </div>
+                  {payMethod === 'unyt' && <p className="text-xs text-white/50 text-center">9,998 UNYT at EUR 0.50 per token via Arbitrum</p>}
+                  {unytStatus && <p className="text-xs text-[#D4A853] text-center animate-pulse">{unytStatus}</p>}
+                  <button onClick={handleCheckout} disabled={loading} className={`w-full min-h-[52px] rounded-xl font-bold text-base py-3 hover:opacity-95 transition-opacity shadow-lg disabled:opacity-50 ${payMethod === 'unyt' ? 'bg-[#D4A853] text-[#0f172a]' : 'bg-white text-[#0f172a]'}`} data-testid="launch-checkout-btn">
+                    {loading ? 'Processing...' : payMethod === 'unyt' ? 'Connect Wallet and Pay' : 'Proceed to Checkout (EUR 4,999)'}
                   </button>
                 </div>
               )}

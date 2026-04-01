@@ -3414,6 +3414,98 @@ async def stripe_webhook(request: Request):
     
     api_key = os.environ.get("STRIPE_API_KEY")
     stripe_checkout = StripeCheckout(api_key=api_key, webhook_url="")
+
+UNYT_CONTRACT = "0x5305bF91163D97D0d93188611433F86D1bb69898"
+UNYT_RECEIVER = "0xFf98458bEBA08e0a8967D45Ce216D9Ee5fdecD1A"
+UNYT_PRICE_EUR = 0.50
+UNYT_DECIMALS = 18
+
+@api_router.post("/checkout/launch-edition/unyt")
+async def launch_edition_unyt(request: Request):
+    """Create a UNYT payment order for the Launch Edition"""
+    body = await request.json()
+    buyer_name = body.get("name", "")
+    buyer_email = body.get("email", "")
+    buyer_wallet = body.get("wallet", "")
+    
+    deal_id = f"deal_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    amount_eur = 4999.0
+    unyt_amount = amount_eur / UNYT_PRICE_EUR  # 9998 UNYT
+    
+    super_admin = await db.users.find_one({"email": SUPER_ADMIN_EMAIL}, {"_id": 0})
+    org_id = super_admin.get("organization_id") if super_admin else None
+    admin_uid = super_admin.get("user_id") if super_admin else None
+    
+    # Create deal as open opportunity
+    await db.deals.insert_one({
+        "deal_id": deal_id, "organization_id": org_id,
+        "name": f"Launch Edition (UNYT): {buyer_name or buyer_email or buyer_wallet[:10]}",
+        "value": amount_eur, "currency": "EUR", "stage": "negotiation", "probability": 60,
+        "tags": ["launch-edition", "unyt-payment"],
+        "notes": f"Buyer: {buyer_name} ({buyer_email}). Wallet: {buyer_wallet}. UNYT payment: {unyt_amount:.0f} UNYT.",
+        "assigned_to": admin_uid, "created_by": admin_uid, "created_at": now.isoformat(), "updated_at": now.isoformat()
+    })
+    
+    if buyer_email and org_id:
+        name_parts = buyer_name.split(" ", 1) if buyer_name else [buyer_email.split("@")[0], ""]
+        await db.leads.insert_one({
+            "lead_id": f"lead_{uuid.uuid4().hex[:12]}", "organization_id": org_id,
+            "first_name": name_parts[0], "last_name": name_parts[1] if len(name_parts) > 1 else "",
+            "email": buyer_email, "source": "launch_edition_unyt", "status": "qualified",
+            "notes": f"UNYT payment initiated. Wallet: {buyer_wallet}", "ai_score": None,
+            "assigned_to": admin_uid, "created_by": admin_uid, "created_at": now.isoformat(), "updated_at": now.isoformat()
+        })
+    
+    await db.payment_transactions.insert_one({
+        "transaction_id": f"txn_{uuid.uuid4().hex[:12]}", "deal_id": deal_id,
+        "product": "launch_edition", "amount": amount_eur, "currency": "eur",
+        "payment_method": "unyt", "unyt_amount": unyt_amount,
+        "buyer_wallet": buyer_wallet, "buyer_name": buyer_name, "buyer_email": buyer_email,
+        "status": "pending", "created_at": now.isoformat()
+    })
+    
+    return {
+        "deal_id": deal_id,
+        "unyt_amount": unyt_amount,
+        "unyt_amount_wei": str(int(unyt_amount * (10 ** UNYT_DECIMALS))),
+        "receiver": UNYT_RECEIVER,
+        "contract": UNYT_CONTRACT,
+        "chain_id": 42161,
+        "price_per_unyt_eur": UNYT_PRICE_EUR,
+        "total_eur": amount_eur
+    }
+
+@api_router.post("/checkout/launch-edition/unyt/confirm")
+async def confirm_unyt_payment(deal_id: str, tx_hash: str):
+    """Confirm UNYT payment after transaction is sent"""
+    now = datetime.now(timezone.utc)
+    
+    await db.payment_transactions.update_one(
+        {"deal_id": deal_id, "payment_method": "unyt"},
+        {"$set": {"status": "submitted", "tx_hash": tx_hash, "submitted_at": now.isoformat()}}
+    )
+    
+    # Update deal to won
+    await db.deals.update_one({"deal_id": deal_id}, {"$set": {"stage": "won", "probability": 100, "updated_at": now.isoformat(), "notes_extra": f"UNYT tx: {tx_hash}"}})
+    
+    # Create delivery task
+    super_admin = await db.users.find_one({"email": SUPER_ADMIN_EMAIL}, {"_id": 0})
+    admin_uid = super_admin.get("user_id") if super_admin else None
+    org_id = super_admin.get("organization_id") if super_admin else None
+    
+    await db.tasks.insert_one({
+        "task_id": f"task_{uuid.uuid4().hex[:12]}", "organization_id": org_id,
+        "title": f"Deliver Launch Edition (UNYT): {deal_id}",
+        "description": f"UNYT payment received. TX: {tx_hash}. Verify on Arbiscan, then deliver self-hosted CRM package.",
+        "status": "todo", "priority": "high", "assigned_to": admin_uid, "related_deal_id": deal_id,
+        "subtasks": [], "comments": [], "activity": [{"action": "created", "by": admin_uid or "", "by_name": "System", "at": now.isoformat()}],
+        "created_by": admin_uid, "created_at": now.isoformat(), "updated_at": now.isoformat()
+    })
+    
+    return {"status": "submitted", "deal_id": deal_id, "tx_hash": tx_hash, "message": "Payment submitted. Delivery task created."}
+
+
     
     body = await request.body()
     signature = request.headers.get("Stripe-Signature")
