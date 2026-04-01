@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
@@ -102,6 +103,8 @@ const LaunchEdition = () => {
 };
 
 const LandingPage = () => {
+  const { t, i18n } = useTranslation();
+  const toggleLang = () => { const nl = i18n.language === 'en' ? 'de' : 'en'; i18n.changeLanguage(nl); localStorage.setItem('earnrm_lang', nl); };
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLeadMagnet, setShowLeadMagnet] = useState(false);
   const [leadMagnetEmail, setLeadMagnetEmail] = useState('');
@@ -151,12 +154,12 @@ const LandingPage = () => {
   };
 
   const features = [
-    { title: 'AI Lead Scoring', desc: 'Every lead ranked 1 to 100 based on fit, engagement, and conversion probability. Focus on what closes.', accent: '#D4A853' },
-    { title: 'Pipeline Management', desc: 'Drag and drop deals between stages. Kanban and list views. Lost deals excluded from forecasts automatically.', accent: '#7C3AED' },
-    { title: 'Outbound Calling', desc: 'Call leads directly from the CRM. Calls recorded, transcribed by AI, follow up tasks created on the spot.', accent: '#3B0764' },
-    { title: 'AI Email Drafting', desc: 'Generate personalised sales emails in seconds. Choose tone, purpose, and context. Copy or send with one click.', accent: '#D4A853' },
-    { title: 'Team Projects', desc: 'Group tasks under deals. Track progress with your team. Every project gets its own chat channel.', accent: '#7C3AED' },
-    { title: 'Calendar and Booking', desc: 'Built in calendar with Google Calendar sync. Share your booking link. Confirmations and reminders sent automatically.', accent: '#3B0764' },
+    { title: t('landing.feat1Title'), desc: t('landing.feat1Desc'), accent: '#D4A853' },
+    { title: t('landing.feat2Title'), desc: t('landing.feat2Desc'), accent: '#7C3AED' },
+    { title: t('landing.feat3Title'), desc: t('landing.feat3Desc'), accent: '#3B0764' },
+    { title: t('landing.feat4Title'), desc: t('landing.feat4Desc'), accent: '#D4A853' },
+    { title: t('landing.feat5Title'), desc: t('landing.feat5Desc'), accent: '#7C3AED' },
+    { title: t('landing.feat6Title'), desc: t('landing.feat6Desc'), accent: '#3B0764' },
   ];
 
   return (
@@ -168,14 +171,15 @@ const LandingPage = () => {
             <img src="/logo-horizontal.svg" alt="earnrm" className="h-7" data-testid="nav-logo" />
           </Link>
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">Features</a>
-            <a href="#product" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">Product</a>
-            <a href="#pricing" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">Pricing</a>
-            <Link to="/support" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">Support</Link>
+            <a href="#features" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">{t('landing.footerFeatures')}</a>
+            <a href="#product" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">{t('landing.footerProduct')}</a>
+            <a href="#pricing" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">{t('landing.footerPricing')}</a>
+            <Link to="/support" className="text-sm text-[#0F0A1E]/60 hover:text-[#0F0A1E] transition-colors">{t('common.support')}</Link>
           </div>
           <div className="hidden md:flex items-center gap-3">
-            <Link to="/login"><Button variant="ghost" className="text-sm h-9 text-[#0F0A1E]/70 hover:text-[#0F0A1E]">Sign in</Button></Link>
-            <Link to="/signup"><Button className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-sm h-9 px-5 rounded-lg" data-testid="nav-cta">Start free</Button></Link>
+            <button onClick={toggleLang} className="px-2 py-1 text-xs font-semibold rounded bg-[#0F0A1E]/5 hover:bg-[#0F0A1E]/10 text-[#0F0A1E]/60" data-testid="landing-lang-toggle">{i18n.language === 'en' ? 'DE' : 'EN'}</button>
+            <Link to="/login"><Button variant="ghost" className="text-sm h-9 text-[#0F0A1E]/70 hover:text-[#0F0A1E]">{t('common.signIn')}</Button></Link>
+            <Link to="/signup"><Button className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-sm h-9 px-5 rounded-lg" data-testid="nav-cta">{t('common.startFree')}</Button></Link>
           </div>
           <button className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} data-testid="mobile-menu-btn">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} /></svg>
@@ -197,23 +201,23 @@ const LandingPage = () => {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 bg-[#3B0764]/5 border border-[#3B0764]/10 rounded-full px-4 py-1.5 mb-8">
               <span className="w-1.5 h-1.5 rounded-full bg-[#D4A853]" />
-              <span className="text-xs tracking-widest uppercase text-[#3B0764]/70 font-medium" style={{ fontFamily: "'DM Sans', sans-serif" }}>AI powered CRM for European sales teams</span>
+              <span className="text-xs tracking-widest uppercase text-[#3B0764]/70 font-medium" style={{ fontFamily: "'DM Sans', sans-serif" }}>{t('landing.badge')}</span>
             </div>
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-6" style={{ fontFamily: "'Syne', sans-serif" }} data-testid="hero-title">
-              Close more deals.<br />
-              <span className="text-[#7C3AED]">Waste less time.</span>
+              {t('landing.heroTitle1')}<br />
+              <span className="text-[#7C3AED]">{t('landing.heroTitle2')}</span>
             </h1>
             <p className="text-lg md:text-xl text-[#0F0A1E]/60 leading-relaxed max-w-xl mb-10" data-testid="hero-description">
-              earnrm brings your pipeline, leads, calls, and team into one place. AI handles the busywork so you can focus on selling.
+              {t('landing.heroDesc')}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link to="/signup">
                 <Button className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white h-12 px-8 rounded-lg text-base font-medium" data-testid="hero-cta-primary">
-                  Start free trial
+                  {t('landing.startTrial')}
                 </Button>
               </Link>
               <Button variant="outline" className="h-12 px-8 rounded-lg text-base border-[#0F0A1E]/15 text-[#0F0A1E]/70 hover:border-[#0F0A1E]/30" onClick={() => setShowLeadMagnet(true)} data-testid="hero-cta-guide">
-                Get the playbook
+                {t('landing.getPlaybook')}
               </Button>
             </div>
           </div>
@@ -257,15 +261,15 @@ const LandingPage = () => {
       <section className="py-12 border-y border-[#0F0A1E]/5">
         <div className="max-w-5xl mx-auto px-6">
           <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-4 text-[#0F0A1E]/30 text-sm">
-            <span>GDPR compliant</span>
+            <span>{t('landing.trustGdpr')}</span>
             <span className="w-px h-4 bg-[#0F0A1E]/10" />
-            <span>EU hosted data</span>
+            <span>{t('landing.trustEu')}</span>
             <span className="w-px h-4 bg-[#0F0A1E]/10" />
-            <span>SOC 2 ready</span>
+            <span>{t('landing.trustSoc')}</span>
             <span className="w-px h-4 bg-[#0F0A1E]/10" />
-            <span>Stripe payments</span>
+            <span>{t('landing.trustStripe')}</span>
             <span className="w-px h-4 bg-[#0F0A1E]/10" />
-            <span>99.9% uptime</span>
+            <span>{t('landing.trustUptime')}</span>
           </div>
         </div>
       </section>
@@ -274,12 +278,12 @@ const LandingPage = () => {
       <section className="py-24 px-6" id="features">
         <div className="max-w-5xl mx-auto">
           <div className="max-w-2xl mb-16">
-            <p className="text-xs tracking-[0.2em] uppercase font-semibold text-[#7C3AED] mb-4">What you get</p>
+            <p className="text-xs tracking-[0.2em] uppercase font-semibold text-[#7C3AED] mb-4">{t('landing.featuresTag')}</p>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4" style={{ fontFamily: "'Syne'" }}>
               Everything a sales team needs. Nothing it does not.
             </h2>
             <p className="text-[#0F0A1E]/60 text-lg">
-              Six core modules that work together. No bloat, no hidden complexity, no enterprise sales pitch required.
+              {t('landing.featuresDesc')}
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -299,7 +303,7 @@ const LandingPage = () => {
       {/* Social Proof */}
       <section className="py-24 px-6 bg-[#0F0A1E]">
         <div className="max-w-5xl mx-auto">
-          <p className="text-xs tracking-[0.2em] uppercase font-semibold text-[#D4A853] mb-4">What people say</p>
+          <p className="text-xs tracking-[0.2em] uppercase font-semibold text-[#D4A853] mb-4">{t('landing.proofTag')}</p>
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-12" style={{ fontFamily: "'Syne'" }}>
             Built for teams that sell across Europe
           </h2>
@@ -329,7 +333,7 @@ const LandingPage = () => {
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4" style={{ fontFamily: "'Syne'" }}>
               Simple, fair pricing
             </h2>
-            <p className="text-[#0F0A1E]/60 text-lg">Start free. Upgrade when your team grows.</p>
+            <p className="text-[#0F0A1E]/60 text-lg">{t('landing.pricingDesc')}</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {[

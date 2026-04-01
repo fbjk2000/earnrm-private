@@ -29,27 +29,41 @@ const DashboardLayout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [lang, setLang] = useState(() => localStorage.getItem('earnrm_lang') || 'en');
 
   const isAdmin = user?.role === 'super_admin' || user?.role === 'deputy_admin' || user?.email === 'florian@unyted.world';
 
+  const labels = {
+    en: { dashboard: 'Dashboard', leads: 'Leads', contacts: 'Contacts', deals: 'Deals', tasks: 'Tasks', projects: 'Projects', pipeline: 'Pipeline', companies: 'Companies', campaigns: 'Campaigns', teamChat: 'Team Chat', calls: 'Calls', calendar: 'Calendar', bookings: 'Bookings', admin: 'Admin', settings: 'Settings', support: 'Support', signOut: 'Sign Out' },
+    de: { dashboard: 'Dashboard', leads: 'Leads', contacts: 'Kontakte', deals: 'Deals', tasks: 'Aufgaben', projects: 'Projekte', pipeline: 'Pipeline', companies: 'Unternehmen', campaigns: 'Kampagnen', teamChat: 'Team-Chat', calls: 'Anrufe', calendar: 'Kalender', bookings: 'Buchungen', admin: 'Admin', settings: 'Einstellungen', support: 'Support', signOut: 'Abmelden' }
+  };
+  const l = labels[lang] || labels.en;
+
+  const toggleLang = () => {
+    const nl = lang === 'en' ? 'de' : 'en';
+    setLang(nl);
+    localStorage.setItem('earnrm_lang', nl);
+    try { window.dispatchEvent(new Event('languagechange')); } catch {}
+  };
+
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', iconKey: 'LayoutDashboard' },
-    { path: '/leads', label: 'Leads', iconKey: 'Users' },
-    { path: '/contacts', label: 'Contacts', iconKey: 'Users' },
-    { path: '/deals', label: 'Deals', iconKey: 'Target' },
-    { path: '/tasks', label: 'Tasks', iconKey: 'CheckSquare' },
-    { path: '/projects', label: 'Projects', iconKey: 'CheckSquare' },
-    { path: '/pipeline', label: 'Pipeline', iconKey: 'BarChart3' },
-    { path: '/companies', label: 'Companies', iconKey: 'Building' },
-    { path: '/campaigns', label: 'Campaigns', iconKey: 'Mail' },
-    { path: '/chat', label: 'Team Chat', iconKey: 'MessageSquare' },
-    { path: '/calls', label: 'Calls', iconKey: 'Phone' },
-    { path: '/calendar', label: 'Calendar', iconKey: 'CheckSquare' },
-    { path: '/bookings', label: 'Bookings', iconKey: 'Users' },
+    { path: '/dashboard', label: l.dashboard, iconKey: 'LayoutDashboard' },
+    { path: '/leads', label: l.leads, iconKey: 'Users' },
+    { path: '/contacts', label: l.contacts, iconKey: 'Users' },
+    { path: '/deals', label: l.deals, iconKey: 'Target' },
+    { path: '/tasks', label: l.tasks, iconKey: 'CheckSquare' },
+    { path: '/projects', label: l.projects, iconKey: 'CheckSquare' },
+    { path: '/pipeline', label: l.pipeline, iconKey: 'BarChart3' },
+    { path: '/companies', label: l.companies, iconKey: 'Building' },
+    { path: '/campaigns', label: l.campaigns, iconKey: 'Mail' },
+    { path: '/chat', label: l.teamChat, iconKey: 'MessageSquare' },
+    { path: '/calls', label: l.calls, iconKey: 'Phone' },
+    { path: '/calendar', label: l.calendar, iconKey: 'CheckSquare' },
+    { path: '/bookings', label: l.bookings, iconKey: 'Users' },
     { divider: true },
-    { path: '/admin', label: 'Admin', iconKey: 'Shield', adminOnly: true },
-    { path: '/settings', label: 'Settings', iconKey: 'Settings' },
-    { path: '/support', label: 'Support', iconKey: 'HelpCircle' },
+    { path: '/admin', label: l.admin, iconKey: 'Shield', adminOnly: true },
+    { path: '/settings', label: l.settings, iconKey: 'Settings' },
+    { path: '/support', label: l.support, iconKey: 'HelpCircle' },
   ];
 
   const handleLogout = async () => {
@@ -155,15 +169,15 @@ const DashboardLayout = ({ children }) => {
                 <p className="text-xs text-slate-500 truncate">{user?.email}</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-              onClick={handleLogout}
-              data-testid="sidebar-logout"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
+            <div className="flex items-center justify-between mb-2">
+              <Button variant="ghost" className="flex-1 justify-start text-slate-600 hover:text-slate-900 hover:bg-slate-50" onClick={handleLogout} data-testid="sidebar-logout">
+                <LogOut className="w-4 h-4 mr-2" />
+                {l.signOut}
+              </Button>
+              <button onClick={toggleLang} className="px-2 py-1 text-xs font-semibold rounded bg-slate-100 hover:bg-slate-200 text-slate-600" data-testid="lang-toggle">
+                {lang === 'en' ? 'DE' : 'EN'}
+              </button>
+            </div>
           </div>
         </div>
       </aside>
