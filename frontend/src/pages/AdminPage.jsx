@@ -129,7 +129,7 @@ const AdminPage = () => {
     try {
       const res = await axios.get(`${API}/admin/data-explorer`, { headers, withCredentials: true });
       setExplorerCollections(res.data.collections || {});
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const fetchExplorerData = async (coll, page = 0, search = '') => {

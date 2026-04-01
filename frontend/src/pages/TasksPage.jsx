@@ -71,7 +71,7 @@ const TasksPage = () => {
         const res = await axios.get(`${API}/organizations/${orgRes.data.organization_id}/members`, ax);
         setMembers(res.data || []);
       }
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const handleAddTask = async (e) => {
@@ -136,7 +136,7 @@ const TasksPage = () => {
       const res = await axios.get(`${API}/tasks`, ax);
       const fresh = res.data.find(t => t.task_id === taskId);
       if (fresh) { setSelectedTask(fresh); setEditData({ ...fresh }); }
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const handleAddComment = async () => {
@@ -165,7 +165,7 @@ const TasksPage = () => {
       await axios.put(`${API}/tasks/${selectedTask.task_id}/subtasks/${subtaskId}?done=${done}`, {}, ax);
       refreshTask(selectedTask.task_id);
       fetchTasks();
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const handleReopenTask = async () => {

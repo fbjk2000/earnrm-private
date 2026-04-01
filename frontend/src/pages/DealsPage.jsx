@@ -86,7 +86,7 @@ const DealsPage = () => {
       setAvailableLeads(leadsRes.data || []);
       setAvailableContacts(contactsRes.data || []);
       setAvailableCompanies(companiesRes.data || []);
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const fetchDeals = async () => {
@@ -121,7 +121,7 @@ const DealsPage = () => {
         setMembers(membersRes.data || []);
       }
     } catch (error) {
-      console.log('Could not fetch members');
+      // silent
     }
   };
 
@@ -130,7 +130,7 @@ const DealsPage = () => {
       const response = await axios.get(`${API}/deals/tags`, { headers, withCredentials: true });
       setExistingTags(response.data.tags || []);
     } catch (error) {
-      console.log('Could not fetch tags');
+      // silent
     }
   };
 

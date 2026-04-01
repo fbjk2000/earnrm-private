@@ -58,7 +58,7 @@ const PipelineReportPage = () => {
       });
       setTeamData(response.data);
     } catch (error) {
-      console.log('Team summary not available');
+      // silent
     }
   };
 

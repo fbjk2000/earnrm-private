@@ -88,14 +88,14 @@ const CallsPage = () => {
     try {
       const res = await axios.get(`${API}/calls/stats/overview`, { headers });
       setStats(res.data);
-    } catch {}
+    } catch (err) { console.error(err); }
   }, [token]);
 
   const fetchLeads = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/leads`, { headers });
       setLeads(res.data);
-    } catch {}
+    } catch (err) { console.error(err); }
   }, [token]);
 
   const fetchScheduled = useCallback(async () => {
@@ -106,13 +106,13 @@ const CallsPage = () => {
       ]);
       setScheduledCalls(schedRes.data);
       setUpcomingCalls(upRes.data);
-    } catch {}
+    } catch (err) { console.error(err); }
   }, [token]);
 
   const checkReminders = useCallback(async () => {
     try {
       await axios.post(`${API}/calls/scheduled/check-reminders`, {}, { headers });
-    } catch {}
+    } catch (err) { console.error(err); }
   }, [token]);
 
   useEffect(() => {
@@ -199,7 +199,7 @@ const CallsPage = () => {
       await axios.put(`${API}/calls/scheduled/${id}`, { status: 'completed' }, { headers });
       toast.success('Marked as completed');
       fetchScheduled();
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const analyzeCall = async (callId) => {

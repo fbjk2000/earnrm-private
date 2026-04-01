@@ -47,7 +47,7 @@ const CalendarPage = () => {
   };
 
   const checkGoogleStatus = async () => {
-    try { const r = await axios.get(`${API}/calendar/google/status`, ax); setGoogleConnected(r.data.connected); } catch {}
+    try { const r = await axios.get(`${API}/calendar/google/status`, ax); setGoogleConnected(r.data.connected); } catch (err) { console.error(err); }
   };
 
   const connectGoogle = async () => {

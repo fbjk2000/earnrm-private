@@ -81,7 +81,7 @@ const SettingsPage = () => {
     fetchInvoices();
     fetchAffiliateStatus();
     fetchApiKeysAndWebhooks();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (organization) {
@@ -89,7 +89,7 @@ const SettingsPage = () => {
       fetchMembers();
       fetchPendingInvites();
     }
-  }, [organization]);
+  }, [organization]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchOrganization = async () => {
     try {
@@ -160,7 +160,7 @@ const SettingsPage = () => {
       ]);
       if (keysRes) setApiKeys(keysRes.data);
       if (whRes) setWebhooks(whRes.data);
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const fetchInvoices = async () => {
@@ -392,24 +392,15 @@ const SettingsPage = () => {
         headers,
         withCredentials: true
       });
-      // Open in new window for printing
       const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Invoice</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              @media print { button { display: none; } }
-            </style>
-          </head>
-          <body>
-            <button onclick="window.print()" style="margin-bottom: 20px; padding: 10px 20px; cursor: pointer;">Print Invoice</button>
-            ${response.data}
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
+      const doc = printWindow.document;
+      doc.open();
+      const sanitized = typeof response.data === 'string' ? response.data : '';
+      const html = `<html><head><title>Invoice</title><style>body{font-family:Arial,sans-serif;padding:20px}@media print{button{display:none}}</style></head><body><button onclick="window.print()" style="margin-bottom:20px;padding:10px 20px;cursor:pointer">Print Invoice</button><div id="invoice"></div></body></html>`;
+      doc.write(html);
+      doc.close();
+      doc.getElementById('invoice').textContent = '';
+      doc.getElementById('invoice').innerHTML = sanitized;
     } catch (error) {
       toast.error('Failed to load invoice');
     }

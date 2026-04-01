@@ -95,7 +95,7 @@ const LeadsPage = () => {
   useEffect(() => {
     fetchLeads();
     fetchDeals();
-  }, [statusFilter]);
+  }, [statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-open lead detail from URL param
   useEffect(() => {
@@ -104,13 +104,13 @@ const LeadsPage = () => {
       const lead = leads.find(l => l.lead_id === detailId);
       if (lead) openLeadDetail(lead);
     }
-  }, [leads]);
+  }, [leads]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchDeals = async () => {
     try {
       const res = await axios.get(`${API}/deals`, { headers, withCredentials: true });
       setDeals(res.data);
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const fetchLeads = async () => {

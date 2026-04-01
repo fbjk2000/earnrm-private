@@ -43,7 +43,7 @@ const ProjectsPage = () => {
     catch { toast.error('Failed to load projects'); }
     finally { setLoading(false); }
   };
-  const fetchDeals = async () => { try { const r = await axios.get(`${API}/deals`, ax); setDeals(r.data); } catch {} };
+  const fetchDeals = async () => { try { const r = await axios.get(`${API}/deals`, ax); setDeals(r.data); } catch (err) { console.error(err); } };
   const fetchMembers = async () => {
     try {
       const orgRes = await axios.get(`${API}/organizations/current`, ax);
@@ -51,7 +51,7 @@ const ProjectsPage = () => {
         const r = await axios.get(`${API}/organizations/${orgRes.data.organization_id}/members`, ax);
         setMembers(r.data || []);
       }
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const handleCreate = async () => {
@@ -90,7 +90,7 @@ const ProjectsPage = () => {
     try {
       await axios.put(`${API}/tasks/${taskId}`, { status }, ax);
       openProject(selectedProject.project_id);
-    } catch {}
+    } catch (err) { console.error(err); }
   };
 
   const handleDeleteProject = async (id) => {
