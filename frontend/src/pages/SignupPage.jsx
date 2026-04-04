@@ -84,8 +84,12 @@ const SignupPage = () => {
       const registerData = { ...formData };
       if (inviteCode) {
         registerData.invite_code = inviteCode;
-        delete registerData.organization_name; // Don't create new org when joining
+        delete registerData.organization_name;
       }
+      // Pass affiliate ref code from URL
+      const refCode = searchParams.get('ref');
+      if (refCode) registerData.ref_code = refCode;
+      
       await register(registerData);
       toast.success('Account created successfully!');
       navigate('/dashboard');

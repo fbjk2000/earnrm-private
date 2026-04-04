@@ -489,6 +489,19 @@ const SettingsPage = () => {
                 <CardContent>
                   {affiliateStatus?.enrolled ? (
                     <div className="space-y-4">
+                      {/* Level and Commission Info */}
+                      <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-[#7C3AED] text-white">{affiliateStatus.level_label || `Level ${affiliateStatus.level}`}</Badge>
+                            <span className="text-sm font-medium text-purple-900">Level {affiliateStatus.level}</span>
+                          </div>
+                          <span className="text-sm font-bold text-purple-900">{affiliateStatus.affiliate?.commission_rate}% commission</span>
+                        </div>
+                        <p className="text-xs text-purple-700">{affiliateStatus.commission_summary}</p>
+                        <p className="text-xs text-purple-600 mt-1">Your link gives new customers <strong>{affiliateStatus.customer_discount} off</strong></p>
+                      </div>
+
                       <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
                         <p className="text-sm font-medium text-emerald-800 mb-2">Your Referral Link</p>
                         <div className="flex items-center gap-2">

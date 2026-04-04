@@ -89,6 +89,7 @@ class UserCreate(BaseModel):
     name: str
     organization_name: Optional[str] = None
     invite_code: Optional[str] = None
+    ref_code: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -638,6 +639,7 @@ async def register(user_data: UserCreate, response: Response):
         "password_hash": hash_password(user_data.password),
         "organization_id": organization_id,
         "role": user_role,
+        "referred_by": user_data.ref_code or None,
         "created_at": now.isoformat()
     }
     await db.users.insert_one(user_doc)
@@ -1473,40 +1475,47 @@ async def validate_invite(invite_code: str):
 
 @api_router.post("/affiliate/enroll")
 async def enroll_as_affiliate(current_user: dict = Depends(get_current_user)):
-    """Self-enroll as an affiliate (if organization has affiliate enabled)"""
+    """Self-enroll as an affiliate. Anyone can toggle this on."""
     if not current_user.get("organization_id"):
         org_id = await ensure_user_org(current_user)
         current_user["organization_id"] = org_id
     
-    # Check if org has affiliate enabled
-    org = await db.organizations.find_one(
-        {"organization_id": current_user["organization_id"]},
-        {"_id": 0}
-    )
-    if not org or not org.get("affiliate_enabled", False):
-        raise HTTPException(status_code=400, detail="Affiliate program not enabled for your organization")
-    
-    # Check if already an affiliate
     existing = await db.affiliates.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
     if existing:
         return {"message": "Already enrolled", "affiliate": existing}
     
-    # Create affiliate entry
     affiliate_id = f"aff_{uuid.uuid4().hex[:12]}"
-    affiliate_code = f"{current_user['name'].split()[0].lower()}_{uuid.uuid4().hex[:6]}"
+    affiliate_code = f"{current_user.get('name','user').split()[0].lower()}_{uuid.uuid4().hex[:6]}"
     now = datetime.now(timezone.utc)
+    
+    # Determine level based on who referred this user
+    level = 0  # Default: direct invite by super admin or self-enrolled
+    parent_affiliate_id = None
+    
+    # Check if user was referred by another affiliate
+    user_doc = await db.users.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    ref_code = user_doc.get("referred_by") if user_doc else None
+    if ref_code:
+        parent = await db.affiliates.find_one({"affiliate_code": ref_code}, {"_id": 0})
+        if parent:
+            parent_level = parent.get("level", 0)
+            level = min(parent_level + 1, 2)  # Max level 2
+            parent_affiliate_id = parent["affiliate_id"]
+    
+    # Commission rates by level
+    commission_rates = {0: 20.0, 1: 10.0, 2: 10.0}
     
     affiliate_doc = {
         "affiliate_id": affiliate_id,
         "user_id": current_user["user_id"],
-        "email": current_user["email"],
-        "name": current_user["name"],
+        "email": current_user.get("email", ""),
+        "name": current_user.get("name", ""),
         "organization_id": current_user["organization_id"],
         "affiliate_code": affiliate_code,
-        "tier": 1,
-        "commission_rate_tier1": 20.0,
-        "commission_rate_tier2": 10.0,
-        "commission_rate_tier3": 5.0,
+        "level": level,
+        "parent_affiliate_id": parent_affiliate_id,
+        "commission_rate": commission_rates.get(level, 10.0),
+        "customer_discount": 20.0,  # Every affiliate link gives 20% off
         "total_referrals": 0,
         "total_earnings": 0,
         "pending_earnings": 0,
@@ -1521,26 +1530,45 @@ async def enroll_as_affiliate(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/affiliate/me")
 async def get_my_affiliate_status(current_user: dict = Depends(get_current_user)):
-    """Get current user's affiliate status and referral link"""
-    affiliate = await db.affiliates.find_one(
-        {"user_id": current_user["user_id"]},
-        {"_id": 0}
-    )
+    """Get current user's affiliate status, link, and marketing material"""
+    affiliate = await db.affiliates.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
     
     if not affiliate:
         return {"enrolled": False, "affiliate": None}
     
-    # Get referral stats
-    referrals = await db.affiliate_referrals.find(
-        {"affiliate_id": affiliate["affiliate_id"]},
-        {"_id": 0}
-    ).sort("created_at", -1).to_list(100)
+    referrals = await db.affiliate_referrals.find({"affiliate_id": affiliate["affiliate_id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    # Count downstream earnings (from levels below)
+    downstream = await db.affiliate_referrals.find({"upstream_affiliate_ids": affiliate["affiliate_id"]}, {"_id": 0}).to_list(500)
+    downstream_earnings = sum(r.get("upstream_commissions", {}).get(affiliate["affiliate_id"], 0) for r in downstream)
+    
+    public_url = os.environ.get('PUBLIC_URL', os.environ.get('FRONTEND_URL', ''))
+    ref_link = f"{public_url}/signup?ref={affiliate['affiliate_code']}"
+    level = affiliate.get("level", 0)
+    
+    # Marketing material per level
+    level_labels = {0: "Partner", 1: "Ambassador", 2: "Advocate"}
+    level_label = level_labels.get(level, "Affiliate")
     
     return {
         "enrolled": True,
         "affiliate": affiliate,
-        "referral_link": f"{os.environ.get('PUBLIC_URL', os.environ.get('FRONTEND_URL', ''))}/signup?ref={affiliate['affiliate_code']}",
-        "referrals": referrals
+        "referral_link": ref_link,
+        "referrals": referrals,
+        "downstream_earnings": downstream_earnings,
+        "level": level,
+        "level_label": level_label,
+        "customer_discount": "20%",
+        "commission_summary": {
+            0: "You earn 20% on direct referrals",
+            1: "You earn 10% on direct referrals. Your inviter earns 10%.",
+            2: "You earn 10% on direct referrals. Upstream affiliates each earn 10%."
+        }.get(level, ""),
+        "marketing_assets": {
+            "banner": "https://static.prod-images.emergentagent.com/jobs/e7e50724-a043-4fd3-87b9-ed080078094d/images/d4c7d179cc49d6bcdd5bdeba2bd3c0ee15d214451c0e4ac91a8035ff9554f03b.png",
+            "story": "https://static.prod-images.emergentagent.com/jobs/e7e50724-a043-4fd3-87b9-ed080078094d/images/787c03120f149891b257071153f2eb541a6f5057f2cc6d8c73a78a8d7720db63.png",
+            "square": "https://static.prod-images.emergentagent.com/jobs/e7e50724-a043-4fd3-87b9-ed080078094d/images/21cf5a85c9e37c38bbb86ca92cb16d4d2f280e64b08783bff72de6dc2ce7650b.png"
+        }
     }
 
 @api_router.post("/affiliate/unenroll")
@@ -1760,6 +1788,42 @@ async def import_companies_csv(file: UploadFile = File(...), current_user: dict 
         await db.companies.insert_one(doc)
         count += 1
     return {"count": count, "message": f"Imported {count} companies"}
+
+
+# ==================== PER-ORG INTEGRATION SETTINGS ====================
+
+@api_router.get("/settings/integrations")
+async def get_org_integrations(current_user: dict = Depends(get_current_user)):
+    """Get per-org integration keys (only admins/owners can see keys)"""
+    if not current_user.get("organization_id"):
+        return {"integrations": {}}
+    org_id = current_user["organization_id"]
+    settings = await db.org_integrations.find_one({"organization_id": org_id}, {"_id": 0})
+    if not settings:
+        settings = {"organization_id": org_id, "resend_api_key": "", "resend_sender_email": "", "kit_api_key": "", "kit_api_secret": "", "twilio_sid": "", "twilio_token": "", "twilio_phone": "", "google_client_id": "", "google_client_secret": ""}
+    role = current_user.get("role", "member")
+    if role not in ["admin", "owner", "super_admin", "deputy_admin"]:
+        # Members can see which integrations are connected, but not the keys
+        masked = {k: ("connected" if v else "") for k, v in settings.items() if k != "organization_id"}
+        return {"integrations": masked}
+    return {"integrations": settings}
+
+@api_router.put("/settings/integrations")
+async def update_org_integrations(updates: dict, current_user: dict = Depends(get_current_user)):
+    """Update per-org integration keys (admin/owner only)"""
+    role = current_user.get("role", "member")
+    if role not in ["admin", "owner", "super_admin", "deputy_admin"]:
+        raise HTTPException(status_code=403, detail="Only admins can update integrations")
+    if not current_user.get("organization_id"):
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
+    org_id = current_user["organization_id"]
+    allowed = {"resend_api_key", "resend_sender_email", "kit_api_key", "kit_api_secret", "twilio_sid", "twilio_token", "twilio_phone", "google_client_id", "google_client_secret"}
+    filtered = {k: v for k, v in updates.items() if k in allowed}
+    filtered["organization_id"] = org_id
+    await db.org_integrations.update_one({"organization_id": org_id}, {"$set": filtered}, upsert=True)
+    return {"message": "Integrations updated"}
+
 
 # ==================== CUSTOMIZABLE STAGES ====================
 
@@ -4079,6 +4143,21 @@ async def delete_discount_code(code_id: str, current_user: dict = Depends(requir
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Discount code not found")
     return {"message": "Discount code deleted"}
+
+@api_router.put("/admin/discount-codes/{code_id}")
+async def edit_discount_code(code_id: str, updates: dict, current_user: dict = Depends(require_super_admin)):
+    """Edit a discount code"""
+    allowed = {"code", "discount_percent", "max_uses", "valid_until", "is_active", "applicable_plans"}
+    filtered = {k: v for k, v in updates.items() if k in allowed}
+    if "code" in filtered:
+        filtered["code"] = filtered["code"].upper()
+    result = await db.discount_codes.update_one({"code_id": code_id}, {"$set": filtered})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Discount code not found")
+    updated = await db.discount_codes.find_one({"code_id": code_id}, {"_id": 0})
+    return updated
+
+
 
 class DiscountCodeValidateRequest(BaseModel):
     code: str
