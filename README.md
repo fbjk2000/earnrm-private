@@ -25,8 +25,8 @@
 - **Leads** — Import via CSV, manual creation, AI enrichment & scoring, bulk operations, column visibility
 - **Contacts** — Convert from qualified leads, rich profiles (budget, timeline, decision maker, pain points)
 - **Deals** — Kanban pipeline with drag-and-drop + list view, entity linking (Lead/Contact/Company), lost deals excluded from pipeline
-- **Tasks** — Kanban board with assignee management, admin visibility, due dates, project linking
-- **Projects** — Group tasks under deals, progress tracking, auto-created project chat channels, team members
+- **Tasks** - Kanban drag-and-drop + list view, subtasks/checklists, comments, activity history, stale indicators, project linking
+- **Projects** - Group tasks under deals, progress tracking, clickable task detail from project context, auto-created chat channels, team members
 - **Companies** — Target company management with industry, size, and contact tracking
 - **Calendar** — Month/Week views with scheduled calls, task due dates, deal closes, custom events, Google Calendar sync
 - **Campaigns** — Email campaigns via Resend + Kit.com, AI-powered drafting, bulk recipient management
@@ -1190,6 +1190,75 @@ Content-Type: application/json
 | POST | `/api/admin/discount-codes` | Create code |
 | PUT | `/api/admin/discount-codes/{code_id}` | Edit code (code, discount_percent, max_uses, valid_until, is_active) |
 | DELETE | `/api/admin/discount-codes/{code_id}` | Delete code |
+
+---
+
+## Task Management
+
+Full task system with Kanban drag-and-drop, list view, subtasks, comments, activity history, and project integration.
+
+### Views
+- **Kanban**: Drag tasks between To Do, In Progress, Done columns
+- **List**: Sortable table with inline status dropdowns
+
+### Task Detail Features
+- Stable description at the top (editable)
+- **Subtasks tab**: Add checklist items, toggle complete/incomplete, progress count shown on cards
+- **Updates tab**: Timestamped progress notes, blockers, handoff comments with author name
+- **History tab**: Auto-logged activity on every change (status, priority, owner, due date)
+- **Reopen**: Done tasks get a "Reopen" button, event logged in history
+- **Stale indicator**: Amber "stale" badge on tasks not updated for 7+ days
+
+### Task Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tasks` | List tasks. Params: `status`, `assigned_to` |
+| POST | `/api/tasks` | Create task |
+| PUT | `/api/tasks/{task_id}` | Update task (auto-logs activity for tracked fields) |
+| DELETE | `/api/tasks/{task_id}` | Delete task |
+| POST | `/api/tasks/{task_id}/comments` | Add comment. Param: `content` |
+| POST | `/api/tasks/{task_id}/subtasks` | Add subtask. Param: `title` |
+| PUT | `/api/tasks/{task_id}/subtasks/{sub_id}` | Toggle subtask. Param: `done` |
+| POST | `/api/tasks/{task_id}/reopen` | Reopen a completed task |
+
+### Tasks inside Projects
+Tasks in the project detail dialog are fully interactive: click to open the same detail view with subtasks, comments, and history. No need to leave the project context.
+
+---
+
+## Password Reset
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/forgot-password` | Send reset email. Param: `email` |
+| POST | `/api/auth/reset-password` | Set new password. Params: `token`, `new_password` |
+
+- Reset link sent via Resend email, expires in 1 hour
+- If email not registered, shows helpful message with link to sign up
+- Tokens are single-use
+
+---
+
+## Internationalization (i18n)
+
+The app supports English and German. Language toggle available in the sidebar (EN/DE button) and on the landing page nav.
+
+### How it works
+- Translation files: `/src/locales/en.json` and `/src/locales/de.json`
+- Language persists in `localStorage` (key: `earnrm_lang`)
+- Uses `react-i18next` for the landing page, and a lightweight `useT()` helper for dashboard pages
+
+### What is translated
+- Landing page (hero, features, pricing, testimonials, CTA, footer)
+- Sidebar navigation
+- Login, signup, password reset pages
+- Page titles, button labels, form fields across all pages
+- Task statuses, deal stages, filter labels
+
+### Adding a new language
+1. Create `/src/locales/xx.json` (copy `en.json` as template)
+2. Add the resource to `/src/i18n.js`
+3. Add toggle option to DashboardLayout sidebar
 
 ---
 
