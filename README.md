@@ -48,15 +48,20 @@
 - **Chat Archive** — Admins can archive channels, collapsible sidebar sections
 
 ### Platform
-- **Multi-tenant Organizations** — Roles: member, admin, owner, deputy_admin, support, super_admin
-- **Auto Org Attribution** — Users with company emails auto-join matching organizations
-- **License Management** — Super admin can override max user limits per organization
-- **Team Invitations** — Invite via link, email, or CSV import
-- **Affiliate Program** — HTML embed codes, social media assets, commission tracking
-- **PWA** — Installable on iOS, Android, and desktop
-- **API Keys & Webhooks** — Programmatic access for n8n, Notion, Zapier, and custom integrations
-- **Data Explorer** — Super admin can browse all MongoDB collections
-- **Subscription & Billing** — Stripe integration with discount codes and invoicing
+- **Multi-tenant Organizations** - Roles: member, admin, owner, deputy_admin, support, super_admin
+- **Per-org Integrations** - Each org manages their own API keys (Resend, Kit, Twilio, Google)
+- **Auto Org Attribution** - Users with company emails auto-join matching organizations
+- **License Management** - Super admin can override max user limits per organization
+- **Team Invitations** - Invite via link, email, or CSV import
+- **Multi-level Affiliate Program** - 3 tiers (Partner/Ambassador/Advocate), 20% customer discount, up to 60% commission chain
+- **UNYT Token Payments** - Pay with UNYT on Arbitrum via MetaMask
+- **Customizable Stages** - Admins can add/remove/rename deal stages and task statuses per org
+- **PWA** - Installable on iOS, Android, and desktop
+- **i18n** - English and German language support with toggle
+- **API Keys and Webhooks** - Programmatic access for n8n, Notion, Zapier, and custom integrations
+- **Data Explorer** - Super admin can browse all MongoDB collections
+- **Reporting Engine** - User performance, pipeline forecasts, activity logs, CSV export
+- **Subscription and Billing** - Stripe integration with discount codes (editable) and invoicing
 
 ---
 
@@ -64,14 +69,15 @@
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18, Tailwind CSS, Shadcn/UI, @hello-pangea/dnd |
+| Frontend | React 18, Tailwind CSS, Shadcn/UI, @hello-pangea/dnd, ethers.js |
 | Backend | Python 3.11, FastAPI, Motor (async MongoDB) |
 | Database | MongoDB |
 | Auth | JWT (7-day expiry) + Emergent Google OAuth |
 | AI | OpenAI GPT-5.2 via Emergent Integrations |
 | Email | Resend (primary), Kit.com (optional) |
-| Payments | Stripe |
+| Payments | Stripe + UNYT Token (Arbitrum) |
 | Calling | Twilio Voice API |
+| i18n | react-i18next (English + German) |
 
 ---
 
@@ -102,6 +108,7 @@ TWILIO_AUTH_TOKEN="your_twilio_token"
 TWILIO_PHONE_FROM="+1234567890"
 GOOGLE_CLIENT_ID="your_google_client_id"
 GOOGLE_CLIENT_SECRET="your_google_client_secret"
+PUBLIC_URL="https://earnrm.com"
 ```
 
 **Frontend** (`/frontend/.env`):
@@ -1047,6 +1054,145 @@ DELETE /api/api-keys/{key_id}
 
 ---
 
+## Multi-level Affiliate Program
+
+Three-tier commission system. Anyone can self-enroll as an affiliate from Settings.
+
+### Levels
+| Level | Label | Own Commission | Upstream Commission | Total Payout |
+|-------|-------|---------------|---------------------|-------------|
+| 0 | Partner | 20% | - | 20% |
+| 1 | Ambassador | 10% | Level 0 gets 10% | 30% |
+| 2 | Advocate | 10% | Level 1 gets 10%, Level 0 gets 10% | 40% |
+
+- **Maximum total payout**: 60% (you retain minimum 40%)
+- **Customer discount**: Every affiliate link gives new customers 20% off
+- Commissions active as long as the subscription is paid
+
+### Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/affiliate/enroll` | Self-enroll (calculates level from referral chain) |
+| GET | `/api/affiliate/me` | Full dashboard: level, commission, link, assets, referrals |
+| POST | `/api/affiliate/unenroll` | Leave affiliate program |
+
+### How levels are determined
+1. You invite someone: they register with `?ref=your_code`, stored as `referred_by` on their user doc
+2. When they enroll as affiliate, the system checks their `referred_by` chain
+3. If referred by a Level 0, they become Level 1. If referred by Level 1, they become Level 2.
+
+### Each affiliate gets
+- Unique referral link (`earnrm.com/signup?ref=code`)
+- Level badge (Partner / Ambassador / Advocate)
+- Commission summary explaining their earning structure
+- 3 social media assets (Banner, Story, Square)
+- HTML embed code with their link for CMS integration
+
+---
+
+## Per-Organization Integrations
+
+Each organization manages their own integration API keys. New orgs start with blank integrations.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/settings/integrations` | Get org integration keys (admins see keys, members see status only) |
+| PUT | `/api/settings/integrations` | Update org integration keys (admin/owner only) |
+
+### Available integration fields
+| Key | Service |
+|-----|---------|
+| `resend_api_key` | Resend email |
+| `resend_sender_email` | Sender email address |
+| `kit_api_key` | Kit.com (ConvertKit) |
+| `kit_api_secret` | Kit.com secret |
+| `twilio_sid` | Twilio Account SID |
+| `twilio_token` | Twilio Auth Token |
+| `twilio_phone` | Twilio phone number |
+| `google_client_id` | Google Calendar OAuth |
+| `google_client_secret` | Google Calendar secret |
+
+> License payments still go to the platform owner (super admin Stripe account). Only operational integrations (email, calling, calendar) use per-org keys.
+
+---
+
+## UNYT Token Payment
+
+Alternative payment method using UNYT tokens on Arbitrum One.
+
+| Detail | Value |
+|--------|-------|
+| Token | UNYT (ERC-20) |
+| Contract | `0x5305bF91163D97D0d93188611433F86D1bb69898` |
+| Chain | Arbitrum One (42161) |
+| Receiving wallet | `0xFf98458bEBA08e0a8967D45Ce216D9Ee5fdecD1A` |
+| Price | EUR 0.50 per UNYT |
+| Decimals | 18 |
+
+### Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/checkout/launch-edition/unyt` | Create UNYT payment order. Body: `{ name, email, wallet }` |
+| POST | `/api/checkout/launch-edition/unyt/confirm` | Confirm after tx. Params: `deal_id`, `tx_hash` |
+
+### Flow
+1. User selects "Pay with UNYT" on checkout
+2. MetaMask connects and switches to Arbitrum
+3. ERC-20 transfer of UNYT tokens to receiving wallet
+4. Backend creates deal as "negotiation", lead as "qualified"
+5. On tx confirmation: deal moves to "won", delivery task created
+
+### Subscription payments with UNYT
+Available on the pricing page via the "Pay with UNYT Token" toggle. Connects MetaMask, calculates UNYT amount at EUR 0.50 per token, and sends directly.
+
+---
+
+## Customizable Stages
+
+Organizations can customize deal pipeline stages and task status groups.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/settings/stages` | Get custom stages (defaults if not set) |
+| PUT | `/api/settings/stages` | Update stages (admin/owner only) |
+
+### Default deal stages
+`lead` > `qualified` > `proposal` > `negotiation` > `won` / `lost`
+
+### Default task statuses
+`todo` > `in_progress` > `done`
+
+### Example: Add a custom deal stage
+```http
+PUT /api/settings/stages
+Content-Type: application/json
+
+{
+  "deal_stages": [
+    {"id": "lead", "name": "Lead"},
+    {"id": "discovery", "name": "Discovery"},
+    {"id": "qualified", "name": "Qualified"},
+    {"id": "proposal", "name": "Proposal"},
+    {"id": "negotiation", "name": "Negotiation"},
+    {"id": "won", "name": "Won"},
+    {"id": "lost", "name": "Lost"}
+  ]
+}
+```
+
+---
+
+## Discount Code Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/discount-codes` | List all codes |
+| POST | `/api/admin/discount-codes` | Create code |
+| PUT | `/api/admin/discount-codes/{code_id}` | Edit code (code, discount_percent, max_uses, valid_until, is_active) |
+| DELETE | `/api/admin/discount-codes/{code_id}` | Delete code |
+
+---
+
 ## Roles & Permissions
 
 | Role | Scope |
@@ -1092,6 +1238,10 @@ DELETE /api/api-keys/{key_id}
 | `bookings` | Calendar booking appointments |
 | `booking_settings` | User booking page settings |
 | `booking_reminders` | Scheduled booking reminders |
+| `org_integrations` | Per-organization API keys for integrations |
+| `org_stage_settings` | Customizable deal stages and task statuses per org |
+| `password_resets` | Password reset tokens |
+| `affiliate_referrals` | Referral tracking with upstream commission chain |
 
 ---
 
