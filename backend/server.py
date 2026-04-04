@@ -1539,7 +1539,7 @@ async def get_my_affiliate_status(current_user: dict = Depends(get_current_user)
     return {
         "enrolled": True,
         "affiliate": affiliate,
-        "referral_link": f"{os.environ.get('FRONTEND_URL', '')}/signup?ref={affiliate['affiliate_code']}",
+        "referral_link": f"{os.environ.get('PUBLIC_URL', os.environ.get('FRONTEND_URL', ''))}/signup?ref={affiliate['affiliate_code']}",
         "referrals": referrals
     }
 
