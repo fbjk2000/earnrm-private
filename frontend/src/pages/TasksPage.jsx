@@ -344,6 +344,7 @@ const TasksPage = () => {
                                         {task.due_date && <div className="flex items-center gap-1 mt-1 text-xs text-slate-400"><Calendar className="w-3 h-3" />{new Date(task.due_date).toLocaleDateString()}</div>}
                                         {task.subtask_count > 0 && <div className="flex items-center gap-1 mt-1 text-xs text-slate-400"><CheckSquare className="w-3 h-3" />{task.subtasks_done}/{task.subtask_count}</div>}
                                         {task.comments?.length > 0 && <div className="flex items-center gap-1 mt-1 text-xs text-slate-400"><MessageSquare className="w-3 h-3" />{task.comments.length}</div>}
+                                        {task.updated_at && Math.floor((Date.now() - new Date(task.updated_at).getTime()) / 86400000) > 7 && <Badge variant="outline" className="text-[10px] h-4 text-amber-600 border-amber-300 mt-1">stale</Badge>}
                                       </div>
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 shrink-0"><MoreVertical className="w-3 h-3" /></Button></DropdownMenuTrigger>

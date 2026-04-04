@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import {
   Plus, Search, Target, CheckSquare, MessageSquare, Users, MoreVertical,
-  Trash2, Edit2, Save, Calendar, X
+  Trash2, Edit2, Save, Calendar, X, Clock
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 
@@ -34,6 +34,13 @@ const ProjectsPage = () => {
   // Task creation within project
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium', assigned_to: '', due_date: '' });
+  // Task detail view
+  const [taskDetail, setTaskDetail] = useState(null);
+  const [taskEditMode, setTaskEditMode] = useState(false);
+  const [taskEditData, setTaskEditData] = useState({});
+  const [newComment, setNewComment] = useState('');
+  const [newSubtask, setNewSubtask] = useState('');
+  const [taskTab, setTaskTab] = useState('subtasks');
 
   const getAx = () => ({ headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
 
@@ -107,6 +114,45 @@ const ProjectsPage = () => {
     try { await axios.put(`${API}/projects/${id}`, { status }, getAx()); fetchProjects(); if (selectedProject?.project_id === id) openProject(id); }
     catch {}
   };
+
+  const openTaskDetail = (task) => {
+    setTaskDetail(task); setTaskEditData({ ...task }); setTaskEditMode(false); setTaskTab('subtasks'); setNewComment(''); setNewSubtask('');
+  };
+
+  const refreshTaskDetail = async (taskId) => {
+    if (selectedProject) await openProject(selectedProject.project_id);
+    try { const res = await axios.get(`${API}/tasks`, getAx()); const fresh = res.data.find(t => t.task_id === taskId); if (fresh) { setTaskDetail(fresh); setTaskEditData({ ...fresh }); } } catch (err) { console.error(err); }
+  };
+
+  const handleSaveTask = async () => {
+    if (!taskDetail) return;
+    try { const { task_id, organization_id, created_by, created_at, _id, subtasks, comments, activity, subtask_count, subtasks_done, ...updates } = taskEditData; await axios.put(`${API}/tasks/${taskDetail.task_id}`, updates, getAx()); toast.success('Task updated'); setTaskEditMode(false); refreshTaskDetail(taskDetail.task_id); } catch (err) { console.error(err); toast.error('Failed'); }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !taskDetail) return;
+    try { await axios.post(`${API}/tasks/${taskDetail.task_id}/comments?content=${encodeURIComponent(newComment)}`, {}, getAx()); setNewComment(''); refreshTaskDetail(taskDetail.task_id); } catch (err) { console.error(err); }
+  };
+
+  const handleAddSubtaskDetail = async () => {
+    if (!newSubtask.trim() || !taskDetail) return;
+    try { await axios.post(`${API}/tasks/${taskDetail.task_id}/subtasks?title=${encodeURIComponent(newSubtask)}`, {}, getAx()); setNewSubtask(''); refreshTaskDetail(taskDetail.task_id); } catch (err) { console.error(err); }
+  };
+
+  const handleToggleSubtask = async (subId, done) => {
+    if (!taskDetail) return;
+    try { await axios.put(`${API}/tasks/${taskDetail.task_id}/subtasks/${subId}?done=${done}`, {}, getAx()); refreshTaskDetail(taskDetail.task_id); } catch (err) { console.error(err); }
+  };
+
+  const getDaysAgo = (dateStr) => { if (!dateStr) return null; return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000); };
+
+  const handleReopenTask = async () => {
+    if (!taskDetail) return;
+    try { await axios.post(`${API}/tasks/${taskDetail.task_id}/reopen`, {}, getAx()); toast.success('Task reopened'); refreshTaskDetail(taskDetail.task_id); }
+    catch (err) { console.error(err); toast.error('Failed'); }
+  };
+
+
 
   const statusColors = { active: 'bg-emerald-100 text-emerald-700', on_hold: 'bg-amber-100 text-amber-700', completed: 'bg-blue-100 text-blue-700' };
   const priorityColors = { low: 'bg-slate-400', medium: 'bg-amber-400', high: 'bg-rose-500' };
@@ -220,10 +266,13 @@ const ProjectsPage = () => {
                     <p className="text-sm text-slate-400 py-4 text-center">No tasks yet. Add one to get started.</p>
                   ) : (
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                      {selectedProject.tasks?.map(task => (
-                        <div key={task.task_id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50" data-testid={`project-task-${task.task_id}`}>
+                      {selectedProject.tasks?.map(task => {
+                        const stale = getDaysAgo(task.updated_at) > 7;
+                        const ownerName = task.assigned_to ? (members.find(m => m.user_id === task.assigned_to)?.name || 'Assigned') : 'Unassigned';
+                        return (
+                        <div key={task.task_id} className={`flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors ${stale ? 'border-amber-200 bg-amber-50/30' : ''}`} onClick={() => openTaskDetail(task)} data-testid={`project-task-${task.task_id}`}>
                           <div className="flex items-center gap-3 min-w-0">
-                            <button onClick={() => handleTaskStatus(task.task_id, task.status === 'done' ? 'todo' : 'done')} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${task.status === 'done' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>
+                            <button onClick={(e) => { e.stopPropagation(); handleTaskStatus(task.task_id, task.status === 'done' ? 'todo' : 'done'); }} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${task.status === 'done' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>
                               {task.status === 'done' && <CheckSquare className="w-3 h-3" />}
                             </button>
                             <div className="min-w-0">
@@ -231,17 +280,23 @@ const ProjectsPage = () => {
                               <div className="flex items-center gap-2 mt-0.5">
                                 <div className={`w-1.5 h-1.5 rounded-full ${priorityColors[task.priority] || 'bg-slate-400'}`} />
                                 <span className="text-xs text-slate-500">{task.priority}</span>
+                                <span className="text-xs text-[#7C3AED] font-medium">{ownerName}</span>
                                 {task.due_date && <span className="text-xs text-slate-400"><Calendar className="w-3 h-3 inline mr-0.5" />{new Date(task.due_date).toLocaleDateString()}</span>}
-                                {task.assigned_to && <span className="text-xs text-purple-600">{members.find(m => m.user_id === task.assigned_to)?.name || 'Assigned'}</span>}
+                                {task.subtasks?.length > 0 && <span className="text-xs text-slate-400"><CheckSquare className="w-3 h-3 inline mr-0.5" />{task.subtasks.filter(s => s.done).length}/{task.subtasks.length}</span>}
+                                {task.comments?.length > 0 && <span className="text-xs text-slate-400"><MessageSquare className="w-3 h-3 inline mr-0.5" />{task.comments.length}</span>}
+                                {stale && <Badge variant="outline" className="text-[10px] h-4 text-amber-600 border-amber-300">stale</Badge>}
                               </div>
                             </div>
                           </div>
-                          <Select value={task.status} onValueChange={v => handleTaskStatus(task.task_id, v)}>
-                            <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="todo">To Do</SelectItem><SelectItem value="in_progress">In Progress</SelectItem><SelectItem value="done">Done</SelectItem></SelectContent>
-                          </Select>
+                          <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                            <Select value={task.status} onValueChange={v => handleTaskStatus(task.task_id, v)}>
+                              <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent><SelectItem value="todo">To Do</SelectItem><SelectItem value="in_progress">In Progress</SelectItem><SelectItem value="done">Done</SelectItem></SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -288,6 +343,118 @@ const ProjectsPage = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Task Detail Dialog (from within project) */}
+      <Dialog open={!!taskDetail} onOpenChange={() => { setTaskDetail(null); setTaskEditMode(false); }}>
+        <DialogContent className="max-w-lg">
+          {taskDetail && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center justify-between">
+                  <span>{taskEditMode ? t('forms.editTask') : taskDetail.title}</span>
+                  <div className="flex gap-1">
+                    {!taskEditMode && taskDetail.status === 'done' && <Button size="sm" variant="outline" onClick={() => { handleReopenTask(); }}>{t('tasks.reopen')}</Button>}
+                    {!taskEditMode && <Button size="sm" variant="outline" onClick={() => setTaskEditMode(true)}><Edit2 className="w-3.5 h-3.5 mr-1" />{t('common.edit')}</Button>}
+                  </div>
+                </DialogTitle>
+              </DialogHeader>
+              {taskEditMode ? (
+                <div className="space-y-3 pt-2">
+                  <div><Label>{t('forms.title')}</Label><Input value={taskEditData.title || ''} onChange={e => setTaskEditData({...taskEditData, title: e.target.value})} /></div>
+                  <div><Label>{t('forms.description')}</Label><Textarea value={taskEditData.description || ''} onChange={e => setTaskEditData({...taskEditData, description: e.target.value})} rows={3} /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label>{t('forms.status')}</Label><Select value={taskEditData.status} onValueChange={v => setTaskEditData({...taskEditData, status: v})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todo">To Do</SelectItem><SelectItem value="in_progress">In Progress</SelectItem><SelectItem value="done">Done</SelectItem></SelectContent></Select></div>
+                    <div><Label>{t('forms.priority')}</Label><Select value={taskEditData.priority} onValueChange={v => setTaskEditData({...taskEditData, priority: v})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="low">Low</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="high">High</SelectItem></SelectContent></Select></div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button onClick={handleSaveTask} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white"><Save className="w-4 h-4 mr-2" />{t('common.save')}</Button>
+                    <Button variant="outline" onClick={() => { setTaskEditMode(false); setTaskEditData({...taskDetail}); }}>{t('common.cancel')}</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 pt-2">
+                  {taskDetail.description && <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500 mb-1">{t('forms.description')}</p><p className="text-sm text-slate-700 whitespace-pre-wrap">{taskDetail.description}</p></div>}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Status</p><p className="text-sm font-medium capitalize">{taskDetail.status?.replace('_', ' ')}</p></div>
+                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Priority</p><div className="flex items-center gap-1.5"><div className={`w-2 h-2 rounded-full ${priorityColors[taskDetail.priority]}`} /><span className="text-sm font-medium capitalize">{taskDetail.priority}</span></div></div>
+                    {taskDetail.assigned_to && <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Owner</p><p className="text-sm font-medium">{members.find(m => m.user_id === taskDetail.assigned_to)?.name || 'Assigned'}</p></div>}
+                    {taskDetail.due_date && <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Due</p><p className="text-sm font-medium">{new Date(taskDetail.due_date).toLocaleDateString()}</p></div>}
+                  </div>
+
+                  {/* Tabs */}
+                  <div className="flex gap-1 border-b">
+                    {[['subtasks', t('tasks.subtasks')], ['comments', t('tasks.updates')], ['activity', t('tasks.history')]].map(([key, label]) => (
+                      <button key={key} onClick={() => setTaskTab(key)} className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${taskTab === key ? 'border-[#7C3AED] text-[#7C3AED]' : 'border-transparent text-slate-500'}`}>{label}
+                        {key === 'subtasks' && taskDetail.subtasks?.length > 0 && <span className="ml-1 text-xs bg-slate-100 px-1.5 rounded-full">{taskDetail.subtasks.filter(s=>s.done).length}/{taskDetail.subtasks.length}</span>}
+                        {key === 'comments' && taskDetail.comments?.length > 0 && <span className="ml-1 text-xs bg-slate-100 px-1.5 rounded-full">{taskDetail.comments.length}</span>}
+                      </button>
+                    ))}
+                  </div>
+
+                  {taskTab === 'subtasks' && (
+                    <div className="space-y-2">
+                      {taskDetail.subtasks?.map(sub => (
+                        <div key={sub.id} className="flex items-center gap-2 py-1.5">
+                          <button onClick={() => handleToggleSubtask(sub.id, !sub.done)} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${sub.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>{sub.done && <CheckSquare className="w-3 h-3" />}</button>
+                          <span className={`text-sm ${sub.done ? 'line-through text-slate-400' : 'text-slate-700'}`}>{sub.title}</span>
+                        </div>
+                      ))}
+                      {(!taskDetail.subtasks || taskDetail.subtasks.length === 0) && <p className="text-xs text-slate-400 py-2">{t('tasks.noSubtasks')}</p>}
+                      <div className="flex gap-2 pt-2">
+                        <Input value={newSubtask} onChange={e => setNewSubtask(e.target.value)} placeholder={t('tasks.addSubtask')} className="h-8 text-sm" onKeyDown={e => { if (e.key === 'Enter') handleAddSubtaskDetail(); }} />
+                        <Button size="sm" onClick={handleAddSubtaskDetail} disabled={!newSubtask.trim()} className="h-8"><Plus className="w-3 h-3" /></Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {taskTab === 'comments' && (
+                    <div className="space-y-3">
+                      {taskDetail.comments?.length > 0 ? (
+                        <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                          {taskDetail.comments.map(c => (
+                            <div key={c.id} className="bg-slate-50 rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium text-slate-900">{c.by_name}</span><span className="text-xs text-slate-400">{new Date(c.at).toLocaleString()}</span></div>
+                              <p className="text-sm text-slate-700">{c.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="text-xs text-slate-400 py-2">{t('tasks.noUpdates')}</p>}
+                      <div className="flex gap-2">
+                        <Input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder={t('tasks.addComment')} className="h-8 text-sm" onKeyDown={e => { if (e.key === 'Enter') handleAddComment(); }} />
+                        <Button size="sm" onClick={handleAddComment} disabled={!newComment.trim()} className="h-8"><MessageSquare className="w-3 h-3" /></Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {taskTab === 'activity' && (
+                    <div className="max-h-[200px] overflow-y-auto">
+                      {taskDetail.activity?.length > 0 ? (
+                        <div className="space-y-1">
+                          {[...taskDetail.activity].reverse().map((a, i) => (
+                            <div key={i} className="flex items-start gap-2 py-1.5 text-xs">
+                              <Clock className="w-3 h-3 text-slate-300 mt-0.5 shrink-0" />
+                              <div>
+                                <span className="font-medium text-slate-700">{a.by_name || 'System'}</span>{' '}
+                                {a.action === 'created' && <span className="text-slate-500">{t('tasks.activity.created')}</span>}
+                                {a.action === 'comment_added' && <span className="text-slate-500">{t('tasks.activity.commentAdded')}</span>}
+                                {a.action === 'subtask_added' && <span className="text-slate-500">{t('tasks.activity.subtaskAdded')}: {a.detail}</span>}
+                                {a.action === 'subtask_completed' && <span className="text-emerald-600">{t('tasks.activity.subtaskCompleted')}: {a.detail}</span>}
+                                {a.action === 'reopened' && <span className="text-blue-600">{t('tasks.activity.reopened')}</span>}
+                                {a.action?.endsWith('_changed') && <span className="text-slate-500">{t('tasks.activity.changed')} {a.action.replace('_changed', '')} to <span className="font-medium">{a.to}</span></span>}
+                                <span className="text-slate-300 ml-2">{new Date(a.at).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="text-xs text-slate-400 py-2">{t('tasks.noActivity')}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
