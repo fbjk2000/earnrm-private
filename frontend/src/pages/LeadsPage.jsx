@@ -841,10 +841,10 @@ const LeadsPage = () => {
                     <Button size="sm" variant="outline" onClick={() => { setEmailLeadId(selectedLead.lead_id); setEmailLeadName(`${selectedLead.first_name} ${selectedLead.last_name}`); setSelectedLead(null); }}>
                       <Mail className="w-3.5 h-3.5 mr-1" /> Draft Email
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => { setSelectedLead(null); navigate(`/deals?lead=${selectedLead.lead_id}`); }}>
+                    <Button size="sm" variant="outline" onClick={() => { setSelectedLead(null); navigate(`/deals?create=true&lead_id=${selectedLead.lead_id}`); }}>
                       <Target className="w-3.5 h-3.5 mr-1" /> Add Deal
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => { setSelectedLead(null); navigate(`/tasks?lead=${selectedLead.lead_id}`); }}>
+                    <Button size="sm" variant="outline" onClick={() => { setSelectedLead(null); navigate(`/tasks?create=true&lead_id=${selectedLead.lead_id}`); }}>
                       <CheckSquare className="w-3.5 h-3.5 mr-1" /> Add Task
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => navigate(`/chat?type=lead&id=${selectedLead.lead_id}`)}>

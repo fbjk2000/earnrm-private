@@ -323,10 +323,10 @@ const ContactsPage = () => {
                     </div>
                   )}
                   <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
-                    <Button size="sm" variant="outline" onClick={() => { setSelectedContact(null); navigate(`/deals?contact=${selectedContact.contact_id}`); }}>
+                    <Button size="sm" variant="outline" onClick={() => { setSelectedContact(null); navigate(`/deals?create=true&contact_id=${selectedContact.contact_id}`); }}>
                       <Target className="w-3.5 h-3.5 mr-1" /> Add Deal
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => { setSelectedContact(null); navigate(`/tasks?contact=${selectedContact.contact_id}`); }}>
+                    <Button size="sm" variant="outline" onClick={() => { setSelectedContact(null); navigate(`/tasks?create=true`); }}>
                       <Clock className="w-3.5 h-3.5 mr-1" /> Add Task
                     </Button>
                     {selectedContact.email && (

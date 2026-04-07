@@ -32,6 +32,19 @@ const DealsPage = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState('kanban');
   const [selectedDealIds, setSelectedDealIds] = useState([]);
+
+  // Auto-open create dialog from cross-link navigation
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('create') === 'true') {
+      setIsAddDialogOpen(true);
+      const lid = params.get('lead_id');
+      const cid = params.get('contact_id');
+      if (lid) setNewDeal(prev => ({...prev, lead_id: lid}));
+      if (cid) setNewDeal(prev => ({...prev, contact_id: cid}));
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
   
   // Filter states
   const [filterStage, setFilterStage] = useState('');

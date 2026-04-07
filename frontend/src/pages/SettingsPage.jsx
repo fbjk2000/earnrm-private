@@ -216,6 +216,13 @@ const SettingsPage = () => {
         headers,
         withCredentials: true
       });
+      // Auto-enroll user as affiliate when enabling
+      if (enabled && !affiliateStatus?.enrolled) {
+        try {
+          await axios.post(`${API}/affiliate/enroll`, {}, { headers, withCredentials: true });
+          fetchAffiliateStatus();
+        } catch (err) { console.error(err); }
+      }
       toast.success(enabled ? 'Affiliate program enabled' : 'Affiliate program disabled');
       fetchOrgSettings();
     } catch (error) {

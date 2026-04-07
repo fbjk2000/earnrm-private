@@ -76,13 +76,13 @@ const ChatPage = () => {
   const inputRef = useRef(null);
   const pollIntervalRef = useRef(null);
 
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const getH = () => token ? { Authorization: `Bearer ${token}` } : {};
 
   const toggleSection = (section) => setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
 
   const archiveChannel = async (channelId) => {
     try {
-      await axios.put(`${API}/chat/channels/${channelId}/archive`, {}, { headers, withCredentials: true });
+      await axios.put(`${API}/chat/channels/${channelId}/archive`, {}, { headers: getH(), withCredentials: true });
       toast.success('Channel archived');
       setActiveChannel(null);
       fetchChannels();
@@ -93,32 +93,31 @@ const ChatPage = () => {
 
   // Load contextual channel from URL params
   const loadContextualChannel = useCallback(async (contextType, contextId) => {
+    if (!token) return;
     try {
       const response = await axios.get(`${API}/chat/context/${contextType}/${contextId}`, {
-        headers,
+        headers: { Authorization: `Bearer ${token}` },
         withCredentials: true
       });
       setActiveChannel(response.data);
       setContextEntity(response.data.entity);
-      // Add to channels list if not already there
       setChannels(prev => {
         const exists = prev.find(c => c.channel_id === response.data.channel_id);
-        if (!exists) {
-          return [...prev, response.data];
-        }
+        if (!exists) return [...prev, response.data];
         return prev;
       });
     } catch (error) {
       console.error('Failed to load contextual channel:', error);
       toast.error('Failed to load discussion');
     }
-  }, [headers]);
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch channels
   const fetchChannels = useCallback(async () => {
+    if (!token) return;
     try {
       const response = await axios.get(`${API}/chat/channels`, {
-        headers,
+        headers: { Authorization: `Bearer ${token}` },
         withCredentials: true
       });
       setChannels(response.data.channels || []);
@@ -155,7 +154,7 @@ const ChatPage = () => {
     if (!channelId) return;
     try {
       const response = await axios.get(`${API}/chat/channels/${channelId}/messages`, {
-        headers,
+        headers: getH(),
         withCredentials: true,
         params: { limit: 50 }
       });
@@ -164,14 +163,14 @@ const ChatPage = () => {
     } catch (error) {
       console.error('Failed to fetch messages:', error);
     }
-  }, [headers]);
+  }, [token]);
 
   // Poll for new messages
   const pollNewMessages = useCallback(async () => {
     if (!activeChannel || !lastFetchTime) return;
     try {
       const response = await axios.get(`${API}/chat/messages/new`, {
-        headers,
+        headers: getH(),
         withCredentials: true,
         params: { 
           since: lastFetchTime,
@@ -192,7 +191,7 @@ const ChatPage = () => {
     if (!user?.organization_id) return;
     try {
       const response = await axios.get(`${API}/organizations/${user.organization_id}/members`, {
-        headers,
+        headers: getH(),
         withCredentials: true
       });
       setMembers(response.data || []);
@@ -271,7 +270,7 @@ const ChatPage = () => {
           content: newMessage,
           reply_to: replyTo?.message_id || null
         },
-        { headers, withCredentials: true }
+        { headers: getH(), withCredentials: true }
       );
       
       setMessages(prev => [...prev, response.data]);
@@ -290,7 +289,7 @@ const ChatPage = () => {
       await axios.put(
         `${API}/chat/messages/${messageId}?content=${encodeURIComponent(content)}`,
         {},
-        { headers, withCredentials: true }
+        { headers: getH(), withCredentials: true }
       );
       setMessages(prev => prev.map(m => 
         m.message_id === messageId ? { ...m, content, is_edited: true } : m
@@ -305,7 +304,7 @@ const ChatPage = () => {
   const handleDeleteMessage = async (messageId) => {
     try {
       await axios.delete(`${API}/chat/messages/${messageId}`, {
-        headers,
+        headers: getH(),
         withCredentials: true
       });
       setMessages(prev => prev.filter(m => m.message_id !== messageId));
@@ -320,7 +319,7 @@ const ChatPage = () => {
       const response = await axios.post(
         `${API}/chat/messages/${messageId}/reactions?emoji=${encodeURIComponent(emoji)}`,
         {},
-        { headers, withCredentials: true }
+        { headers: getH(), withCredentials: true }
       );
       setMessages(prev => prev.map(m => 
         m.message_id === messageId ? { ...m, reactions: response.data.reactions } : m
@@ -342,7 +341,7 @@ const ChatPage = () => {
           description: newChannel.description,
           channel_type: 'general'
         },
-        { headers, withCredentials: true }
+        { headers: getH(), withCredentials: true }
       );
       setChannels(prev => [...prev, response.data]);
       setActiveChannel(response.data);

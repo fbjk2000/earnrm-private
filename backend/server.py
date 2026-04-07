@@ -1208,9 +1208,8 @@ async def generate_invite_link(
     }
     await db.invites.insert_one(invite_doc)
     
-    # Get the app URL - prefer frontend URL for invite links
-    frontend_url = os.environ.get('FRONTEND_URL', '')
-    app_url = frontend_url or os.environ.get('FRONTEND_URL', '')
+    # Use public URL for invite links
+    app_url = os.environ.get('PUBLIC_URL', os.environ.get('FRONTEND_URL', ''))
     invite_link = f"{app_url}/signup?invite={invite_code}"
     
     return {
@@ -1247,7 +1246,7 @@ async def send_email_invites(
     
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(days=7)
-    app_url = os.environ.get('FRONTEND_URL', '')
+    app_url = os.environ.get('PUBLIC_URL', os.environ.get('FRONTEND_URL', ''))
     
     sent_invites = []
     failed_invites = []
@@ -5457,7 +5456,7 @@ async def get_or_create_contextual_channel(
         org_id = await ensure_user_org(current_user)
         current_user["organization_id"] = org_id
     
-    valid_types = ["lead", "deal", "task", "company"]
+    valid_types = ["lead", "deal", "task", "company", "project"]
     if context_type not in valid_types:
         raise HTTPException(status_code=400, detail=f"Invalid context type. Must be one of: {valid_types}")
     
@@ -5466,13 +5465,15 @@ async def get_or_create_contextual_channel(
         "lead": db.leads,
         "deal": db.deals,
         "task": db.tasks,
-        "company": db.companies
+        "company": db.companies,
+        "project": db.projects
     }
     id_field_map = {
         "lead": "lead_id",
         "deal": "deal_id",
         "task": "task_id",
-        "company": "company_id"
+        "company": "company_id",
+        "project": "project_id"
     }
     
     entity = await collection_map[context_type].find_one(

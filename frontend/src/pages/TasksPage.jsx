@@ -30,6 +30,17 @@ const TasksPage = () => {
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
   const [newComment, setNewComment] = useState('');
+
+  // Auto-open create dialog from cross-link navigation
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('create') === 'true') {
+      setIsAddDialogOpen(true);
+      const lid = params.get('lead_id');
+      if (lid) setNewTask(prev => ({...prev, related_lead_id: lid}));
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
   const [newSubtask, setNewSubtask] = useState('');
   const [detailTab, setDetailTab] = useState('details');
 
