@@ -7,12 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { Plus, MoreVertical, Euro, Calendar, Percent, Tag, Filter, X, Users, MessageSquare, LayoutGrid, List, Trash2, GripVertical } from 'lucide-react';
+import { Plus, MoreVertical, Euro, Calendar, Percent, Tag, Filter, X, Users, MessageSquare, LayoutGrid, List, Trash2, GripVertical, Edit2, Save } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,9 @@ const DealsPage = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState('kanban');
   const [selectedDealIds, setSelectedDealIds] = useState([]);
+  const [selectedDeal, setSelectedDeal] = useState(null);
+  const [dealEditMode, setDealEditMode] = useState(false);
+  const [dealEditData, setDealEditData] = useState({});
 
   // Auto-open create dialog from cross-link navigation
   useEffect(() => {
@@ -250,8 +254,22 @@ const DealsPage = () => {
     try {
       await axios.delete(`${API}/deals/${dealId}`, { headers, withCredentials: true });
       toast.success('Deal deleted');
+      setSelectedDeal(null);
       fetchDeals();
     } catch (err) { toast.error(err.response?.data?.detail || 'Failed to delete deal'); }
+  };
+
+  const openDealDetail = (deal) => { setSelectedDeal(deal); setDealEditData({...deal}); setDealEditMode(false); };
+
+  const handleSaveDeal = async () => {
+    if (!selectedDeal) return;
+    try {
+      const { deal_id, organization_id, created_by, created_at, _id, ...updates } = dealEditData;
+      const res = await axios.put(`${API}/deals/${selectedDeal.deal_id}`, updates, { headers, withCredentials: true });
+      toast.success('Deal updated');
+      setSelectedDeal(res.data); setDealEditData(res.data); setDealEditMode(false);
+      fetchDeals();
+    } catch (err) { console.error(err); toast.error('Failed to update'); }
   };
 
   const onDragEnd = async (result) => {
@@ -634,7 +652,7 @@ const DealsPage = () => {
                 </thead>
                 <tbody>
                   {deals.map((deal) => (
-                    <tr key={deal.deal_id} className="border-b border-slate-100 hover:bg-slate-50" data-testid={`deal-list-row-${deal.deal_id}`}>
+                    <tr key={deal.deal_id} className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => openDealDetail(deal)} data-testid={`deal-list-row-${deal.deal_id}`}>
                       <td className="py-3 px-4"><input type="checkbox" checked={selectedDealIds.includes(deal.deal_id)} onChange={() => setSelectedDealIds(prev => prev.includes(deal.deal_id) ? prev.filter(x => x !== deal.deal_id) : [...prev, deal.deal_id])} className="accent-[#A100FF]" /></td>
                       <td className="py-3 px-4">
                         <p className="font-medium text-slate-900">{deal.name}</p>
@@ -703,7 +721,7 @@ const DealsPage = () => {
                                         <div {...provided.dragHandleProps} className="mt-1 cursor-grab active:cursor-grabbing">
                                           <GripVertical className="w-4 h-4 text-slate-300" />
                                         </div>
-                                        <div className="flex-1 min-w-0">
+                                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openDealDetail(deal)}>
                                           <p className="font-medium text-slate-900 text-sm truncate">{deal.name}</p>
                                           <p className="text-lg font-bold text-[#A100FF] mt-1">€{(deal.value || 0).toLocaleString()}</p>
                                           <div className="flex items-center gap-2 mt-1">
@@ -750,6 +768,77 @@ const DealsPage = () => {
           </DragDropContext>
         )}
       </div>
+
+      {/* Deal Detail / Edit Dialog */}
+      <Dialog open={!!selectedDeal} onOpenChange={() => { setSelectedDeal(null); setDealEditMode(false); }}>
+        <DialogContent className="max-w-lg">
+          {selectedDeal && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center justify-between">
+                  <span>{dealEditMode ? t('forms.editDeal') : selectedDeal.name}</span>
+                  {!dealEditMode && <Button size="sm" variant="outline" onClick={() => setDealEditMode(true)} data-testid="edit-deal-btn"><Edit2 className="w-3.5 h-3.5 mr-1" />{t('common.edit')}</Button>}
+                </DialogTitle>
+              </DialogHeader>
+              {dealEditMode ? (
+                <div className="space-y-3 pt-2">
+                  <div><Label>{t('forms.name')}</Label><Input value={dealEditData.name || ''} onChange={e => setDealEditData({...dealEditData, name: e.target.value})} /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label>{t('forms.value')}</Label><Input type="number" value={dealEditData.value || 0} onChange={e => setDealEditData({...dealEditData, value: parseFloat(e.target.value) || 0})} /></div>
+                    <div><Label>{t('forms.probability')}</Label><Input type="number" value={dealEditData.probability || 0} onChange={e => setDealEditData({...dealEditData, probability: parseInt(e.target.value) || 0})} /></div>
+                  </div>
+                  <div><Label>{t('forms.stage')}</Label>
+                    <Select value={dealEditData.stage} onValueChange={v => setDealEditData({...dealEditData, stage: v})}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{stages.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><Label>{t('forms.linkedLead')}</Label>
+                      <Select value={dealEditData.lead_id || 'none'} onValueChange={v => setDealEditData({...dealEditData, lead_id: v === 'none' ? null : v})}>
+                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="none">None</SelectItem>{availableLeads.map(l => <SelectItem key={l.lead_id} value={l.lead_id}>{l.first_name} {l.last_name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label>{t('forms.linkedContact')}</Label>
+                      <Select value={dealEditData.contact_id || 'none'} onValueChange={v => setDealEditData({...dealEditData, contact_id: v === 'none' ? null : v})}>
+                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="none">None</SelectItem>{availableContacts.map(c => <SelectItem key={c.contact_id} value={c.contact_id}>{c.first_name} {c.last_name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label>{t('forms.linkedCompany')}</Label>
+                      <Select value={dealEditData.company_id || 'none'} onValueChange={v => setDealEditData({...dealEditData, company_id: v === 'none' ? null : v})}>
+                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="none">None</SelectItem>{availableCompanies.map(c => <SelectItem key={c.company_id} value={c.company_id}>{c.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div><Label>{t('forms.notes')}</Label><Textarea value={dealEditData.notes || ''} onChange={e => setDealEditData({...dealEditData, notes: e.target.value})} rows={2} /></div>
+                  <div className="flex gap-2 pt-2">
+                    <Button onClick={handleSaveDeal} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white"><Save className="w-4 h-4 mr-2" />{t('common.save')}</Button>
+                    <Button variant="outline" onClick={() => { setDealEditMode(false); setDealEditData({...selectedDeal}); }}>{t('common.cancel')}</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 pt-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">{t('forms.value')}</p><p className="text-lg font-bold text-[#7C3AED]">{'\u20AC'}{(selectedDeal.value || 0).toLocaleString()}</p></div>
+                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">{t('forms.stage')}</p><p className="text-sm font-medium capitalize">{selectedDeal.stage}</p></div>
+                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">{t('forms.probability')}</p><p className="text-sm font-medium">{selectedDeal.probability || 0}%</p></div>
+                    {selectedDeal.expected_close_date && <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">{t('forms.expectedCloseDate')}</p><p className="text-sm font-medium">{new Date(selectedDeal.expected_close_date).toLocaleDateString()}</p></div>}
+                  </div>
+                  {selectedDeal.tags?.length > 0 && <div className="flex gap-1 flex-wrap">{selectedDeal.tags.map((tg, i) => <Badge key={i} variant="secondary" className="text-xs">{tg}</Badge>)}</div>}
+                  {selectedDeal.notes && <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500 mb-1">{t('forms.notes')}</p><p className="text-sm text-slate-700">{selectedDeal.notes}</p></div>}
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" variant="outline" onClick={() => { setSelectedDeal(null); navigate(`/chat?type=deal&id=${selectedDeal.deal_id}`); }}><MessageSquare className="w-3.5 h-3.5 mr-1" />{t('leads.discuss')}</Button>
+                    <Button size="sm" variant="outline" className="text-red-500" onClick={() => handleDeleteDeal(selectedDeal.deal_id)}><Trash2 className="w-3.5 h-3.5 mr-1" />{t('common.delete')}</Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

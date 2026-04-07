@@ -147,7 +147,7 @@ const ChatPage = () => {
     } catch (error) {
       console.error('Failed to fetch channels:', error);
     }
-  }, [headers, searchParams, loadContextualChannel]);
+  }, [token, searchParams, loadContextualChannel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch messages for active channel
   const fetchMessages = useCallback(async (channelId) => {
@@ -184,7 +184,7 @@ const ChatPage = () => {
     } catch (error) {
       console.error('Failed to poll messages:', error);
     }
-  }, [activeChannel, lastFetchTime, headers]);
+  }, [activeChannel, lastFetchTime, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch organization members
   const fetchMembers = useCallback(async () => {
@@ -198,7 +198,7 @@ const ChatPage = () => {
     } catch (error) {
       console.error('Failed to fetch members:', error);
     }
-  }, [user?.organization_id, headers]);
+  }, [user?.organization_id, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchChannels();
