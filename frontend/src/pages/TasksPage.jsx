@@ -122,8 +122,9 @@ const TasksPage = () => {
   const handleSaveTask = async () => {
     if (!selectedTask) return;
     try {
-      const { task_id, organization_id, created_by, created_at, _id, ...updates } = editData;
-      if (!updates.due_date) delete updates.due_date;
+      const { title, description, status, priority, due_date, assigned_to, related_lead_id, related_deal_id, project_id } = editData;
+      const updates = { title, description, status, priority, assigned_to, related_lead_id, related_deal_id, project_id };
+      if (due_date) updates.due_date = due_date;
       await axios.put(`${API}/tasks/${selectedTask.task_id}`, updates, getAx());
       toast.success('Task updated');
       setEditMode(false);
@@ -131,7 +132,7 @@ const TasksPage = () => {
       const updated = await axios.get(`${API}/tasks`, getAx());
       const fresh = updated.data.find(t => t.task_id === selectedTask.task_id);
       if (fresh) { setSelectedTask(fresh); setEditData(fresh); }
-    } catch { toast.error('Failed to update'); }
+    } catch (err) { console.error(err); toast.error('Failed to update'); }
   };
 
   const openTaskDetail = (task) => {

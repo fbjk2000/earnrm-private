@@ -836,131 +836,80 @@ curl -X POST -H "X-API-Key: earnrm_abc123..." \
 
 The Chat API enables fully bidirectional messaging. AI agents, bots, n8n workflows, and custom integrations can read and post messages to any channel, just like a human team member.
 
+**All routes verified and working.** Minimum viable test:
+```bash
+# 1. List channels
+curl -H "X-API-Key: earnrm_xxx" "https://earnrm.com/api/v1/chat/channels"
+
+# 2. Resolve a channel by ID or name
+curl -H "X-API-Key: earnrm_xxx" "https://earnrm.com/api/v1/chat/channels/general"
+
+# 3. Post a message
+curl -X POST -H "X-API-Key: earnrm_xxx" -H "Content-Type: application/json" \
+  -d '{"channel_id":"general","content":"Hello from automation","sender_name":"My Bot"}' \
+  "https://earnrm.com/api/v1/chat/messages"
+
+# 4. Read messages
+curl -H "X-API-Key: earnrm_xxx" "https://earnrm.com/api/v1/chat/messages/general?limit=10"
+```
+
 #### Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/chat/channels` | List channels. Param: `channel_type` (general/lead/deal/project) |
+| GET | `/api/v1/chat/channels` | List channels. Param: `channel_type` |
+| GET | `/api/v1/chat/channels/{id}` | Get channel by ID or name (case-insensitive) |
 | POST | `/api/v1/chat/channels` | Create a channel |
 | GET | `/api/v1/chat/messages/{channel_id}` | Read messages. Params: `limit`, `since`, `before` |
-| POST | `/api/v1/chat/messages` | Post a message |
+| POST | `/api/v1/chat/messages` | Post a message (JSON body) |
 
-All endpoints use API key auth: `X-API-Key: earnrm_your_key`
-
-#### 1. List Channels
-```bash
-curl -H "X-API-Key: earnrm_xxx" \
-  "https://earnrm.com/api/v1/chat/channels"
-
-# Filter by type
-curl -H "X-API-Key: earnrm_xxx" \
-  "https://earnrm.com/api/v1/chat/channels?channel_type=project"
-```
-
-#### 2. Create Channel
-```bash
-curl -X POST -H "X-API-Key: earnrm_xxx" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "AI Support",
-    "description": "Automated support channel",
-    "channel_type": "general"
-  }' \
-  "https://earnrm.com/api/v1/chat/channels"
-```
-
-#### 3. Post Message
-```bash
-curl -X POST -H "X-API-Key: earnrm_xxx" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "channel_id": "general",
-    "content": "New lead John Doe just signed up from the website.",
-    "sender_name": "Lead Bot",
-    "reply_to": null,
-    "metadata": {"source": "n8n", "workflow_id": "wf_123"}
-  }' \
-  "https://earnrm.com/api/v1/chat/messages"
-```
-
-**Request body:**
+#### Post Message Request
 ```json
 {
-  "channel_id": "general",       // required
-  "content": "Message text",     // required
-  "sender_name": "AI Agent",     // shown in the chat UI
-  "reply_to": "msg_xxx",         // optional, reply to a message
-  "metadata": {}                 // optional, custom data for your bot
+  "channel_id": "general",
+  "content": "Hello from automation",
+  "sender_name": "Sales Bot",
+  "reply_to": null,
+  "metadata": {"source": "n8n", "workflow_id": "wf_123"}
 }
 ```
 
-Bot messages are tagged `is_bot: true` and display the `sender_name` you provide.
-
-#### 4. Read Messages (polling)
-```bash
-# Get the last 50 messages
-curl -H "X-API-Key: earnrm_xxx" \
-  "https://earnrm.com/api/v1/chat/messages/general?limit=50"
-
-# Poll for new messages since your last check
-curl -H "X-API-Key: earnrm_xxx" \
-  "https://earnrm.com/api/v1/chat/messages/general?since=2026-03-25T10:00:00Z"
-
-# Paginate backwards
-curl -H "X-API-Key: earnrm_xxx" \
-  "https://earnrm.com/api/v1/chat/messages/general?before=2026-03-20T00:00:00Z&limit=20"
-```
-
-**Response:**
+#### Post Message Response
 ```json
 {
-  "data": [
-    {
-      "message_id": "msg_xxx",
-      "channel_id": "general",
-      "sender_name": "Lead Bot",
-      "content": "New lead signed up",
-      "is_bot": true,
-      "metadata": {"source": "n8n"},
-      "created_at": "2026-03-25T10:00:00Z"
-    }
-  ],
+  "message_id": "msg_xxx",
+  "channel_id": "general",
+  "sender_name": "Sales Bot",
+  "content": "Hello from automation",
+  "is_bot": true,
+  "metadata": {"source": "n8n"},
+  "created_at": "2026-04-07T18:00:00Z"
+}
+```
+
+#### Read Messages Response
+```json
+{
+  "data": [{"message_id": "msg_xxx", "sender_name": "Bot", "content": "Hello", "is_bot": true, "created_at": "..."}],
   "count": 1,
   "channel_id": "general",
   "has_more": false,
-  "oldest": "2026-03-25T10:00:00Z",
-  "newest": "2026-03-25T10:00:00Z"
+  "oldest": "2026-04-07T18:00:00Z",
+  "newest": "2026-04-07T18:00:00Z"
 }
 ```
 
-#### 5. Webhook for incoming messages
-Register a webhook to get notified when anyone (human or bot) posts a message:
+#### Webhook for incoming messages
 ```bash
-curl -X POST -H "Authorization: Bearer your_jwt" \
+curl -X POST -H "Authorization: Bearer jwt_token" \
   "https://earnrm.com/api/webhooks?url=https://your-n8n.com/webhook/abc&events=chat.message&name=Chat+Listener"
 ```
 
-Webhook payload:
-```json
-{
-  "event": "chat.message",
-  "data": {
-    "channel_id": "general",
-    "message_id": "msg_xxx",
-    "sender_name": "Florian",
-    "content": "Can someone follow up with Acme Corp?"
-  },
-  "timestamp": "2026-03-25T10:05:00Z"
-}
-```
-
-#### AI Agent Pattern (n8n example)
+#### AI Agent Pattern
 1. Register a `chat.message` webhook pointing to your n8n Webhook Trigger
-2. In n8n, filter messages where `is_bot` is false (only human messages)
-3. Process the message with an AI node (OpenAI, Claude, etc.)
-4. Post the response back using `POST /api/v1/chat/messages`
-
-This creates a fully automated AI agent that participates in team conversations.
+2. Filter messages where `is_bot` is false (human messages only)
+3. Process with AI (OpenAI, Claude, etc.)
+4. Post response via `POST /api/v1/chat/messages`
 
 ---
 

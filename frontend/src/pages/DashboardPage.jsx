@@ -201,7 +201,8 @@ const DashboardPage = () => {
                   {stats.recent_leads.map((lead, index) => (
                     <div
                       key={lead.lead_id}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors"
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                      onClick={() => navigate(`/leads?detail=${lead.lead_id}`)}
                       data-testid={`recent-lead-${index}`}
                     >
                       <div className="flex items-center gap-3">
@@ -260,7 +261,8 @@ const DashboardPage = () => {
                   {stats.recent_tasks.map((task, index) => (
                     <div
                       key={task.task_id}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors"
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                      onClick={() => navigate('/tasks')}
                       data-testid={`recent-task-${index}`}
                     >
                       <div className="flex items-center gap-3">

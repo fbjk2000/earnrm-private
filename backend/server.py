@@ -7135,6 +7135,19 @@ async def api_chat_channels(channel_type: Optional[str] = None, user: dict = Dep
     channels = await db.chat_channels.find(query, {"_id": 0}).sort("last_message_at", -1).to_list(100)
     return {"data": channels, "count": len(channels)}
 
+
+@api_router.get("/v1/chat/channels/{channel_id}")
+async def api_get_channel(channel_id: str, user: dict = Depends(get_api_key_user)):
+    """Get a specific channel by ID or slug. Also searches by name."""
+    org_id = user.get("organization_id")
+    channel = await db.chat_channels.find_one({"channel_id": channel_id, "organization_id": org_id}, {"_id": 0})
+    if not channel:
+        channel = await db.chat_channels.find_one({"name": {"$regex": f"^{channel_id}$", "$options": "i"}, "organization_id": org_id}, {"_id": 0})
+    if not channel:
+        raise HTTPException(status_code=404, detail=f"Channel '{channel_id}' not found. Use GET /v1/chat/channels to list available channels.")
+    return channel
+
+
 @api_router.post("/v1/chat/channels")
 async def api_create_channel(data: ExternalChannelCreate, user: dict = Depends(get_api_key_user)):
     """Create a new chat channel."""
