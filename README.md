@@ -247,13 +247,20 @@ GET /api/auth/me
 
 ### Deals
 
-Kanban pipeline with drag-and-drop between stages, plus a list view toggle. Lost deals excluded from pipeline totals.
+Kanban pipeline with drag-and-drop between stages, plus a list view toggle. Click any deal card or row to open the detail/edit dialog. Lost deals excluded from pipeline totals.
+
+**Views:** Kanban (drag-and-drop) | List (table with inline stage dropdown)
+
+**Deal detail dialog:**
+- View: value, stage, probability, close date, tags, notes, linked entities
+- Edit: all fields including Lead/Contact/Company association
+- Actions: Discuss, Delete
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/deals` | List deals. Params: `stage`, `tag`, `assigned_to` |
 | POST | `/api/deals` | Create deal |
-| PUT | `/api/deals/{deal_id}` | Update deal |
+| PUT | `/api/deals/{deal_id}` | Update deal (name, value, stage, probability, lead_id, contact_id, company_id, notes, tags) |
 | DELETE | `/api/deals/{deal_id}` | Delete deal |
 | GET | `/api/deals/tags` | List all tags |
 
@@ -474,6 +481,26 @@ GOOGLE_CLIENT_ID="your_client_id"
 GOOGLE_CLIENT_SECRET="your_client_secret"
 ```
 5. Users connect via **Calendar page → Connect Google** or **Settings → Integrations**
+
+---
+
+### Cross-linked Actions
+
+From any Lead, Contact, or Deal detail dialog, users can trigger actions that navigate to the target page and auto-open the create dialog with the entity pre-linked:
+
+| From | Action | Opens |
+|------|--------|-------|
+| Lead detail | "Add Deal" | Deals page with create dialog, lead_id pre-filled |
+| Lead detail | "Add Task" | Tasks page with create dialog, lead_id pre-filled |
+| Lead detail | "Discuss" | Chat page with contextual lead channel |
+| Lead detail | "Draft Email" | AI email composer with lead context |
+| Lead detail | "Convert to Contact" | Conversion dialog with deal linking |
+| Contact detail | "Add Deal" | Deals page with create dialog, contact_id pre-filled |
+| Contact detail | "Add Task" | Tasks page with create dialog |
+| Contact detail | "Discuss" | Chat page with contextual channel |
+| Deal detail | "Discuss" | Chat page with contextual deal channel |
+
+The auto-open uses URL params (`?create=true&lead_id=xxx`) which the target page reads on mount.
 
 ---
 
