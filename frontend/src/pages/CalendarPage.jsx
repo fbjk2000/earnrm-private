@@ -36,6 +36,18 @@ const CalendarPage = () => {
 
   const getCfg = () => ({ headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
 
+  const reloadEvents = async () => {
+    try {
+      const cfg = getCfg();
+      const [earnrm, google] = await Promise.allSettled([
+        axios.get(`${API}/calendar/events`, cfg),
+        axios.get(`${API}/calendar/google/events`, cfg)
+      ]);
+      const all = [...(earnrm.status === 'fulfilled' ? earnrm.value.data || [] : []), ...(google.status === 'fulfilled' && Array.isArray(google.value.data) ? google.value.data : [])];
+      setEvents(all);
+    } catch (err) { console.error(err); }
+  };
+
   useEffect(() => {
     if (!token) return;
     const h = { Authorization: `Bearer ${token}` };
@@ -74,12 +86,12 @@ const CalendarPage = () => {
       toast.success('Event created');
       setShowCreate(false);
       setNewEvent({ title: '', date: '', notes: '', linked_type: '', linked_id: '' });
-      fetchEvents();
-    } catch { toast.error('Failed to create event'); }
+      reloadEvents();
+    } catch (err) { console.error(err); toast.error('Failed to create event'); }
   };
 
   const handleDeleteEvent = async (id) => {
-    try { await axios.delete(`${API}/calendar/events/${id}`, getCfg()); toast.success('Deleted'); fetchEvents(); setSelectedEvent(null); }
+    try { await axios.delete(`${API}/calendar/events/${id}`, getCfg()); toast.success('Deleted'); reloadEvents(); setSelectedEvent(null); }
     catch { toast.error('Failed'); }
   };
 
