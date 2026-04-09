@@ -39,9 +39,9 @@ const CapturePage = () => {
 
     try {
       const res = await axios.post(`${API}/capture?${params}`, formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+        headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
-        timeout: 30000
+        timeout: 60000
       });
       setResult(res.data);
       toast.success(res.data.message || 'Lead captured!');

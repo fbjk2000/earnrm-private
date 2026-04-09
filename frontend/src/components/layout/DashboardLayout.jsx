@@ -76,23 +76,18 @@ const DashboardLayout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="dashboard-layout">
-      {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4">
-        <Link to="/dashboard" className="flex items-center space-x-2">
-          <img 
-            src="/logo-horizontal.svg" 
-            alt="earnrm" 
-            className="h-8"
-          />
+      {/* Mobile Header - always visible on mobile */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200 h-14 flex items-center justify-between px-3 shadow-sm">
+        <Link to="/dashboard" className="flex items-center">
+          <img src="/logo-horizontal.svg" alt="earnrm" className="h-6" />
         </Link>
-        <Button
-          variant="ghost"
-          size="icon"
+        <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="w-10 h-10 rounded-lg bg-[#7C3AED] text-white flex items-center justify-center active:bg-[#6D28D9]"
           data-testid="mobile-menu-toggle"
         >
-          {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </Button>
+          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
       </header>
 
       {/* Mobile Sidebar Overlay */}
@@ -184,7 +179,7 @@ const DashboardLayout = ({ children }) => {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen">
+      <main className="lg:ml-64 pt-14 lg:pt-0 min-h-screen">
         <div className="p-6 lg:p-8">
           {children}
         </div>
