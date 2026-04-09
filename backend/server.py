@@ -6839,7 +6839,7 @@ async def capture_business_card(
     
     # Use GPT to extract business card info
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
         api_key = os.environ.get("EMERGENT_LLM_KEY")
         
         chat = LlmChat(
@@ -6848,7 +6848,8 @@ async def capture_business_card(
             system_message="You extract business card information from images. Return ONLY valid JSON with these fields: first_name, last_name, email, phone, company, job_title, website, location. Use null for any field you cannot read. Do not guess or fabricate information."
         ).with_model("openai", "gpt-5.2")
         
-        msg = UserMessage(text="Extract all contact information from this business card image.", image_url=f"data:image/{file.content_type or 'jpeg'};base64,{image_b64}")
+        image_content = ImageContent(image_base64=image_b64)
+        msg = UserMessage(text="Extract all contact information from this business card image.", file_contents=[image_content])
         response = await chat.send_message(msg)
         
         import json
