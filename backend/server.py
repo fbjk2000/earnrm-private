@@ -6818,6 +6818,153 @@ async def api_docs():
         }
     }
 
+
+# ==================== LEAD CAPTURE TOOL ====================
+
+@api_router.post("/capture")
+async def capture_business_card(
+    file: UploadFile = File(...),
+    event_name: str = "General",
+    auto_email: bool = False,
+    current_user: dict = Depends(get_current_user)
+):
+    """Capture a business card photo, extract info with AI, create a lead"""
+    if not current_user.get("organization_id"):
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
+    
+    image_bytes = await file.read()
+    import base64
+    image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+    
+    # Use GPT to extract business card info
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"capture_{uuid.uuid4().hex[:8]}",
+            system_message="You extract business card information from images. Return ONLY valid JSON with these fields: first_name, last_name, email, phone, company, job_title, website, location. Use null for any field you cannot read. Do not guess or fabricate information."
+        ).with_model("openai", "gpt-5.2")
+        
+        msg = UserMessage(text="Extract all contact information from this business card image.", image_url=f"data:image/{file.content_type or 'jpeg'};base64,{image_b64}")
+        response = await chat.send_message(msg)
+        
+        import json
+        try:
+            card_data = json.loads(response.strip().strip('```json').strip('```'))
+        except:
+            card_data = {"first_name": "Unknown", "last_name": "", "notes": response[:300]}
+    except Exception as e:
+        logger.error(f"Card extraction error: {e}")
+        card_data = {"first_name": "Unknown", "last_name": "Card", "notes": f"AI extraction failed: {str(e)[:100]}"}
+    
+    # Create the lead
+    now = datetime.now(timezone.utc)
+    lead_id = f"lead_{uuid.uuid4().hex[:12]}"
+    
+    lead_doc = {
+        "lead_id": lead_id,
+        "organization_id": current_user["organization_id"],
+        "first_name": card_data.get("first_name", "Unknown"),
+        "last_name": card_data.get("last_name", ""),
+        "email": card_data.get("email"),
+        "phone": card_data.get("phone"),
+        "company": card_data.get("company"),
+        "job_title": card_data.get("job_title"),
+        "website": card_data.get("website"),
+        "location": card_data.get("location"),
+        "source": f"card_capture:{event_name}",
+        "status": "new",
+        "notes": f"Captured at {event_name}",
+        "tags": [event_name.lower().replace(' ', '-')],
+        "ai_score": None,
+        "assigned_to": current_user["user_id"],
+        "created_by": current_user["user_id"],
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    }
+    await db.leads.insert_one(lead_doc)
+    lead_doc.pop('_id', None)
+    
+    # AI enrichment
+    enrichment_result = None
+    try:
+        enrich_chat = LlmChat(
+            api_key=api_key,
+            session_id=f"enrich_{lead_id}",
+            system_message="You are a B2B enrichment AI. Return ONLY valid JSON with: company_description, industry, company_size, technologies (array), interests (array), recommended_approach. Use null if unknown."
+        ).with_model("openai", "gpt-5.2")
+        
+        info = f"Name: {card_data.get('first_name','')} {card_data.get('last_name','')}, Email: {card_data.get('email','')}, Company: {card_data.get('company','')}, Title: {card_data.get('job_title','')}"
+        enrich_resp = await enrich_chat.send_message(UserMessage(text=f"Enrich: {info}"))
+        
+        try:
+            enrichment = json.loads(enrich_resp.strip().strip('```json').strip('```'))
+        except:
+            enrichment = {}
+        
+        updates = {"updated_at": now.isoformat()}
+        for ai_f, db_f in {"industry":"industry","company_size":"company_size","company_description":"company_description","website":"website","location":"location"}.items():
+            if enrichment.get(ai_f) and not lead_doc.get(db_f):
+                updates[db_f] = enrichment[ai_f]
+        updates["enrichment"] = {"technologies": enrichment.get("technologies",[]), "interests": enrichment.get("interests",[]), "recommended_approach": enrichment.get("recommended_approach",""), "enriched_at": now.isoformat()}
+        
+        await db.leads.update_one({"lead_id": lead_id}, {"$set": updates})
+        enrichment_result = enrichment
+    except Exception as e:
+        logger.error(f"Card enrichment error: {e}")
+    
+    # Auto follow-up
+    follow_up_action = None
+    if auto_email and card_data.get("email") and RESEND_API_KEY:
+        try:
+            import asyncio
+            name = f"{card_data.get('first_name','')} {card_data.get('last_name','')}".strip()
+            await asyncio.to_thread(resend.Emails.send, {
+                "from": SENDER_EMAIL,
+                "to": [card_data["email"]],
+                "subject": f"Great meeting you at {event_name}",
+                "html": f"<p>Hi {card_data.get('first_name', 'there')},</p><p>It was great connecting with you at {event_name}. I would love to continue our conversation.</p><p>Let me know a good time to chat.</p><p>Best regards</p>"
+            })
+            follow_up_action = "email_sent"
+        except Exception as e:
+            logger.error(f"Follow-up email error: {e}")
+            follow_up_action = "email_failed"
+    else:
+        # Create a follow-up task
+        task_doc = {
+            "task_id": f"task_{uuid.uuid4().hex[:12]}",
+            "organization_id": current_user["organization_id"],
+            "title": f"Follow up: {card_data.get('first_name','')} {card_data.get('last_name','')} ({event_name})",
+            "description": f"Met at {event_name}. Company: {card_data.get('company','N/A')}. Role: {card_data.get('job_title','N/A')}.",
+            "status": "todo", "priority": "high",
+            "assigned_to": current_user["user_id"],
+            "related_lead_id": lead_id,
+            "subtasks": [], "comments": [],
+            "activity": [{"action": "created", "by": current_user["user_id"], "by_name": current_user.get("name",""), "at": now.isoformat()}],
+            "created_by": current_user["user_id"],
+            "created_at": now.isoformat(), "updated_at": now.isoformat()
+        }
+        await db.tasks.insert_one(task_doc)
+        follow_up_action = "task_created"
+    
+    return {
+        "lead_id": lead_id,
+        "extracted": card_data,
+        "enrichment": enrichment_result,
+        "event": event_name,
+        "follow_up": follow_up_action,
+        "message": f"Lead captured from {event_name}"
+    }
+
+@api_router.post("/v1/capture")
+async def api_capture_business_card(file: UploadFile = File(...), event_name: str = "General", auto_email: bool = False, user: dict = Depends(get_api_key_user)):
+    """External API: Capture a business card photo"""
+    return await capture_business_card(file=file, event_name=event_name, auto_email=auto_email, current_user=user)
+
+
 # ==================== BOOKING ENGINE ====================
 
 class BookingSettings(BaseModel):

@@ -60,6 +60,7 @@ const DashboardLayout = ({ children }) => {
     { path: '/calls', label: l.calls, iconKey: 'Phone' },
     { path: '/calendar', label: l.calendar, iconKey: 'CheckSquare' },
     { path: '/bookings', label: l.bookings, iconKey: 'Users' },
+    { path: '/capture', label: 'Capture', iconKey: 'Users' },
     { divider: true },
     { path: '/admin', label: l.admin, iconKey: 'Shield', adminOnly: true },
     { path: '/settings', label: l.settings, iconKey: 'Settings' },

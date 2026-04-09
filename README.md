@@ -22,13 +22,13 @@
 ## Features
 
 ### Core CRM
-- **Leads** — Import via CSV, manual creation, AI enrichment & scoring, bulk operations, column visibility
+- **Leads** — Import via CSV, manual creation, AI enrichment & scoring, bulk operations, column visibility, business card capture
 - **Contacts** — Convert from qualified leads, rich profiles (budget, timeline, decision maker, pain points)
 - **Deals** — Kanban pipeline with drag-and-drop + list view, entity linking (Lead/Contact/Company), lost deals excluded from pipeline
 - **Tasks** - Kanban drag-and-drop + list view, subtasks/checklists, comments, activity history, stale indicators, project linking
 - **Projects** - Group tasks under deals, progress tracking, clickable task detail from project context, auto-created chat channels, team members
 - **Companies** — Target company management with industry, size, and contact tracking
-- **Calendar** — Month/Week views with scheduled calls, task due dates, deal closes, custom events, Google Calendar sync
+- **Calendar** — Month/Week views with scheduled calls, task due dates, deal closes, custom events with entity linking, Google Calendar sync
 - **Campaigns** — Email campaigns via Resend + Kit.com, AI-powered drafting, bulk recipient management
 
 ### AI Features (GPT-5.2)
@@ -1199,6 +1199,71 @@ Full task system with Kanban drag-and-drop, list view, subtasks, comments, activ
 
 ### Tasks inside Projects
 Tasks in the project detail dialog are fully interactive: click to open the same detail view with subtasks, comments, and history. No need to leave the project context.
+
+---
+
+## Lead Capture Tool
+
+Mobile-friendly business card scanner for conferences and events. Snap a photo, AI extracts the contact info, creates a lead, enriches it, and triggers a follow-up.
+
+### How it works
+1. Open `/capture` or `/capture/{event-name}` on your phone
+2. Tap "Take Photo" to snap a business card
+3. AI (GPT Vision) extracts: name, email, phone, company, title, website
+4. Lead created with event tag and AI enrichment
+5. System either sends a follow-up email or creates a high-priority task
+
+### Capture page
+- `/capture` (general capture)
+- `/capture/WebSummit2026` (pre-tagged with event name)
+
+### Endpoints
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/capture` | JWT | Capture business card. Multipart form: `file` (image), `event_name`, `auto_email` |
+| POST | `/api/v1/capture` | API Key | Same endpoint for external integrations (n8n, bots) |
+
+### Request
+```bash
+curl -X POST -H "X-API-Key: earnrm_xxx" \
+  -F "file=@business_card.jpg" \
+  -F "event_name=DMEXCO 2026" \
+  -F "auto_email=false" \
+  "https://earnrm.com/api/v1/capture"
+```
+
+### Response
+```json
+{
+  "lead_id": "lead_xxx",
+  "extracted": {
+    "first_name": "Anna",
+    "last_name": "Mueller",
+    "email": "anna@firma.de",
+    "company": "Firma GmbH",
+    "job_title": "Head of Sales",
+    "phone": "+49 170 1234567"
+  },
+  "enrichment": {
+    "industry": "Technology",
+    "recommended_approach": "Lead with ROI data..."
+  },
+  "event": "DMEXCO 2026",
+  "follow_up": "task_created",
+  "message": "Lead captured from DMEXCO 2026"
+}
+```
+
+### Follow-up behavior
+- **auto_email=true**: Sends "Great meeting you at {event}" email via Resend
+- **auto_email=false** (default): Creates a high-priority follow-up task assigned to the capturer
+
+### Integration with WhatsApp/Telegram
+Use the external API endpoint (`POST /api/v1/capture`) as the backend for a WhatsApp or Telegram bot via n8n:
+1. Bot receives photo from user
+2. n8n sends it to `/api/v1/capture` with event name
+3. Lead created, enriched, follow-up triggered
 
 ---
 

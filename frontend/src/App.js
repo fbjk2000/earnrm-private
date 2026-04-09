@@ -26,6 +26,7 @@ import ContactsPage from './pages/ContactsPage';
 import ProjectsPage from './pages/ProjectsPage';
 import CalendarPage from './pages/CalendarPage';
 import BookingPage, { PublicBookingPage } from './pages/BookingPage';
+import CapturePage from './pages/CapturePage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordResetPages';
 
 import './App.css';
@@ -347,6 +348,22 @@ const AppRouter = () => {
         element={
           <ProtectedRoute>
             <BookingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/capture"
+        element={
+          <ProtectedRoute>
+            <CapturePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/capture/:eventName"
+        element={
+          <ProtectedRoute>
+            <CapturePage />
           </ProtectedRoute>
         }
       />
