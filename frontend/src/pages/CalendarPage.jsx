@@ -9,6 +9,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { toast } from 'sonner';
 import axios from 'axios';
 import {
@@ -31,6 +32,9 @@ const CalendarPage = () => {
   const [newEvent, setNewEvent] = useState({ title: '', date: '', notes: '' });
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [googleConnected, setGoogleConnected] = useState(false);
+  const [linkableEntities, setLinkableEntities] = useState({ leads: [], contacts: [], companies: [], deals: [], projects: [], campaigns: [] });
+
+  const getCfg = () => ({ headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
 
   useEffect(() => {
     if (!token) return;
@@ -41,26 +45,21 @@ const CalendarPage = () => {
       axios.get(`${API}/calendar/google/events`, cfg).then(r => { if (Array.isArray(r.data)) setEvents(prev => [...prev, ...r.data]); }),
       axios.get(`${API}/calendar/google/status`, cfg).then(r => setGoogleConnected(r.data.connected))
     ]).finally(() => setLoading(false));
+    // Load linkable entities
+    Promise.allSettled([
+      axios.get(`${API}/leads`, cfg), axios.get(`${API}/contacts`, cfg), axios.get(`${API}/companies`, cfg),
+      axios.get(`${API}/deals`, cfg), axios.get(`${API}/projects`, cfg), axios.get(`${API}/campaigns`, cfg)
+    ]).then(results => {
+      const [leads, contacts, companies, deals, projects, campaigns] = results.map(r => r.status === 'fulfilled' ? r.value.data || [] : []);
+      setLinkableEntities({ leads, contacts, companies, deals, projects, campaigns });
+    });
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchEvents = async () => {
-    try {
-      const [earnrmRes, googleRes] = await Promise.all([
-        axios.get(`${API}/calendar/events`, getAx()),
-        axios.get(`${API}/calendar/google/events`, getAx()).catch(() => ({ data: [] }))
-      ]);
-      setEvents([...earnrmRes.data, ...(Array.isArray(googleRes.data) ? googleRes.data : [])]);
-    } catch { toast.error('Failed to load calendar'); }
-    finally { setLoading(false); }
-  };
 
-  const checkGoogleStatus = async () => {
-    try { const r = await axios.get(`${API}/calendar/google/status`, getAx()); setGoogleConnected(r.data.connected); } catch (err) { console.error(err); }
-  };
 
   const connectGoogle = async () => {
     try {
-      const r = await axios.get(`${API}/calendar/google/auth-url`, getAx());
+      const r = await axios.get(`${API}/calendar/google/auth-url`, getCfg());
       window.location.href = r.data.auth_url;
     } catch (e) { toast.error(e.response?.data?.detail || 'Failed to connect'); }
   };
@@ -68,16 +67,19 @@ const CalendarPage = () => {
   const handleCreateEvent = async () => {
     if (!newEvent.title || !newEvent.date) return;
     try {
-      await axios.post(`${API}/calendar/events?title=${encodeURIComponent(newEvent.title)}&date=${encodeURIComponent(new Date(newEvent.date).toISOString())}&notes=${encodeURIComponent(newEvent.notes || '')}`, {}, getAx());
+      const params = new URLSearchParams({ title: newEvent.title, date: new Date(newEvent.date).toISOString() });
+      if (newEvent.notes) params.set('notes', newEvent.notes);
+      if (newEvent.linked_type && newEvent.linked_id) { params.set('linked_type', newEvent.linked_type); params.set('linked_id', newEvent.linked_id); }
+      await axios.post(`${API}/calendar/events?${params}`, {}, getCfg());
       toast.success('Event created');
       setShowCreate(false);
-      setNewEvent({ title: '', date: '', notes: '' });
+      setNewEvent({ title: '', date: '', notes: '', linked_type: '', linked_id: '' });
       fetchEvents();
     } catch { toast.error('Failed to create event'); }
   };
 
   const handleDeleteEvent = async (id) => {
-    try { await axios.delete(`${API}/calendar/events/${id}`, getAx()); toast.success('Deleted'); fetchEvents(); setSelectedEvent(null); }
+    try { await axios.delete(`${API}/calendar/events/${id}`, getCfg()); toast.success('Deleted'); fetchEvents(); setSelectedEvent(null); }
     catch { toast.error('Failed'); }
   };
 
@@ -262,7 +264,37 @@ const CalendarPage = () => {
             <div><Label>Title *</Label><Input value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="Meeting, deadline..." data-testid="event-title" /></div>
             <div><Label>Date *</Label><Input type="datetime-local" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} data-testid="event-date" /></div>
             <div><Label>Notes</Label><Input value={newEvent.notes} onChange={e => setNewEvent({ ...newEvent, notes: e.target.value })} placeholder="Optional details" /></div>
-            <Button onClick={handleCreateEvent} className="w-full bg-[#A100FF] hover:bg-purple-700" data-testid="create-event-submit"><Plus className="w-4 h-4 mr-2" /> Create Event</Button>
+            <div><Label>Link to</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={newEvent.linked_type || 'none'} onValueChange={v => setNewEvent({ ...newEvent, linked_type: v === 'none' ? '' : v, linked_id: '' })}>
+                  <SelectTrigger className="text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="lead">Lead</SelectItem>
+                    <SelectItem value="contact">Contact</SelectItem>
+                    <SelectItem value="company">Company</SelectItem>
+                    <SelectItem value="deal">Deal</SelectItem>
+                    <SelectItem value="project">Project</SelectItem>
+                    <SelectItem value="campaign">Campaign</SelectItem>
+                  </SelectContent>
+                </Select>
+                {newEvent.linked_type && (
+                  <Select value={newEvent.linked_id || 'none'} onValueChange={v => setNewEvent({ ...newEvent, linked_id: v === 'none' ? '' : v })}>
+                    <SelectTrigger className="text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {newEvent.linked_type === 'lead' && linkableEntities.leads.map(l => <SelectItem key={l.lead_id} value={l.lead_id}>{l.first_name} {l.last_name}</SelectItem>)}
+                      {newEvent.linked_type === 'contact' && linkableEntities.contacts.map(c => <SelectItem key={c.contact_id} value={c.contact_id}>{c.first_name} {c.last_name}</SelectItem>)}
+                      {newEvent.linked_type === 'company' && linkableEntities.companies.map(c => <SelectItem key={c.company_id} value={c.company_id}>{c.name}</SelectItem>)}
+                      {newEvent.linked_type === 'deal' && linkableEntities.deals.map(d => <SelectItem key={d.deal_id} value={d.deal_id}>{d.name}</SelectItem>)}
+                      {newEvent.linked_type === 'project' && linkableEntities.projects.map(p => <SelectItem key={p.project_id} value={p.project_id}>{p.name}</SelectItem>)}
+                      {newEvent.linked_type === 'campaign' && linkableEntities.campaigns.map(c => <SelectItem key={c.campaign_id} value={c.campaign_id}>{c.name || c.subject}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+            <Button onClick={handleCreateEvent} className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white" data-testid="create-event-submit"><Plus className="w-4 h-4 mr-2" /> Create Event</Button>
           </div>
         </DialogContent>
       </Dialog>
