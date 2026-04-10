@@ -31,6 +31,9 @@ const CalendarPage = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: '', date: '', end_date: '', notes: '', linked_type: '', linked_id: '' });
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(false);
+  const [editEventData, setEditEventData] = useState({});
+  const [inviteEmails, setInviteEmails] = useState('');
   const [googleConnected, setGoogleConnected] = useState(false);
   const [linkableEntities, setLinkableEntities] = useState({ leads: [], contacts: [], companies: [], deals: [], projects: [], campaigns: [] });
 
@@ -93,7 +96,37 @@ const CalendarPage = () => {
 
   const handleDeleteEvent = async (id) => {
     try { await axios.delete(`${API}/calendar/events/${id}`, getCfg()); toast.success('Deleted'); reloadEvents(); setSelectedEvent(null); }
-    catch { toast.error('Failed'); }
+    catch (err) { console.error(err); toast.error('Failed'); }
+  };
+
+  const handleSaveEvent = async () => {
+    if (!selectedEvent) return;
+    try {
+      const res = await axios.put(`${API}/calendar/events/${selectedEvent.id}`, editEventData, getCfg());
+      toast.success('Event updated');
+      setEditingEvent(false);
+      setSelectedEvent(res.data);
+      reloadEvents();
+    } catch (err) { console.error(err); toast.error('Failed to update'); }
+  };
+
+  const handleInvite = async () => {
+    if (!selectedEvent || !inviteEmails.trim()) return;
+    const emails = inviteEmails.split(',').map(e => e.trim()).filter(e => e.includes('@'));
+    if (!emails.length) { toast.error('Enter valid email addresses'); return; }
+    try {
+      const res = await axios.post(`${API}/calendar/events/${selectedEvent.id}/invite`, emails, getCfg());
+      toast.success(`Invitation(s) sent`);
+      setInviteEmails('');
+      setSelectedEvent(prev => ({ ...prev, invitees: [...(prev.invitees || []), ...emails] }));
+    } catch (err) { console.error(err); toast.error('Failed to send invitations'); }
+  };
+
+  const openEventDetail = (evt) => {
+    setSelectedEvent(evt);
+    setEditEventData({ title: evt.title, date: evt.date || '', end_date: evt.end_date || '', notes: evt.notes || '', color: evt.color || '#7C3AED' });
+    setEditingEvent(false);
+    setInviteEmails('');
   };
 
   const handleEventClick = (evt) => {
@@ -101,7 +134,7 @@ const CalendarPage = () => {
     else if (evt.entity_type === 'deal') navigate('/deals');
     else if (evt.entity_type === 'project') navigate('/projects');
     else if (evt.entity_type === 'task') navigate('/tasks');
-    else setSelectedEvent(evt);
+    else openEventDetail(evt);
   };
 
   // Calendar helpers
@@ -313,22 +346,73 @@ const CalendarPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Event Detail Dialog */}
-      <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-        <DialogContent className="max-w-sm">
+      {/* Event Detail / Edit / Invite Dialog */}
+      <Dialog open={!!selectedEvent} onOpenChange={() => { setSelectedEvent(null); setEditingEvent(false); }}>
+        <DialogContent className="max-w-md">
           {selectedEvent && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedEvent.color }} />
-                <h3 className="font-semibold text-slate-900">{selectedEvent.title}</h3>
-              </div>
-              <p className="text-sm text-slate-500"><Clock className="w-3.5 h-3.5 inline mr-1" />{new Date(selectedEvent.date).toLocaleString()}</p>
-              {selectedEvent.notes && <p className="text-sm text-slate-600">{selectedEvent.notes}</p>}
-              {selectedEvent.value && <p className="text-sm font-medium text-indigo-600">€{selectedEvent.value.toLocaleString()}</p>}
-              {selectedEvent.type === 'event' && (
-                <Button variant="outline" size="sm" className="text-red-500" onClick={() => handleDeleteEvent(selectedEvent.id)}><X className="w-3.5 h-3.5 mr-1" /> Delete</Button>
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedEvent.color }} />
+                    <span>{editingEvent ? 'Edit Event' : selectedEvent.title}</span>
+                  </div>
+                  {!editingEvent && selectedEvent.type === 'event' && (
+                    <Button size="sm" variant="outline" onClick={() => setEditingEvent(true)}>Edit</Button>
+                  )}
+                </DialogTitle>
+              </DialogHeader>
+
+              {editingEvent ? (
+                <div className="space-y-3 pt-2">
+                  <div><Label>Title</Label><Input value={editEventData.title || ''} onChange={e => setEditEventData({...editEventData, title: e.target.value})} /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label>Start</Label><Input type="datetime-local" value={editEventData.date ? editEventData.date.slice(0, 16) : ''} onChange={e => setEditEventData({...editEventData, date: e.target.value})} /></div>
+                    <div><Label>End</Label><Input type="datetime-local" value={editEventData.end_date ? editEventData.end_date.slice(0, 16) : ''} onChange={e => setEditEventData({...editEventData, end_date: e.target.value})} /></div>
+                  </div>
+                  <div><Label>Notes</Label><Input value={editEventData.notes || ''} onChange={e => setEditEventData({...editEventData, notes: e.target.value})} /></div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleSaveEvent} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white">{t('common.save')}</Button>
+                    <Button variant="outline" onClick={() => setEditingEvent(false)}>{t('common.cancel')}</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3 pt-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Start</p><p className="text-sm font-medium">{selectedEvent.date ? new Date(selectedEvent.date).toLocaleString() : '-'}</p></div>
+                    <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">End</p><p className="text-sm font-medium">{selectedEvent.end_date ? new Date(selectedEvent.end_date).toLocaleString() : '-'}</p></div>
+                  </div>
+                  {selectedEvent.notes && <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500 mb-1">Notes</p><p className="text-sm text-slate-700">{selectedEvent.notes}</p></div>}
+                  {selectedEvent.value && <p className="text-sm font-medium text-indigo-600">EUR {selectedEvent.value.toLocaleString()}</p>}
+
+                  {/* Invitees */}
+                  {selectedEvent.invitees?.length > 0 && (
+                    <div><p className="text-xs text-slate-500 mb-1">Invitees</p>
+                      <div className="flex flex-wrap gap-1">{selectedEvent.invitees.map((e, i) => <Badge key={i} variant="secondary" className="text-xs">{e}</Badge>)}</div>
+                    </div>
+                  )}
+
+                  {/* Invite form */}
+                  {selectedEvent.type === 'event' && (
+                    <div className="border-t pt-3 space-y-2">
+                      <p className="text-xs font-medium text-slate-700">Invite people</p>
+                      <div className="flex gap-2">
+                        <Input value={inviteEmails} onChange={e => setInviteEmails(e.target.value)} placeholder="email@example.com, another@example.com" className="text-xs h-8" />
+                        <Button size="sm" className="h-8 bg-[#7C3AED] hover:bg-[#6D28D9] text-white" onClick={handleInvite}>Send</Button>
+                      </div>
+                      <p className="text-[10px] text-slate-400">Separate multiple emails with commas. Invitees receive an email with an .ics calendar file.</p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  {selectedEvent.type === 'event' && (
+                    <div className="flex gap-2 pt-1">
+                      <Button variant="outline" size="sm" className="text-red-500" onClick={() => handleDeleteEvent(selectedEvent.id)}><X className="w-3.5 h-3.5 mr-1" /> {t('common.delete')}</Button>
+                    </div>
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

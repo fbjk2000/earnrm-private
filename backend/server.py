@@ -2363,6 +2363,82 @@ async def delete_calendar_event(event_id: str, current_user: dict = Depends(get_
         raise HTTPException(status_code=404, detail="Event not found")
     return {"message": "Event deleted"}
 
+@api_router.put("/calendar/events/{event_id}")
+async def update_calendar_event(event_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
+    """Edit a calendar event"""
+    allowed = {"title", "date", "end_date", "notes", "color", "linked_type", "linked_id", "invitees"}
+    filtered = {k: v for k, v in updates.items() if k in allowed}
+    filtered["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.calendar_events.update_one(
+        {"event_id": event_id, "organization_id": current_user.get("organization_id")},
+        {"$set": filtered}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Event not found")
+    updated = await db.calendar_events.find_one({"event_id": event_id}, {"_id": 0})
+    return updated
+
+@api_router.post("/calendar/events/{event_id}/invite")
+async def invite_to_event(event_id: str, emails: List[str], current_user: dict = Depends(get_current_user)):
+    """Invite people to a calendar event via email"""
+    event = await db.calendar_events.find_one({"event_id": event_id, "organization_id": current_user.get("organization_id")}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    now = datetime.now(timezone.utc)
+    
+    # Store invitees
+    existing_invitees = event.get("invitees", [])
+    new_invitees = [e for e in emails if e not in existing_invitees]
+    all_invitees = existing_invitees + new_invitees
+    await db.calendar_events.update_one({"event_id": event_id}, {"$set": {"invitees": all_invitees}})
+    
+    # Send invite emails
+    sent = 0
+    if RESEND_API_KEY and new_invitees:
+        start_str = event.get("date", "")
+        end_str = event.get("end_date", "")
+        title = event.get("title", "Meeting")
+        notes = event.get("notes", "")
+        inviter = current_user.get("name", current_user.get("email", ""))
+        
+        # Build iCal
+        try:
+            start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00')) if start_str else now
+            end_dt = datetime.fromisoformat(end_str.replace('Z', '+00:00')) if end_str else start_dt + timedelta(hours=1)
+        except:
+            start_dt = now
+            end_dt = now + timedelta(hours=1)
+        
+        ical = f"""BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:{event_id}@earnrm.com
+DTSTART:{start_dt.strftime('%Y%m%dT%H%M%SZ')}
+DTEND:{end_dt.strftime('%Y%m%dT%H%M%SZ')}
+SUMMARY:{title}
+DESCRIPTION:{notes}
+ORGANIZER:mailto:{current_user.get('email','')}
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR"""
+        
+        for email_addr in new_invitees:
+            try:
+                import asyncio
+                await asyncio.to_thread(resend.Emails.send, {
+                    "from": SENDER_EMAIL,
+                    "to": [email_addr],
+                    "subject": f"Invitation: {title} on {start_dt.strftime('%b %d at %H:%M')}",
+                    "html": f"<div style='font-family:sans-serif;max-width:500px'><h2>{title}</h2><p><strong>When:</strong> {start_dt.strftime('%A, %B %d at %H:%M')} to {end_dt.strftime('%H:%M')}</p><p><strong>Invited by:</strong> {inviter}</p>{f'<p><strong>Notes:</strong> {notes}</p>' if notes else ''}<p style='color:#666;font-size:14px;margin-top:20px'>This invitation was sent from earnrm.</p></div>",
+                    "attachments": [{"filename": "invite.ics", "content": ical}]
+                })
+                sent += 1
+            except Exception as e:
+                logger.error(f"Event invite email error for {email_addr}: {e}")
+    
+    return {"invited": sent, "total_invitees": len(all_invitees)}
+
 # ==================== GOOGLE CALENDAR INTEGRATION ====================
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
