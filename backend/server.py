@@ -2300,14 +2300,14 @@ async def get_calendar_events(start: Optional[str] = None, end: Optional[str] = 
     try:
         custom = await db.calendar_events.find({"organization_id": org_id}, {"_id": 0}).to_list(500)
         for e in custom:
-            events.append({"id": e.get("event_id", ""), "title": e.get("title", ""), "date": e.get("date", ""), "end_date": e.get("end_date"), "type": "event", "color": e.get("color", "#3B0764"), "notes": e.get("notes"), "invitees": e.get("invitees", []), "linked_type": e.get("linked_type"), "linked_id": e.get("linked_id"), "entity_id": None, "entity_type": "event"})
+            events.append({"id": e.get("event_id", ""), "title": e.get("title", ""), "date": e.get("date", ""), "end_date": e.get("end_date"), "type": "event", "color": e.get("color", "#3B0764"), "notes": e.get("notes"), "location": e.get("location"), "blocks_booking": e.get("blocks_booking", True), "invitees": e.get("invitees", []), "linked_type": e.get("linked_type"), "linked_id": e.get("linked_id"), "entity_id": None, "entity_type": "event"})
     except Exception as ex:
         logger.error(f"Calendar custom events error: {ex}")
     
     return events
 
 @api_router.post("/calendar/events")
-async def create_calendar_event(title: str, date: str, end_date: Optional[str] = None, notes: Optional[str] = None, color: str = "#A100FF", linked_type: Optional[str] = None, linked_id: Optional[str] = None, location: Optional[str] = None, invitee_emails: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+async def create_calendar_event(title: str, date: str, end_date: Optional[str] = None, notes: Optional[str] = None, color: str = "#A100FF", linked_type: Optional[str] = None, linked_id: Optional[str] = None, location: Optional[str] = None, invitee_emails: Optional[str] = None, blocks_booking: bool = True, current_user: dict = Depends(get_current_user)):
     """Create a custom calendar event with start and end time"""
     if not current_user.get("organization_id"):
         org_id = await ensure_user_org(current_user)
@@ -2323,6 +2323,7 @@ async def create_calendar_event(title: str, date: str, end_date: Optional[str] =
         "notes": notes,
         "color": color,
         "location": location,
+        "blocks_booking": blocks_booking,
         "invitees": [e.strip() for e in invitee_emails.split(',') if e.strip()] if invitee_emails else [],
         "linked_type": linked_type,
         "linked_id": linked_id,
@@ -2343,7 +2344,7 @@ async def delete_calendar_event(event_id: str, current_user: dict = Depends(get_
 @api_router.put("/calendar/events/{event_id}")
 async def update_calendar_event(event_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
     """Edit a calendar event"""
-    allowed = {"title", "date", "end_date", "notes", "color", "linked_type", "linked_id", "invitees"}
+    allowed = {"title", "date", "end_date", "notes", "color", "linked_type", "linked_id", "invitees", "location", "blocks_booking"}
     filtered = {k: v for k, v in updates.items() if k in allowed}
     filtered["updated_at"] = datetime.now(timezone.utc).isoformat()
     result = await db.calendar_events.update_one(
@@ -7262,6 +7263,22 @@ async def get_available_slots(user_id: str, date: str, duration: int = 30):
     
     bookings = await db.bookings.find({"host_user_id": user_id, "status": {"$ne": "cancelled"}, "start_time": {"$gte": day_start, "$lte": day_end}}, {"_id": 0}).to_list(50)
     booked_times = [(b["start_time"], b["end_time"]) for b in bookings]
+    
+    # Also check calendar events that block bookings
+    user_doc = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    org_id = user_doc.get("organization_id") if user_doc else None
+    if org_id:
+        blocking_events = await db.calendar_events.find({"organization_id": org_id, "created_by": user_id, "blocks_booking": True}, {"_id": 0}).to_list(200)
+        for evt in blocking_events:
+            if evt.get("date") and evt.get("end_date"):
+                booked_times.append((evt["date"], evt["end_date"]))
+            elif evt.get("date"):
+                # No end date: block 1 hour by default
+                try:
+                    evt_start = datetime.fromisoformat(evt["date"].replace('Z', '+00:00'))
+                    booked_times.append((evt["date"], (evt_start + timedelta(hours=1)).isoformat()))
+                except:
+                    pass
     
     slots = []
     current = datetime(target_date.year, target_date.month, target_date.day, start_h, start_m, tzinfo=timezone.utc)

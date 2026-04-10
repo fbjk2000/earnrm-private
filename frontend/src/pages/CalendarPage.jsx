@@ -17,7 +17,7 @@ import { ChevronLeft, ChevronRight, Plus, X, Clock, Users } from 'lucide-react';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const HOURS = Array.from({ length: 15 }, (_, i) => i + 7); // 7am to 9pm
+const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i); // 0-23
 
 const CalendarPage = () => {
   const { token } = useAuth();
@@ -30,7 +30,10 @@ const CalendarPage = () => {
   const [view, setView] = useState('week');
   const [showCreate, setShowCreate] = useState(false);
   const [showTeam, setShowTeam] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: '', date: '', end_date: '', notes: '', location: '', invitees: '', linked_type: '', linked_id: '' });
+  const [hourStart, setHourStart] = useState(7);
+  const [hourEnd, setHourEnd] = useState(22);
+  const HOURS = ALL_HOURS.slice(hourStart, hourEnd);
+  const [newEvent, setNewEvent] = useState({ title: '', date: '', end_date: '', notes: '', location: '', invitees: '', blocks_booking: true, linked_type: '', linked_id: '' });
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [editingEvent, setEditingEvent] = useState(false);
   const [editEventData, setEditEventData] = useState({});
@@ -78,11 +81,12 @@ const CalendarPage = () => {
       if (newEvent.notes) params.set('notes', newEvent.notes);
       if (newEvent.location) params.set('location', newEvent.location);
       if (newEvent.invitees) params.set('invitee_emails', newEvent.invitees);
+      params.set('blocks_booking', newEvent.blocks_booking !== false);
       if (newEvent.linked_type && newEvent.linked_type !== 'none' && newEvent.linked_id && newEvent.linked_id !== 'none') { params.set('linked_type', newEvent.linked_type); params.set('linked_id', newEvent.linked_id); }
       await axios.post(`${API}/calendar/events?${params}`, {}, getCfg());
       toast.success('Event created');
       setShowCreate(false);
-      setNewEvent({ title: '', date: '', end_date: '', notes: '', location: '', invitees: '', linked_type: '', linked_id: '' });
+      setNewEvent({ title: '', date: '', end_date: '', notes: '', location: '', invitees: '', blocks_booking: true, linked_type: '', linked_id: '' });
       reloadEvents();
     } catch (err) { console.error(err); toast.error('Failed to create event'); }
   };
@@ -139,10 +143,12 @@ const CalendarPage = () => {
       let durationMin = 60;
       if (evt.end_date) {
         const ed = new Date(evt.end_date);
-        durationMin = Math.max(15, (ed - d) / 60000);
+        durationMin = Math.max(15, (ed.getTime() - d.getTime()) / 60000);
+        // Cap multi-day events to end of visible day
+        if (durationMin > 960) durationMin = (hourEnd * 60) - startMin;
       }
-      const top = ((startMin - 420) / 60) * 64; // 420 = 7am in minutes, 64px per hour
-      const height = Math.max(16, (durationMin / 60) * 64);
+      const top = ((startMin - hourStart * 60) / 60) * 64;
+      const height = Math.max(20, (durationMin / 60) * 64);
       return { top: Math.max(0, top), height, startMin, durationMin };
     } catch { return { top: 0, height: 32, startMin: 0, durationMin: 60 }; }
   };
@@ -166,6 +172,13 @@ const CalendarPage = () => {
               <span className="text-xs text-slate-500">Team</span>
               <Switch checked={showTeam} onCheckedChange={setShowTeam} data-testid="show-team-toggle" />
             </div>
+            <select value={hourStart} onChange={e => setHourStart(parseInt(e.target.value))} className="text-xs border border-slate-200 rounded px-1.5 py-1">
+              {Array.from({length:12}, (_,i) => <option key={i} value={i}>{String(i).padStart(2,'0')}:00</option>)}
+            </select>
+            <span className="text-xs text-slate-400 self-center">to</span>
+            <select value={hourEnd} onChange={e => setHourEnd(parseInt(e.target.value))} className="text-xs border border-slate-200 rounded px-1.5 py-1">
+              {Array.from({length:12}, (_,i) => <option key={i+12} value={i+12}>{String(i+12).padStart(2,'0')}:00</option>)}
+            </select>
             <div className="flex border border-slate-200 rounded-lg overflow-hidden">
               <button onClick={() => setView('month')} className={`px-3 py-1.5 text-sm ${view === 'month' ? 'bg-[#3B0764] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>{ t('calendar.month') }</button>
               <button onClick={() => setView('week')} className={`px-3 py-1.5 text-sm ${view === 'week' ? 'bg-[#3B0764] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>{ t('calendar.week') }</button>
@@ -242,40 +255,40 @@ const CalendarPage = () => {
                   </div>
                 ))}
               </div>
-              {/* Time grid */}
-              <div className="grid grid-cols-[60px_repeat(7,1fr)] overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
-                {/* Hour labels + grid rows */}
-                {HOURS.map(hour => (
-                  <React.Fragment key={hour}>
-                    <div className="h-16 border-r border-b flex items-start justify-end pr-2 pt-0.5">
-                      <span className="text-[10px] text-slate-400">{String(hour).padStart(2, '0')}:00</span>
-                    </div>
-                    {weekDays.map((d, di) => {
-                      const dayEvents = getEventsForDay(d);
-                      const hourEvents = dayEvents.filter(evt => {
-                        try { const h = new Date(evt.date).getHours(); return h === hour; } catch { return false; }
-                      });
+              {/* Time grid with overlay events */}
+              <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+                <div className="grid grid-cols-[60px_repeat(7,1fr)]" style={{ position: 'relative' }}>
+                  {/* Grid lines */}
+                  {HOURS.map(hour => (
+                    <React.Fragment key={hour}>
+                      <div className="h-16 border-r border-b flex items-start justify-end pr-2 pt-0.5">
+                        <span className="text-[10px] text-slate-400">{String(hour).padStart(2, '0')}:00</span>
+                      </div>
+                      {weekDays.map((d, di) => (
+                        <div key={`${hour}-${di}`} className={`h-16 border-r border-b last:border-r-0 ${isToday(d) ? 'bg-[#3B0764]/[0.02]' : ''}`}
+                          onClick={() => { const dt = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(hour).padStart(2,'0')}:00`; const et = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(hour+1).padStart(2,'0')}:00`; setNewEvent({...newEvent, date: dt, end_date: et}); setShowCreate(true); }} />
+                      ))}
+                    </React.Fragment>
+                  ))}
+                  {/* Event overlays per day column */}
+                  {weekDays.map((d, di) => {
+                    const dayEvents = getEventsForDay(d);
+                    return dayEvents.map(evt => {
+                      const pos = getEventPosition(evt);
+                      const colStart = di + 2; // grid column (1-indexed, +1 for time label col)
                       return (
-                        <div key={`${hour}-${di}`} className={`h-16 border-r border-b last:border-r-0 relative ${isToday(d) ? 'bg-[#3B0764]/[0.02]' : ''}`}
-                          onClick={() => { const dt = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(hour).padStart(2,'0')}:00`; const et = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(hour+1).padStart(2,'0')}:00`; setNewEvent({...newEvent, date: dt, end_date: et}); setShowCreate(true); }}>
-                          {hourEvents.map(evt => {
-                            const pos = getEventPosition(evt);
-                            const offsetTop = (pos.startMin - hour * 60) * (64 / 60);
-                            const blockH = Math.min(pos.height, 64 - offsetTop);
-                            return (
-                              <div key={evt.id} className="absolute left-0.5 right-0.5 rounded px-1 py-0.5 cursor-pointer overflow-hidden hover:opacity-90 transition-opacity"
-                                style={{ top: `${Math.max(0, offsetTop)}px`, height: `${Math.max(14, blockH)}px`, backgroundColor: (typeColors[evt.type] || '#64748b') + '20', borderLeft: `3px solid ${typeColors[evt.type] || '#64748b'}` }}
-                                onClick={(e) => { e.stopPropagation(); evt.type === 'event' || evt.type === 'team' ? openEventDetail(evt) : navigate(evt.entity_type === 'lead' ? `/leads?detail=${evt.entity_id}` : '/tasks'); }}>
-                                <p className="text-[10px] font-medium truncate" style={{ color: typeColors[evt.type] || '#64748b' }}>{evt.title}</p>
-                                {blockH > 20 && <p className="text-[9px] text-slate-500">{formatTime(evt.date)}{evt.end_date ? ` \u2013 ${formatTime(evt.end_date)}` : ''}</p>}
-                              </div>
-                            );
-                          })}
+                        <div key={`${evt.id}-${di}`} className="rounded px-1.5 py-0.5 cursor-pointer overflow-hidden hover:opacity-90 transition-opacity z-10"
+                          style={{ position: 'absolute', top: `${pos.top}px`, height: `${pos.height}px`, left: `calc(60px + ${(di / 7) * 100}% * 7 / 7)`, width: `calc((100% - 60px) / 7 - 4px)`, marginLeft: `calc(${di} * (100% - 60px) / 7 + 2px)`, backgroundColor: (typeColors[evt.type] || '#3B0764') + '20', borderLeft: `3px solid ${typeColors[evt.type] || '#3B0764'}` }}
+                          onClick={(e) => { e.stopPropagation(); evt.type === 'event' || evt.type === 'team' ? openEventDetail(evt) : navigate(evt.entity_type === 'lead' ? `/leads?detail=${evt.entity_id}` : '/tasks'); }}>
+                          <p className="text-[10px] font-medium truncate" style={{ color: typeColors[evt.type] || '#3B0764' }}>{evt.title}</p>
+                          <p className="text-[9px] text-slate-500">{formatTime(evt.date)}{evt.end_date ? ` \u2013 ${formatTime(evt.end_date)}` : ''}</p>
+                          {pos.height > 50 && evt.location && <p className="text-[9px] text-slate-400 truncate">{evt.location}</p>}
+                          {pos.height > 40 && evt.blocks_booking === false && <span className="text-[8px] bg-slate-200 text-slate-500 px-1 rounded">non-blocking</span>}
                         </div>
                       );
-                    })}
-                  </React.Fragment>
-                ))}
+                    });
+                  })}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -295,6 +308,10 @@ const CalendarPage = () => {
             <div><Label>Location</Label><Input value={newEvent.location} onChange={e => setNewEvent({ ...newEvent, location: e.target.value })} placeholder="Office, Zoom link, address..." /></div>
             <div><Label>Notes</Label><Input value={newEvent.notes} onChange={e => setNewEvent({ ...newEvent, notes: e.target.value })} placeholder="Optional details" /></div>
             <div><Label>Invite (emails, comma separated)</Label><Input value={newEvent.invitees} onChange={e => setNewEvent({ ...newEvent, invitees: e.target.value })} placeholder="anna@company.com, bob@team.com" /></div>
+            <div className="flex items-center justify-between py-1">
+              <div><p className="text-sm font-medium text-slate-700">Blocks bookings</p><p className="text-[10px] text-slate-400">When on, this event prevents booking slots during this time</p></div>
+              <Switch checked={newEvent.blocks_booking !== false} onCheckedChange={v => setNewEvent({...newEvent, blocks_booking: v})} />
+            </div>
             <div><Label>Link to</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Select value={newEvent.linked_type || 'none'} onValueChange={v => setNewEvent({ ...newEvent, linked_type: v === 'none' ? '' : v, linked_id: '' })}>

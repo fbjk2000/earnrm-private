@@ -447,7 +447,7 @@ POST /api/ai/draft-email?lead_id=xxx&purpose=introduction&tone=professional
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/calendar/events` | All events (calls, tasks, deals, custom, Google) |
-| POST | `/api/calendar/events` | Create event. Params: `title`, `date`, `end_date`, `notes`, `color`, `linked_type`, `linked_id` |
+| POST | `/api/calendar/events` | Create event. Params: `title`, `date`, `end_date`, `notes`, `color`, `linked_type`, `linked_id`, `location`, `invitee_emails`, `blocks_booking` |
 | PUT | `/api/calendar/events/{event_id}` | Edit event (title, date, end_date, notes, color, linked_type, linked_id) |
 | DELETE | `/api/calendar/events/{event_id}` | Delete event |
 | POST | `/api/calendar/events/{event_id}/invite` | Invite people. Body: `["email@example.com"]` |
@@ -464,6 +464,9 @@ POST /api/ai/draft-email?lead_id=xxx&purpose=introduction&tone=professional
 - **Invite**: Enter email addresses. Invitees receive an email with an `.ics` calendar file attachment
 - **Invitees shown** as badges on the event detail
 - **Color coding**: Purple (events), violet (calls), amber (tasks), indigo (deals), blue (Google), grey (team)
+- **Blocking vs non-blocking**: Toggle `blocks_booking` per event. Blocking events prevent booking slots during that time. Non-blocking events (e.g. "Working from home") show a "non-blocking" label
+- **Configurable hour range**: Dropdown selectors to change the visible time window (e.g. 00:00 to 23:00 for overnight events)
+- **Booking engine integration**: The booking availability endpoint checks all blocking events when calculating open slots
 
 #### Invite response
 ```json
