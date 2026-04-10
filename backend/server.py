@@ -2262,42 +2262,6 @@ async def delete_project(project_id: str, current_user: dict = Depends(get_curre
 # ==================== CALENDAR ROUTES ====================
 
 @api_router.get("/calendar/events")
-
-@api_router.get("/calendar/team-events")
-async def get_team_calendar_events(current_user: dict = Depends(get_current_user)):
-    """Get calendar events for all team members in the org (for overlay view)"""
-    if not current_user.get("organization_id"):
-        org_id = await ensure_user_org(current_user)
-        current_user["organization_id"] = org_id
-    org_id = current_user["organization_id"]
-    
-    members = await db.users.find({"organization_id": org_id}, {"_id": 0, "password_hash": 0}).to_list(100)
-    
-    team_events = []
-    for member in members:
-        if member["user_id"] == current_user["user_id"]:
-            continue
-        uid = member["user_id"]
-        name = member.get("name", member.get("email", ""))
-        
-        # Get their scheduled calls
-        calls = await db.scheduled_calls.find({"organization_id": org_id, "created_by": uid, "status": "scheduled"}, {"_id": 0}).to_list(100)
-        for c in calls:
-            team_events.append({"id": c["schedule_id"], "title": f"{name}: Call with {c.get('lead_name','')}", "date": c["scheduled_at"], "end_date": None, "type": "team", "color": "#94a3b8", "member_name": name, "member_id": uid})
-        
-        # Get their calendar events
-        events = await db.calendar_events.find({"organization_id": org_id, "created_by": uid}, {"_id": 0}).to_list(100)
-        for e in events:
-            team_events.append({"id": e["event_id"], "title": f"{name}: {e['title']}", "date": e["date"], "end_date": e.get("end_date"), "type": "team", "color": "#94a3b8", "member_name": name, "member_id": uid})
-        
-        # Get their bookings
-        bookings = await db.bookings.find({"host_user_id": uid, "status": "confirmed"}, {"_id": 0}).to_list(100)
-        for b in bookings:
-            team_events.append({"id": b["booking_id"], "title": f"{name}: Meeting with {b.get('guest_name','')}", "date": b["start_time"], "end_date": b.get("end_time"), "type": "team", "color": "#94a3b8", "member_name": name, "member_id": uid})
-    
-    return team_events
-
-
 async def get_calendar_events(start: Optional[str] = None, end: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     """Get all calendar events from tasks, calls, deals for date range"""
     if not current_user.get("organization_id"):
@@ -2305,70 +2269,45 @@ async def get_calendar_events(start: Optional[str] = None, end: Optional[str] = 
         current_user["organization_id"] = org_id
     
     org_id = current_user["organization_id"]
+    logger.info(f"Calendar events for org: {org_id}")
     events = []
     
     # Scheduled calls
-    calls = await db.scheduled_calls.find({"organization_id": org_id, "status": "scheduled"}, {"_id": 0}).to_list(500)
-    for c in calls:
-        events.append({
-            "id": c["schedule_id"],
-            "title": f"Call: {c.get('lead_name', 'Unknown')}",
-            "date": c["scheduled_at"],
-            "type": "call",
-            "color": "#A100FF",
-            "entity_id": c.get("lead_id"),
-            "entity_type": "lead",
-            "notes": c.get("notes")
-        })
+    try:
+        calls = await db.scheduled_calls.find({"organization_id": org_id, "status": "scheduled"}, {"_id": 0}).to_list(500)
+        for c in calls:
+            events.append({"id": c.get("schedule_id", ""), "title": f"Call: {c.get('lead_name', 'Unknown')}", "date": c.get("scheduled_at", ""), "end_date": None, "type": "call", "color": "#7C3AED", "entity_id": c.get("lead_id"), "entity_type": "lead", "notes": c.get("notes")})
+    except Exception as e:
+        logger.error(f"Calendar calls error: {e}")
     
     # Tasks with due dates
-    tasks = await db.tasks.find({"organization_id": org_id, "due_date": {"$ne": None}}, {"_id": 0}).to_list(500)
-    for t in tasks:
-        events.append({
-            "id": t["task_id"],
-            "title": f"Task: {t['title']}",
-            "date": t["due_date"],
-            "type": "task",
-            "color": t.get("status") == "done" and "#10b981" or "#f59e0b",
-            "entity_id": t.get("project_id") or t.get("related_deal_id"),
-            "entity_type": "project" if t.get("project_id") else "deal" if t.get("related_deal_id") else "task",
-            "status": t.get("status"),
-            "priority": t.get("priority")
-        })
+    try:
+        tasks = await db.tasks.find({"organization_id": org_id, "due_date": {"$ne": None}}, {"_id": 0}).to_list(500)
+        for t in tasks:
+            events.append({"id": t.get("task_id", ""), "title": f"Task: {t.get('title', '')}", "date": t.get("due_date", ""), "end_date": None, "type": "task", "color": "#f59e0b" if t.get("status") != "done" else "#10b981", "entity_id": t.get("project_id") or t.get("related_deal_id"), "entity_type": "task", "status": t.get("status"), "priority": t.get("priority")})
+    except Exception as e:
+        logger.error(f"Calendar tasks error: {e}")
     
     # Deal close dates
-    deals = await db.deals.find({"organization_id": org_id, "expected_close_date": {"$ne": None}, "stage": {"$nin": ["lost", "won"]}}, {"_id": 0}).to_list(500)
-    for d in deals:
-        events.append({
-            "id": d["deal_id"],
-            "title": f"Close: {d['name']}",
-            "date": d["expected_close_date"],
-            "type": "deal",
-            "color": "#6366f1",
-            "value": d.get("value"),
-            "stage": d.get("stage"),
-            "entity_id": d["deal_id"],
-            "entity_type": "deal"
-        })
+    try:
+        deals = await db.deals.find({"organization_id": org_id, "expected_close_date": {"$ne": None}, "stage": {"$nin": ["lost", "won"]}}, {"_id": 0}).to_list(500)
+        for d in deals:
+            events.append({"id": d.get("deal_id", ""), "title": f"Close: {d.get('name', '')}", "date": str(d.get("expected_close_date", "")), "end_date": None, "type": "deal", "color": "#6366f1", "value": d.get("value"), "stage": d.get("stage"), "entity_id": d.get("deal_id"), "entity_type": "deal"})
+    except Exception as e:
+        logger.error(f"Calendar deals error: {e}")
     
     # Custom calendar events
-    custom = await db.calendar_events.find({"organization_id": org_id}, {"_id": 0}).to_list(500)
-    for e in custom:
-        events.append({
-            "id": e["event_id"],
-            "title": e["title"],
-            "date": e["date"],
-            "type": "event",
-            "color": e.get("color", "#64748b"),
-            "notes": e.get("notes"),
-            "entity_id": None,
-            "entity_type": "event"
-        })
+    try:
+        custom = await db.calendar_events.find({"organization_id": org_id}, {"_id": 0}).to_list(500)
+        for e in custom:
+            events.append({"id": e.get("event_id", ""), "title": e.get("title", ""), "date": e.get("date", ""), "end_date": e.get("end_date"), "type": "event", "color": e.get("color", "#3B0764"), "notes": e.get("notes"), "invitees": e.get("invitees", []), "linked_type": e.get("linked_type"), "linked_id": e.get("linked_id"), "entity_id": None, "entity_type": "event"})
+    except Exception as ex:
+        logger.error(f"Calendar custom events error: {ex}")
     
     return events
 
 @api_router.post("/calendar/events")
-async def create_calendar_event(title: str, date: str, end_date: Optional[str] = None, notes: Optional[str] = None, color: str = "#A100FF", linked_type: Optional[str] = None, linked_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+async def create_calendar_event(title: str, date: str, end_date: Optional[str] = None, notes: Optional[str] = None, color: str = "#A100FF", linked_type: Optional[str] = None, linked_id: Optional[str] = None, location: Optional[str] = None, invitee_emails: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     """Create a custom calendar event with start and end time"""
     if not current_user.get("organization_id"):
         org_id = await ensure_user_org(current_user)
@@ -2383,6 +2322,8 @@ async def create_calendar_event(title: str, date: str, end_date: Optional[str] =
         "end_date": end_date,
         "notes": notes,
         "color": color,
+        "location": location,
+        "invitees": [e.strip() for e in invitee_emails.split(',') if e.strip()] if invitee_emails else [],
         "linked_type": linked_type,
         "linked_id": linked_id,
         "created_by": current_user["user_id"],
@@ -2474,6 +2415,33 @@ END:VCALENDAR"""
                 logger.error(f"Event invite email error for {email_addr}: {e}")
     
     return {"invited": sent, "total_invitees": len(all_invitees)}
+
+
+@api_router.get("/calendar/team-events")
+async def get_team_calendar_events(current_user: dict = Depends(get_current_user)):
+    """Get calendar events for all team members in the org (for overlay view)"""
+    if not current_user.get("organization_id"):
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
+    org_id = current_user["organization_id"]
+    members = await db.users.find({"organization_id": org_id}, {"_id": 0, "password_hash": 0}).to_list(100)
+    team_events = []
+    for member in members:
+        if member["user_id"] == current_user["user_id"]:
+            continue
+        uid = member["user_id"]
+        name = member.get("name", member.get("email", ""))
+        calls = await db.scheduled_calls.find({"organization_id": org_id, "created_by": uid, "status": "scheduled"}, {"_id": 0}).to_list(100)
+        for c in calls:
+            team_events.append({"id": c["schedule_id"], "title": f"{name}: Call with {c.get('lead_name','')}", "date": c["scheduled_at"], "end_date": None, "type": "team", "color": "#94a3b8", "member_name": name, "member_id": uid})
+        events = await db.calendar_events.find({"organization_id": org_id, "created_by": uid}, {"_id": 0}).to_list(100)
+        for e in events:
+            team_events.append({"id": e["event_id"], "title": f"{name}: {e['title']}", "date": e["date"], "end_date": e.get("end_date"), "type": "team", "color": "#94a3b8", "member_name": name, "member_id": uid})
+        bookings = await db.bookings.find({"host_user_id": uid, "status": "confirmed"}, {"_id": 0}).to_list(100)
+        for b in bookings:
+            team_events.append({"id": b["booking_id"], "title": f"{name}: Meeting with {b.get('guest_name','')}", "date": b["start_time"], "end_date": b.get("end_time"), "type": "team", "color": "#94a3b8", "member_name": name, "member_id": uid})
+    return team_events
+
 
 # ==================== GOOGLE CALENDAR INTEGRATION ====================
 

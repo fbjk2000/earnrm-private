@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { Upload, Search, Trash2, Download, Zap, CheckSquare, X } from 'lucide-react';
@@ -24,6 +25,7 @@ const FilesPage = () => {
   const [description, setDescription] = useState('');
   const [entities, setEntities] = useState({ leads: [], contacts: [], companies: [], deals: [], projects: [], campaigns: [] });
   const fileRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const getCfg = () => ({ headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
 
@@ -176,7 +178,7 @@ const FilesPage = () => {
                 </tr></thead>
                 <tbody>
                   {filtered.map(f => (
-                    <tr key={f.file_id} className="border-b border-slate-50 hover:bg-slate-50">
+                    <tr key={f.file_id} className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedFile(f)}>
                       <td className="py-3 px-4">
                         <p className="font-medium truncate max-w-[200px]">{f.original_name}</p>
                         {f.description && <p className="text-xs text-slate-400">{f.description}</p>}
@@ -204,6 +206,52 @@ const FilesPage = () => {
           </CardContent>
         </Card>
       </div>
+      {/* File Detail Dialog */}
+      <Dialog open={!!selectedFile} onOpenChange={() => setSelectedFile(null)}>
+        <DialogContent className="max-w-lg">
+          {selectedFile && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="truncate">{selectedFile.original_name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 pt-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Size</p><p className="text-sm font-medium">{formatSize(selectedFile.size)}</p></div>
+                  <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Type</p><p className="text-sm font-medium">{selectedFile.content_type || 'Unknown'}</p></div>
+                  <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Uploaded by</p><p className="text-sm font-medium">{selectedFile.uploaded_by_name}</p></div>
+                  <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Date</p><p className="text-sm font-medium">{new Date(selectedFile.created_at).toLocaleString()}</p></div>
+                </div>
+                {selectedFile.linked_type && <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Linked to</p><Badge variant="secondary">{selectedFile.linked_type}: {selectedFile.linked_id}</Badge></div>}
+                {selectedFile.description && <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500 mb-1">Description</p><p className="text-sm text-slate-700">{selectedFile.description}</p></div>}
+                {selectedFile.ai_summary && (
+                  <div className="bg-purple-50 rounded-lg p-4 border border-purple-100 space-y-2">
+                    <p className="text-sm font-medium text-purple-900 flex items-center gap-1"><Zap className="w-4 h-4" /> AI Summary</p>
+                    <p className="text-sm text-slate-700">{selectedFile.ai_summary.summary}</p>
+                    {selectedFile.ai_summary.follow_ups?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-purple-700 mb-1">Suggested follow-ups</p>
+                        {selectedFile.ai_summary.follow_ups.map((fu, i) => (
+                          <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-purple-100 last:border-0">
+                            <span className="text-slate-700">{fu.title}</span>
+                            <span className={`px-1.5 py-0.5 rounded ${fu.priority === 'high' ? 'bg-red-100 text-red-700' : fu.priority === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{fu.priority}</span>
+                          </div>
+                        ))}
+                        <Button size="sm" className="mt-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white" onClick={() => { handleCreateTasks(selectedFile.file_id); setSelectedFile(null); }}>
+                          <CheckSquare className="w-3.5 h-3.5 mr-1" /> Create these tasks
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <a href={`${API}/files/${selectedFile.file_id}/download`} target="_blank" rel="noopener noreferrer"><Button variant="outline" size="sm"><Download className="w-3.5 h-3.5 mr-1" /> Download</Button></a>
+                  <Button variant="outline" size="sm" className="text-red-500" onClick={() => { handleDelete(selectedFile.file_id); setSelectedFile(null); }}><Trash2 className="w-3.5 h-3.5 mr-1" /> Delete</Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

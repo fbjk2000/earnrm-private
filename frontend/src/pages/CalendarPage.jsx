@@ -30,7 +30,7 @@ const CalendarPage = () => {
   const [view, setView] = useState('week');
   const [showCreate, setShowCreate] = useState(false);
   const [showTeam, setShowTeam] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: '', date: '', end_date: '', notes: '', linked_type: '', linked_id: '' });
+  const [newEvent, setNewEvent] = useState({ title: '', date: '', end_date: '', notes: '', location: '', invitees: '', linked_type: '', linked_id: '' });
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [editingEvent, setEditingEvent] = useState(false);
   const [editEventData, setEditEventData] = useState({});
@@ -76,11 +76,13 @@ const CalendarPage = () => {
       const params = new URLSearchParams({ title: newEvent.title, date: new Date(newEvent.date).toISOString() });
       if (newEvent.end_date) params.set('end_date', new Date(newEvent.end_date).toISOString());
       if (newEvent.notes) params.set('notes', newEvent.notes);
+      if (newEvent.location) params.set('location', newEvent.location);
+      if (newEvent.invitees) params.set('invitee_emails', newEvent.invitees);
       if (newEvent.linked_type && newEvent.linked_type !== 'none' && newEvent.linked_id && newEvent.linked_id !== 'none') { params.set('linked_type', newEvent.linked_type); params.set('linked_id', newEvent.linked_id); }
       await axios.post(`${API}/calendar/events?${params}`, {}, getCfg());
       toast.success('Event created');
       setShowCreate(false);
-      setNewEvent({ title: '', date: '', end_date: '', notes: '', linked_type: '', linked_id: '' });
+      setNewEvent({ title: '', date: '', end_date: '', notes: '', location: '', invitees: '', linked_type: '', linked_id: '' });
       reloadEvents();
     } catch (err) { console.error(err); toast.error('Failed to create event'); }
   };
@@ -290,7 +292,9 @@ const CalendarPage = () => {
               <div><Label>Start *</Label><Input type="datetime-local" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} data-testid="event-date" /></div>
               <div><Label>End</Label><Input type="datetime-local" value={newEvent.end_date} onChange={e => setNewEvent({ ...newEvent, end_date: e.target.value })} data-testid="event-end-date" /></div>
             </div>
+            <div><Label>Location</Label><Input value={newEvent.location} onChange={e => setNewEvent({ ...newEvent, location: e.target.value })} placeholder="Office, Zoom link, address..." /></div>
             <div><Label>Notes</Label><Input value={newEvent.notes} onChange={e => setNewEvent({ ...newEvent, notes: e.target.value })} placeholder="Optional details" /></div>
+            <div><Label>Invite (emails, comma separated)</Label><Input value={newEvent.invitees} onChange={e => setNewEvent({ ...newEvent, invitees: e.target.value })} placeholder="anna@company.com, bob@team.com" /></div>
             <div><Label>Link to</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Select value={newEvent.linked_type || 'none'} onValueChange={v => setNewEvent({ ...newEvent, linked_type: v === 'none' ? '' : v, linked_id: '' })}>
