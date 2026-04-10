@@ -1202,6 +1202,41 @@ Tasks in the project detail dialog are fully interactive: click to open the same
 
 ---
 
+## File Storage
+
+Upload files and link them to any entity. AI auto-analyzes the content and suggests follow-up actions.
+
+### Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/files/upload` | Upload file. Params: `linked_type`, `linked_id`, `description`. Multipart form: `file` |
+| GET | `/api/files` | List files. Params: `linked_type`, `linked_id` |
+| GET | `/api/files/{file_id}/download` | Download a file |
+| DELETE | `/api/files/{file_id}` | Delete a file |
+| POST | `/api/files/{file_id}/create-tasks` | Create follow-up tasks from AI analysis |
+
+### Linkable entity types
+`lead`, `contact`, `company`, `deal`, `project`, `campaign`, `task`
+
+### AI analysis
+On upload, the system automatically:
+- **Text/PDF/CSV files**: Summarizes content in 2-3 sentences, suggests follow-up actions
+- **Images**: Describes the image, suggests follow-ups
+- Returns `ai_summary` with `summary` and `follow_ups` array
+- Follow-ups can be converted to tasks via `POST /files/{id}/create-tasks`
+
+### File size
+Default maximum: 10MB per file. Configurable per organization via `max_file_size` in org integration settings.
+
+### Example
+```bash
+curl -X POST -H "Authorization: Bearer TOKEN" \
+  -F "file=@proposal.pdf" \
+  "https://earnrm.com/api/files/upload?linked_type=deal&linked_id=deal_xxx&description=Q2+proposal"
+```
+
+---
+
 ## Lead Capture Tool
 
 Mobile-friendly business card scanner for conferences and events. Snap a photo, AI extracts the contact info, creates a lead, enriches it, and triggers a follow-up.

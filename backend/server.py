@@ -1,6 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -5357,6 +5357,7 @@ class ChatMessage(BaseModel):
     updated_at: datetime
 
 class ChatMessageCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     channel_id: str = "general"
     content: str
     mentions: List[str] = []
@@ -6817,6 +6818,168 @@ async def api_docs():
             "webhook": "Register a webhook at POST /api/webhooks, use n8n Webhook Trigger node URL"
         }
     }
+
+
+
+# ==================== FILE STORAGE ====================
+
+UPLOAD_DIR = "/app/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Default max file size: 10MB, configurable per org
+DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024
+
+@api_router.post("/files/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    linked_type: Optional[str] = None,
+    linked_id: Optional[str] = None,
+    description: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload a file and optionally link it to a task, project, company, lead, deal, or campaign"""
+    if not current_user.get("organization_id"):
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
+    
+    org_id = current_user["organization_id"]
+    
+    # Check file size limit (admin-configurable)
+    org_settings = await db.org_integrations.find_one({"organization_id": org_id}, {"_id": 0})
+    max_size = (org_settings or {}).get("max_file_size", DEFAULT_MAX_FILE_SIZE)
+    
+    contents = await file.read()
+    if len(contents) > max_size:
+        raise HTTPException(status_code=400, detail=f"File too large. Maximum: {max_size // (1024*1024)}MB")
+    
+    file_id = f"file_{uuid.uuid4().hex[:12]}"
+    ext = os.path.splitext(file.filename or '')[1] or ''
+    safe_name = f"{file_id}{ext}"
+    file_path = os.path.join(UPLOAD_DIR, safe_name)
+    
+    with open(file_path, 'wb') as f:
+        f.write(contents)
+    
+    now = datetime.now(timezone.utc)
+    
+    file_doc = {
+        "file_id": file_id,
+        "organization_id": org_id,
+        "original_name": file.filename,
+        "stored_name": safe_name,
+        "content_type": file.content_type,
+        "size": len(contents),
+        "linked_type": linked_type,
+        "linked_id": linked_id,
+        "description": description,
+        "ai_summary": None,
+        "uploaded_by": current_user["user_id"],
+        "uploaded_by_name": current_user.get("name", ""),
+        "created_at": now.isoformat()
+    }
+    await db.files.insert_one(file_doc)
+    
+    # AI analysis in background
+    ai_summary = None
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        
+        analyzable = file.content_type and (file.content_type.startswith('text/') or file.content_type in ['application/pdf', 'application/json', 'text/csv'])
+        if analyzable and len(contents) < 500000:
+            text_content = contents.decode('utf-8', errors='ignore')[:5000]
+            chat = LlmChat(api_key=api_key, session_id=f"file_{file_id}", system_message="Summarize this document in 2-3 sentences. Then suggest 1-2 follow-up actions. Return JSON: {summary, follow_ups: [{title, type: 'internal'|'external', priority: 'high'|'medium'|'low'}]}. Return ONLY valid JSON.").with_model("openai", "gpt-5.2")
+            resp = await chat.send_message(UserMessage(text=f"File: {file.filename}\n\nContent:\n{text_content}"))
+            try:
+                ai_summary = json.loads(resp.strip().strip('```json').strip('```'))
+            except:
+                ai_summary = {"summary": resp[:300], "follow_ups": []}
+        elif file.content_type and file.content_type.startswith('image/'):
+            from emergentintegrations.llm.chat import ImageContent
+            import base64
+            img_b64 = base64.b64encode(contents).decode('utf-8')
+            chat = LlmChat(api_key=api_key, session_id=f"file_{file_id}", system_message="Describe this image in 2-3 sentences. Suggest 1-2 follow-up actions. Return JSON: {summary, follow_ups: [{title, type: 'internal'|'external', priority: 'high'|'medium'|'low'}]}. Return ONLY valid JSON.").with_model("openai", "gpt-5.2")
+            img = ImageContent(image_base64=img_b64)
+            resp = await chat.send_message(UserMessage(text=f"Analyze this file: {file.filename}", file_contents=[img]))
+            try:
+                ai_summary = json.loads(resp.strip().strip('```json').strip('```'))
+            except:
+                ai_summary = {"summary": resp[:300], "follow_ups": []}
+        
+        if ai_summary:
+            await db.files.update_one({"file_id": file_id}, {"$set": {"ai_summary": ai_summary}})
+    except Exception as e:
+        logger.error(f"File AI analysis error: {e}")
+    
+    file_doc.pop('_id', None)
+    file_doc["ai_summary"] = ai_summary
+    return file_doc
+
+@api_router.get("/files")
+async def list_files(linked_type: Optional[str] = None, linked_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """List files, optionally filtered by linked entity"""
+    if not current_user.get("organization_id"):
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
+    query = {"organization_id": current_user["organization_id"]}
+    if linked_type:
+        query["linked_type"] = linked_type
+    if linked_id:
+        query["linked_id"] = linked_id
+    files = await db.files.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return files
+
+@api_router.get("/files/{file_id}/download")
+async def download_file(file_id: str, current_user: dict = Depends(get_current_user)):
+    """Download a file"""
+    file_doc = await db.files.find_one({"file_id": file_id, "organization_id": current_user.get("organization_id")}, {"_id": 0})
+    if not file_doc:
+        raise HTTPException(status_code=404, detail="File not found")
+    file_path = os.path.join(UPLOAD_DIR, file_doc["stored_name"])
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    return FileResponse(file_path, filename=file_doc["original_name"], media_type=file_doc.get("content_type", "application/octet-stream"))
+
+@api_router.delete("/files/{file_id}")
+async def delete_file(file_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a file"""
+    file_doc = await db.files.find_one({"file_id": file_id, "organization_id": current_user.get("organization_id")}, {"_id": 0})
+    if not file_doc:
+        raise HTTPException(status_code=404, detail="File not found")
+    file_path = os.path.join(UPLOAD_DIR, file_doc["stored_name"])
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    await db.files.delete_one({"file_id": file_id})
+    return {"message": "File deleted"}
+
+@api_router.post("/files/{file_id}/create-tasks")
+async def create_tasks_from_file(file_id: str, current_user: dict = Depends(get_current_user)):
+    """Create follow-up tasks from AI file analysis"""
+    file_doc = await db.files.find_one({"file_id": file_id, "organization_id": current_user.get("organization_id")}, {"_id": 0})
+    if not file_doc or not file_doc.get("ai_summary"):
+        raise HTTPException(status_code=400, detail="No AI analysis available")
+    
+    now = datetime.now(timezone.utc)
+    tasks_created = []
+    for fu in file_doc["ai_summary"].get("follow_ups", []):
+        task_id = f"task_{uuid.uuid4().hex[:12]}"
+        task_doc = {
+            "task_id": task_id,
+            "organization_id": current_user["organization_id"],
+            "title": fu.get("title", "Follow up from file"),
+            "description": f"Generated from file: {file_doc['original_name']}. {file_doc['ai_summary'].get('summary', '')}",
+            "status": "todo",
+            "priority": fu.get("priority", "medium"),
+            "assigned_to": current_user["user_id"],
+            "subtasks": [], "comments": [],
+            "activity": [{"action": "created", "by": current_user["user_id"], "by_name": current_user.get("name", ""), "at": now.isoformat()}],
+            "created_by": current_user["user_id"],
+            "created_at": now.isoformat(), "updated_at": now.isoformat()
+        }
+        await db.tasks.insert_one(task_doc)
+        tasks_created.append(task_id)
+    
+    return {"tasks_created": len(tasks_created), "task_ids": tasks_created}
 
 
 # ==================== LEAD CAPTURE TOOL ====================
