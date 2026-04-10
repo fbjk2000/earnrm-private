@@ -451,13 +451,19 @@ POST /api/ai/draft-email?lead_id=xxx&purpose=introduction&tone=professional
 | PUT | `/api/calendar/events/{event_id}` | Edit event (title, date, end_date, notes, color, linked_type, linked_id) |
 | DELETE | `/api/calendar/events/{event_id}` | Delete event |
 | POST | `/api/calendar/events/{event_id}/invite` | Invite people. Body: `["email@example.com"]` |
+| GET | `/api/calendar/team-events` | Get all team members' events for overlay view |
 
 #### Event features
-- **Start and end time**: Every event has a start (`date`) and optional end (`end_date`)
+- **Start and end time**: Every event has a start (`date`) and end (`end_date`) displayed as duration blocks
+- **Week view with time grid**: Hours from 7am to 9pm, events shown as colored blocks with duration
+- **Team overlay**: Toggle "Team" switch to see colleagues' events overlaid in grey
+- **Month view**: Compact overview with event previews per day
+- **Click to create**: Click any time slot (week) or day (month) to create an event pre-filled with that time
 - **Entity linking**: Link events to any lead, contact, company, deal, project, or campaign
 - **Edit**: Click any custom event to open detail dialog with edit mode
-- **Invite**: Enter email addresses (comma separated). Invitees receive an email with an `.ics` calendar file attachment
+- **Invite**: Enter email addresses. Invitees receive an email with an `.ics` calendar file attachment
 - **Invitees shown** as badges on the event detail
+- **Color coding**: Purple (events), violet (calls), amber (tasks), indigo (deals), blue (Google), grey (team)
 
 #### Invite response
 ```json

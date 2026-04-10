@@ -2262,6 +2262,42 @@ async def delete_project(project_id: str, current_user: dict = Depends(get_curre
 # ==================== CALENDAR ROUTES ====================
 
 @api_router.get("/calendar/events")
+
+@api_router.get("/calendar/team-events")
+async def get_team_calendar_events(current_user: dict = Depends(get_current_user)):
+    """Get calendar events for all team members in the org (for overlay view)"""
+    if not current_user.get("organization_id"):
+        org_id = await ensure_user_org(current_user)
+        current_user["organization_id"] = org_id
+    org_id = current_user["organization_id"]
+    
+    members = await db.users.find({"organization_id": org_id}, {"_id": 0, "password_hash": 0}).to_list(100)
+    
+    team_events = []
+    for member in members:
+        if member["user_id"] == current_user["user_id"]:
+            continue
+        uid = member["user_id"]
+        name = member.get("name", member.get("email", ""))
+        
+        # Get their scheduled calls
+        calls = await db.scheduled_calls.find({"organization_id": org_id, "created_by": uid, "status": "scheduled"}, {"_id": 0}).to_list(100)
+        for c in calls:
+            team_events.append({"id": c["schedule_id"], "title": f"{name}: Call with {c.get('lead_name','')}", "date": c["scheduled_at"], "end_date": None, "type": "team", "color": "#94a3b8", "member_name": name, "member_id": uid})
+        
+        # Get their calendar events
+        events = await db.calendar_events.find({"organization_id": org_id, "created_by": uid}, {"_id": 0}).to_list(100)
+        for e in events:
+            team_events.append({"id": e["event_id"], "title": f"{name}: {e['title']}", "date": e["date"], "end_date": e.get("end_date"), "type": "team", "color": "#94a3b8", "member_name": name, "member_id": uid})
+        
+        # Get their bookings
+        bookings = await db.bookings.find({"host_user_id": uid, "status": "confirmed"}, {"_id": 0}).to_list(100)
+        for b in bookings:
+            team_events.append({"id": b["booking_id"], "title": f"{name}: Meeting with {b.get('guest_name','')}", "date": b["start_time"], "end_date": b.get("end_time"), "type": "team", "color": "#94a3b8", "member_name": name, "member_id": uid})
+    
+    return team_events
+
+
 async def get_calendar_events(start: Optional[str] = None, end: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     """Get all calendar events from tasks, calls, deals for date range"""
     if not current_user.get("organization_id"):
