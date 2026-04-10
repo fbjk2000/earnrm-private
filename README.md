@@ -447,8 +447,25 @@ POST /api/ai/draft-email?lead_id=xxx&purpose=introduction&tone=professional
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/calendar/events` | All events (calls, tasks, deals, custom, Google) |
-| POST | `/api/calendar/events` | Create custom event. Params: `title`, `date`, `notes`, `color` |
-| DELETE | `/api/calendar/events/{event_id}` | Delete custom event |
+| POST | `/api/calendar/events` | Create event. Params: `title`, `date`, `end_date`, `notes`, `color`, `linked_type`, `linked_id` |
+| PUT | `/api/calendar/events/{event_id}` | Edit event (title, date, end_date, notes, color, linked_type, linked_id) |
+| DELETE | `/api/calendar/events/{event_id}` | Delete event |
+| POST | `/api/calendar/events/{event_id}/invite` | Invite people. Body: `["email@example.com"]` |
+
+#### Event features
+- **Start and end time**: Every event has a start (`date`) and optional end (`end_date`)
+- **Entity linking**: Link events to any lead, contact, company, deal, project, or campaign
+- **Edit**: Click any custom event to open detail dialog with edit mode
+- **Invite**: Enter email addresses (comma separated). Invitees receive an email with an `.ics` calendar file attachment
+- **Invitees shown** as badges on the event detail
+
+#### Invite response
+```json
+{
+  "invited": 2,
+  "total_invitees": 3
+}
+```
 
 #### Calendar Event Types
 | Type | Source | Color |
