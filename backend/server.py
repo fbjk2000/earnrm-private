@@ -2332,8 +2332,8 @@ async def get_calendar_events(start: Optional[str] = None, end: Optional[str] = 
     return events
 
 @api_router.post("/calendar/events")
-async def create_calendar_event(title: str, date: str, notes: Optional[str] = None, color: str = "#A100FF", linked_type: Optional[str] = None, linked_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
-    """Create a custom calendar event, optionally linked to a contact, lead, company, project, campaign, or deal"""
+async def create_calendar_event(title: str, date: str, end_date: Optional[str] = None, notes: Optional[str] = None, color: str = "#A100FF", linked_type: Optional[str] = None, linked_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Create a custom calendar event with start and end time"""
     if not current_user.get("organization_id"):
         org_id = await ensure_user_org(current_user)
         current_user["organization_id"] = org_id
@@ -2344,6 +2344,7 @@ async def create_calendar_event(title: str, date: str, notes: Optional[str] = No
         "organization_id": current_user["organization_id"],
         "title": title,
         "date": date,
+        "end_date": end_date,
         "notes": notes,
         "color": color,
         "linked_type": linked_type,

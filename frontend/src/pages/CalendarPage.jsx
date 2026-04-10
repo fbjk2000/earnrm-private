@@ -29,7 +29,7 @@ const CalendarPage = () => {
   const [view, setView] = useState('month');
   const [selectedDay, setSelectedDay] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: '', date: '', notes: '' });
+  const [newEvent, setNewEvent] = useState({ title: '', date: '', end_date: '', notes: '', linked_type: '', linked_id: '' });
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [linkableEntities, setLinkableEntities] = useState({ leads: [], contacts: [], companies: [], deals: [], projects: [], campaigns: [] });
@@ -81,11 +81,12 @@ const CalendarPage = () => {
     try {
       const params = new URLSearchParams({ title: newEvent.title, date: new Date(newEvent.date).toISOString() });
       if (newEvent.notes) params.set('notes', newEvent.notes);
+      if (newEvent.end_date) params.set('end_date', new Date(newEvent.end_date).toISOString());
       if (newEvent.linked_type && newEvent.linked_id) { params.set('linked_type', newEvent.linked_type); params.set('linked_id', newEvent.linked_id); }
       await axios.post(`${API}/calendar/events?${params}`, {}, getCfg());
       toast.success('Event created');
       setShowCreate(false);
-      setNewEvent({ title: '', date: '', notes: '', linked_type: '', linked_id: '' });
+      setNewEvent({ title: '', date: '', end_date: '', notes: '', linked_type: '', linked_id: '' });
       reloadEvents();
     } catch (err) { console.error(err); toast.error('Failed to create event'); }
   };
@@ -274,7 +275,8 @@ const CalendarPage = () => {
           <DialogHeader><DialogTitle>{ t('forms.newEvent') }</DialogTitle></DialogHeader>
           <div className="space-y-3 pt-2">
             <div><Label>Title *</Label><Input value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="Meeting, deadline..." data-testid="event-title" /></div>
-            <div><Label>Date *</Label><Input type="datetime-local" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} data-testid="event-date" /></div>
+            <div><Label>Start *</Label><Input type="datetime-local" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} data-testid="event-date" /></div>
+            <div><Label>End</Label><Input type="datetime-local" value={newEvent.end_date} onChange={e => setNewEvent({ ...newEvent, end_date: e.target.value })} data-testid="event-end-date" /></div>
             <div><Label>Notes</Label><Input value={newEvent.notes} onChange={e => setNewEvent({ ...newEvent, notes: e.target.value })} placeholder="Optional details" /></div>
             <div><Label>Link to</Label>
               <div className="grid grid-cols-2 gap-2">

@@ -61,6 +61,7 @@ const DashboardLayout = ({ children }) => {
     { path: '/calendar', label: l.calendar, iconKey: 'CheckSquare' },
     { path: '/bookings', label: l.bookings, iconKey: 'Users' },
     { path: '/capture', label: 'Capture', iconKey: 'Users' },
+    { path: '/files', label: 'Files', iconKey: 'CheckSquare' },
     { divider: true },
     { path: '/admin', label: l.admin, iconKey: 'Shield', adminOnly: true },
     { path: '/settings', label: l.settings, iconKey: 'Settings' },
