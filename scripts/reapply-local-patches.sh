@@ -26,7 +26,10 @@ if [[ ! -d "$PATCH_DIR" ]]; then
   exit 1
 fi
 
-mapfile -t PATCHES < <(find "$PATCH_DIR" -maxdepth 1 -type f -name '*.patch' | sort)
+PATCHES=()
+while IFS= read -r patch_path; do
+  PATCHES+=("$patch_path")
+done < <(find "$PATCH_DIR" -maxdepth 1 -type f -name '*.patch' | sort)
 
 if [[ ${#PATCHES[@]} -eq 0 ]]; then
   if [[ $REQUIRE_PATCHES -eq 1 ]]; then
@@ -54,4 +57,3 @@ for patch_file in "${PATCHES[@]}"; do
   echo "Resolve manually on this sync branch, then continue." >&2
   exit 2
 done
-
